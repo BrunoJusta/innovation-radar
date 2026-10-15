@@ -8,6 +8,10 @@ import { useSession } from "../AuthGate";
 import { Empty, Gauge } from "../ui";
 import { SREJECT, StartupDrawer } from "./StartupDrawer";
 import { FindStartups } from "./FindStartups";
+import { StartupsTable } from "./StartupsTable";
+
+const VIEW_KEY = "radar.startups.vista";
+const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; } };
 
 const ST: { id: Status; label: string }[] = [{ id: "pending", label: "Por decidir" }, { id: "approved", label: "Aprovadas" }, { id: "rejected", label: "Rejeitadas" }];
 
@@ -19,6 +23,9 @@ export function StartupsTriage({ startups, sectors, loaded, search, adding, setA
   const [fSec, setFSec] = useState("all");
   const [fFase, setFFase] = useState("all");
   const [sort, setSort] = useState<"score" | "date">("score");
+  const [view, setViewS] = useState<"cards" | "list">("cards");
+  useEffect(() => setViewS(readView()), []);
+  const setView = (v: "cards" | "list") => { setViewS(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* sem armazenamento */ } };
   const [openId, setOpenId] = useState<string | null>(null);
   const [rejectCard, setRejectCard] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; undo?: SSnapshot } | null>(null);
@@ -59,9 +66,14 @@ export function StartupsTriage({ startups, sectors, loaded, search, adding, setA
         <button aria-pressed={fFase === "all"} onClick={() => setFFase("all")}>Todas as fases</button>
         {[...FASES].reverse().map((f) => <button key={f.id} aria-pressed={fFase === f.id} onClick={() => setFFase(f.id)}>{f.nome}</button>)}
       </div>
-      <div className="seg" role="group" aria-label="Ordenar">
+      {view === "cards" && <div className="seg" role="group" aria-label="Ordenar">
         <button aria-pressed={sort === "score"} onClick={() => setSort("score")}>Relevância</button>
         <button aria-pressed={sort === "date"} onClick={() => setSort("date")}>Recentes</button>
+      </div>}
+      <span className="sp" />
+      <div className="seg" role="group" aria-label="Vista">
+        <button aria-pressed={view === "cards"} onClick={() => setView("cards")} title="Cartões"><Icon name="squares-four" />Cartões</button>
+        <button aria-pressed={view === "list"} onClick={() => setView("list")} title="Lista"><Icon name="list-bullets" />Lista</button>
       </div>
     </div>
 
@@ -69,6 +81,18 @@ export function StartupsTriage({ startups, sectors, loaded, search, adding, setA
       startups.length === 0
         ? <Empty icon={<Icon name="rss" size={22} />} title="Ainda sem startups" text="A recolha semanal corre à segunda de manhã. Também podes usar Adicionar startups para procurar online ou indicar o site de uma startup." />
         : <Empty icon={<Icon name="magnifying-glass" size={22} />} title="Nada por aqui" text="Nenhuma startup corresponde a este estado ou filtro." />
+    ) : view === "list" ? (
+      <StartupsTable list={list} sectors={sectors} onOpen={setOpenId}
+        onApprove={(s) => act(approveStartup(s, email), `«${s.nome}» aprovada e no radar`)}
+        onReject={(s, m) => act(rejectStartup(s, m), `«${s.nome}» rejeitada`)}
+        onStar={(s) => toggleStartupStar(s)} onBack={(s) => act(startupBackToTriage(s), `«${s.nome}» voltou à triagem`)}
+        onBulk={async (ids, acao, motivo) => {
+          const sel = startups.filter((s) => ids.includes(s.id));
+          try {
+            await Promise.all(sel.map((s) => acao === "approve" ? approveStartup(s, email) : acao === "reject" ? rejectStartup(s, motivo || "Pouco relevante") : startupBackToTriage(s)));
+            notify(`${sel.length} startup${sel.length > 1 ? "s" : ""} ${acao === "approve" ? "aprovada" : acao === "reject" ? "rejeitada" : "de volta à triagem"}${sel.length > 1 ? "s" : ""}`);
+          } catch { notify("Algumas não foram guardadas. Tenta outra vez."); }
+        }} />
     ) : (
       <div className="grid">
         {list.map((s) => {
