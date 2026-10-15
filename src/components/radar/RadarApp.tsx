@@ -192,12 +192,12 @@ export default function RadarApp() {
                 {areas.map((a, i) => (
                   <linearGradient key={a.id} id={`rg${i}`} x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0" style={{ stopColor: a.cor }} />
-                    <stop offset="0.38" style={{ stopColor: a.cor }} />
-                    <stop offset="0.5" style={{ stopColor: `color-mix(in srgb, ${a.cor} 45%, #ffffff)` }} />
-                    <stop offset="0.62" style={{ stopColor: a.cor }} />
+                    <stop offset="0.3" style={{ stopColor: a.cor }} />
+                    <stop offset="0.5" style={{ stopColor: `color-mix(in srgb, ${a.cor} 25%, #ffffff)` }} />
+                    <stop offset="0.7" style={{ stopColor: a.cor }} />
                     <stop offset="1" style={{ stopColor: a.cor }} />
                     {!still && <animateTransform attributeName="gradientTransform" type="rotate"
-                      from={i % 2 ? "360 .5 .5" : "0 .5 .5"} to={i % 2 ? "0 .5 .5" : "360 .5 .5"} dur={`${46 + i * 14}s`} repeatCount="indefinite" />}
+                      from={i % 2 ? "360 .5 .5" : "0 .5 .5"} to={i % 2 ? "0 .5 .5" : "360 .5 .5"} dur={`${26 + i * 8}s`} repeatCount="indefinite" />}
                   </linearGradient>
                 ))}
                 {links.map(([p, q], n) => (
@@ -211,6 +211,11 @@ export default function RadarApp() {
                 <g key={a.id} className={`ringg${fRing && a.id !== fRing ? " off" : ""}`}>
                   <circle style={{ r: R[i] * K }} r={R[i]} fill={`color-mix(in srgb, ${a.cor} 3%, transparent)`} />
                   <circle style={{ r: R[i] * K }} r={R[i]} fill="none" stroke={`url(#rg${i})`} strokeWidth={3} filter="url(#glow)" />
+                  {/* Órbita pontilhada que roda muito devagar junto a cada anel */}
+                  <g className="orbit">
+                    <circle style={{ r: R[i] * K - 9 }} r={R[i] - 9} fill="none" stroke={a.cor} strokeWidth={1.4} strokeDasharray="1.5 9" strokeLinecap="round" opacity={0.45} />
+                    {!still && <animateTransform attributeName="transform" type="rotate" from={i % 2 ? "0 0 0" : "360 0 0"} to={i % 2 ? "360 0 0" : "0 0 0"} dur={`${90 + i * 30}s`} repeatCount="indefinite" />}
+                  </g>
                 </g>
               ))}
               {areas.map((a, i) => {
