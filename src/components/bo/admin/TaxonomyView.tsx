@@ -47,7 +47,7 @@ export function TaxonomyView({ areas, cats }: { areas: Area[]; cats: Category[] 
         <div className="form">
           <h3>{ae._new ? "Nova área" : `Editar ${ae.nome}`}</h3>
           <div className="fgrid">
-            <label className="fld"><span>Nome</span><input value={ae.nome} onChange={(e) => setAe({ ...ae, nome: e.target.value })} /></label>
+            <label className="fld"><span>Nome</span><input autoComplete="off" value={ae.nome} onChange={(e) => setAe({ ...ae, nome: e.target.value })} /></label>
             <label className="fld"><span>Ordem (anel, 1 = centro)</span><input type="number" min={1} value={ae.ordem} onChange={(e) => setAe({ ...ae, ordem: +e.target.value })} /></label>
             <div className="fld wide"><span>Cor</span><div className="swatches">{AREA_COLORS.map((c) => (
               <button key={c} className="sw" aria-pressed={ae.cor === c} style={{ background: c }} aria-label={c} onClick={() => setAe({ ...ae, cor: c })} />))}
@@ -73,7 +73,7 @@ export function TaxonomyView({ areas, cats }: { areas: Area[]; cats: Category[] 
         <div className="form">
           <h3>{ce._new ? "Nova categoria" : `Editar ${ce.nome}`}</h3>
           <div className="fgrid">
-            <label className="fld"><span>Nome</span><input value={ce.nome} onChange={(e) => setCe({ ...ce, nome: e.target.value })} /></label>
+            <label className="fld"><span>Nome</span><input autoComplete="off" value={ce.nome} onChange={(e) => setCe({ ...ce, nome: e.target.value })} /></label>
             <label className="fld"><span>Ordem</span><input type="number" min={1} value={ce.ordem} onChange={(e) => setCe({ ...ce, ordem: +e.target.value })} /></label>
             <div className="fld wide"><span>Ícone</span><div className="icons">{CATEGORY_ICONS.map((n) => (
               <button key={n} className="ico" aria-pressed={ce.icone === n} aria-label={n} onClick={() => setCe({ ...ce, icone: n })}><Icon name={n} size={18} /></button>))}</div></div>

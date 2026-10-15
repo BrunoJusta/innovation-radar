@@ -18,7 +18,7 @@
   color-scheme:light;
 }
 .rp *{box-sizing:border-box}
-.rp{scroll-behavior:smooth}
+@media (prefers-reduced-motion:no-preference){.rp{scroll-behavior:smooth}}
 .rp{background:#FFFFFF;color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
 .rp button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 .rp a{color:inherit}
@@ -218,3 +218,5 @@
 .rp .periodo select{height:34px;line-height:1;padding-top:0;padding-bottom:0;font-size:14px}
 /* Mensagem de radar vazio legível por cima dos anéis */
 .rp .rempty b,.rp .rempty span{background:rgba(255,255,255,.94);padding:4px 12px;border-radius:10px;box-shadow:0 0 0 6px rgba(255,255,255,.94)}
+.rp .modal,.rp .scrim{overscroll-behavior:contain}
+@media (prefers-reduced-motion:reduce){.rp *,.rp *::before,.rp *::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}

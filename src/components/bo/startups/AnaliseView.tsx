@@ -144,7 +144,7 @@ export function AnaliseReport({ a }: { a: Analise }) {
                 {MATRIZ.map((m) => {
                   const v = a.criterios.find((c) => c.id === m.criterio)?.veredicto || "incerto";
                   return <tr key={m.criterio}><th>{m.nome}</th>{m.peso.map((w, i) => (
-                    <td key={i} className={w ? `mx-${v} w${w}` : "mx-0"} title={w ? `${VEREDICTOS[v].nome}${w === 2 ? " (obrigatório)" : ""}` : "Não conta neste ticket"}>{w ? <Icon name={VEREDICTOS[v].icon} /> : null}</td>
+                    <td key={i} className={w ? `mx-${v} w${w}` : "mx-0"} title={w ? `${VEREDICTOS[v].nome}${w === 2 ? " (obrigatório)" : ""}` : "Não conta neste ticket"}>{w ? <><Icon name={VEREDICTOS[v].icon} /><span className="sr">{VEREDICTOS[v].nome}{w === 2 ? ", obrigatório" : ""}</span></> : <span className="sr">Não conta</span>}</td>
                   ))}</tr>;
                 })}
               </tbody>

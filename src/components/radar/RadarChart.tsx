@@ -177,7 +177,7 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
 
   return (
     <div className="rbox" ref={boxRef}>
-      <svg ref={svgRef} className={`radar${noanim ? " noanim" : ""}`} viewBox="-310 -310 620 620" role="img" aria-label={ariaLabel}>
+      <svg ref={svgRef} className={`radar${noanim ? " noanim" : ""}`} viewBox="-310 -310 620 620" role="group" aria-label={ariaLabel}>
         <defs>
           <filter id={`${P}glow`} x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
           {/* Brilho que dá a volta aos anéis devagar: movimento contínuo, sem pulsar */}

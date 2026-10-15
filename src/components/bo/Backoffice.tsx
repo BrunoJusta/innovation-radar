@@ -20,7 +20,7 @@ const NEWS: { id: Status; label: string; icon: string }[] = [
   { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Rejeitadas", icon: "prohibit" },
 ];
 
-export function Backoffice() {
+export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
   const { isAdmin, profile, email } = useSession();
   const [view, setView] = useState<View>("dashboard");
   const [sPage, setSPage] = useState<{ p: "pending" | "approved" | "rejected" | "radar" | "pipeline"; k: number }>({ p: "pending", k: 0 });
@@ -67,6 +67,7 @@ export function Backoffice() {
           <div className="who-me" title={email}>
             <span>{profile.nome || email.split("@")[0]}</span><small>{profile.role === "admin" ? "Admin" : "Editor"}</small>
           </div>
+          {onQuick && <button className="btn icon" title="Vista rápida" aria-label="Abrir a vista rápida" onClick={onQuick}><Icon name="device-mobile" /></button>}
           <button className="btn icon" title="Sair" aria-label="Sair" onClick={() => logout()}><Icon name="sign-out" /></button>
         </div>
       </header>

@@ -59,9 +59,9 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
     <div className="scrim" onClick={onClose} />
     <aside className="drawer" role="dialog" aria-modal="true" aria-label={s.nome}>
       <div className="dtop"><span className="pos">{i >= 0 ? `${i + 1} de ${list.length}` : ""}</span><span className="sp" />
-        <button className="btn icon" title="Anterior" disabled={i <= 0} onClick={() => onNav(list[i - 1].id)}><Icon name="caret-up" /></button>
-        <button className="btn icon" title="Seguinte" disabled={i < 0 || i >= list.length - 1} onClick={() => onNav(list[i + 1].id)}><Icon name="caret-down" /></button>
-        <button className="btn icon" title="Fechar" onClick={onClose}><Icon name="x" /></button></div>
+        <button className="btn icon" title="Anterior" aria-label="Anterior" disabled={i <= 0} onClick={() => onNav(list[i - 1].id)}><Icon name="caret-up" /></button>
+        <button className="btn icon" title="Seguinte" aria-label="Seguinte" disabled={i < 0 || i >= list.length - 1} onClick={() => onNav(list[i + 1].id)}><Icon name="caret-down" /></button>
+        <button className="btn icon" title="Fechar" aria-label="Fechar" onClick={onClose}><Icon name="x" /></button></div>
       <div className="dscroll">
         <div className="dmeta">
           <span className="tg ar" style={{ ["--c" as string]: sec?.cor || "var(--ink-tertiary)" }}>{sec?.nome || "Sem setor"}</span>
@@ -140,7 +140,7 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
         ) : (<>
           <button className="btn primary lg" onClick={onApprove}><Icon name="check" />Aprovar</button>
           <button className="btn lg" onClick={() => setRejecting(true)}><Icon name="x" />Rejeitar</button><span className="sp" />
-          <button className="btn lg icon" title="Editar" onClick={() => setEditing(true)}><Icon name="pencil-simple" /></button>
+          <button className="btn lg icon" title="Editar" aria-label="Editar" onClick={() => setEditing(true)}><Icon name="pencil-simple" /></button>
         </>)) : (<>
           <button className="btn lg" onClick={onBack}><Icon name="arrow-u-up-left" />Voltar à triagem</button><span className="sp" />
         </>)}

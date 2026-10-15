@@ -165,7 +165,7 @@ export function AnChip({ s, onOpen }: { s: Startup; onOpen: () => void }) {
   const { running } = useAnaliseQueue();
   if (running.has(`startups/${s.id}`)) return null;
   const a = s.analiseResumo;
-  return <button type="button" className={`anchip btn-an ${a ? a.decisao : "none"}`} title={a ? `Ver a análise de investimento (${a.positivos} de 11 critérios positivos)` : "Fazer a análise de investimento"}
+  return <button type="button" className={`anchip btn-an ${a ? a.decisao : "none"}`} title={a ? `Análise de investimento: ${a.decisao === "investir" ? "investir" : "não investir"}, ${a.positivos} de 11 critérios positivos` : "Fazer a análise de investimento"}
     onClick={(e) => { e.stopPropagation(); onOpen(); }} onKeyDown={(e) => e.stopPropagation()}>
-    <Icon name="scales" />{a ? (a.decisao === "investir" ? "Investir" : "Não investir") : "Analisar"}</button>;
+    <Icon name="scales" />{a ? "Ver análise" : "Fazer análise"}</button>;
 }

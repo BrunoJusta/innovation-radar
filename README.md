@@ -120,6 +120,8 @@ Secção **Startups** com duas páginas:
 
 **Configurar:** setores e pesquisas em Definições › Startups › Setores e pesquisas. O seed cria os 4 setores iniciais (Vinha e adega, Embalagem e rótulos, Consumidor e vendas, Dados e operações) com 4 pesquisas cada e substitui os setores da primeira versão, passando as startups que os usavam para o setor mais próximo. As execuções aparecem em Definições › Execuções, com a coluna Recolha a dizer "Startups".
 
+**Telemóvel:** num telemóvel o backoffice abre numa vista rápida, só de leitura, com a agenda dos próximos passos (calendário) e o pipeline por fase. Há um botão para a versão completa e outro, na versão completa, para voltar. O site tem manifesto de app (PWA): no Android "Instalar app" e no iPhone "Partilhar › Adicionar ao ecrã principal" põem o ícone do Radar no ecrã, a abrir no backoffice.
+
 **Custos:** cada pesquisa online usa uma pesquisa Google da Gemini. Com 16 pesquisas por semana mais as fichas das startups citadas nas notícias, fica dentro da parte gratuita da Gemini 2.5 Flash.
 
 ## Pipeline (Sogrape Ventures, só administradores)

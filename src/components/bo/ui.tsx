@@ -34,7 +34,7 @@ export function Empty({ icon, title, text, children }: { icon?: React.ReactNode;
 export function SearchField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   return (
     <label className="fsearch"><Icon name="magnifying-glass" />
-      <input type="search" value={value} placeholder={placeholder} aria-label={placeholder} onChange={(e) => onChange(e.target.value)}
+      <input type="search" autoComplete="off" spellCheck={false} value={value} placeholder={placeholder} aria-label={placeholder} onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Escape" && value) { e.stopPropagation(); onChange(""); } }} />
       {value && <button type="button" className="fsx" aria-label="Limpar pesquisa" onClick={() => onChange("")}><Icon name="x" /></button>}
     </label>

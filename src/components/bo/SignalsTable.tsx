@@ -40,8 +40,9 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
   const all = rows.length > 0 && sel.length === rows.length;
   const status = rows[0]?.status;
   const toggle = (id: string) => { const n = new Set(picked); if (n.has(id)) n.delete(id); else n.add(id); setPicked(n); };
+  // Função (não componente): o botão de ordenar não é recriado e mantém o foco
   const Th = ({ col, children, cls = "" }: { col: Col; children: React.ReactNode; cls?: string }) => (
-    <th className={cls} aria-sort={sort.col === col ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+    <th key={col} className={cls} aria-sort={sort.col === col ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button className="thb" onClick={() => setSort(sort.col === col ? { col, dir: sort.dir === 1 ? -1 : 1 } : { col, dir: col === "titulo" || col === "area" || col === "categoria" ? 1 : -1 })}>
         {children}<Icon name={sort.col === col ? (sort.dir === 1 ? "caret-up" : "caret-down") : "caret-up-down"} /></button>
     </th>
@@ -53,14 +54,14 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
       <table>
         <thead><tr>
           <th className="ck"><input type="checkbox" aria-label="Selecionar todas" checked={all} onChange={() => setPicked(all ? new Set() : new Set(rows.map((r) => r.id)))} /></th>
-          <Th col="titulo">Notícia</Th><Th col="area">Área</Th><Th col="categoria">Categoria</Th>
-          <Th col="dataPublicacao" cls="n">Publicada</Th><Th col="relevancia" cls="n">Relevância</Th><Th col="criadoEm" cls="n">Entrou</Th>
+          {Th({ col: "titulo", children: "Notícia" })}{Th({ col: "area", children: "Área" })}{Th({ col: "categoria", children: "Categoria" })}
+          {Th({ col: "dataPublicacao", cls: "n", children: "Publicada" })}{Th({ col: "relevancia", cls: "n", children: "Relevância" })}{Th({ col: "criadoEm", cls: "n", children: "Entrou" })}
           <th className="acts"><span className="sr">Ações</span></th>
         </tr></thead>
         <tbody>{rows.map((s) => {
           const a = area(s.area), c = cat(s.categoria), sites = [...new Set(s.fontes.map((f) => f.site))];
           return (<Fragment key={s.id}>
-            <tr className={picked.has(s.id) ? "on" : ""} onClick={() => onOpen(s.id)} style={{ ["--c" as string]: a?.cor || "var(--ink-tertiary)" }}>
+            <tr className={picked.has(s.id) ? "on" : ""} tabIndex={0} onClick={() => onOpen(s.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) onOpen(s.id); }} style={{ ["--c" as string]: a?.cor || "var(--ink-tertiary)" }}>
               <td className="ck" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Selecionar ${s.titulo}`} checked={picked.has(s.id)} onChange={() => toggle(s.id)} /></td>
               <td className="ttl"><b>{s.titulo}</b>
                 <span className="tsub">{sites.length > 1 ? `${sites[0]} e mais ${sites.length - 1}` : sites[0]}

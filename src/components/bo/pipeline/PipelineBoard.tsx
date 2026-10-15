@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import { moveDeal } from "@/lib/deal-actions";
 import { Deal, ETAPAS_ATIVAS, Etapa, VERTICAIS_DF, VEZES } from "@/lib/types";
-import { fdCurto } from "@/lib/util";
+import { fdCurto, hojeLocal, nDias } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { AnaliseLoading } from "../AnaliseQueue";
 
@@ -11,7 +11,7 @@ export const diasDesde = (iso: string | null | undefined) => { const t = Date.pa
 /** Estado do prazo: atrasado, nos próximos 3 dias, ou sem urgência. */
 export function prazoEstado(d: Pick<Deal, "prazo" | "etapa">): "atrasado" | "breve" | "" {
   if (!d.prazo || d.etapa === "arquivada") return "";
-  const dias = Math.floor((Date.parse(d.prazo) - Date.parse(new Date().toISOString().slice(0, 10))) / 864e5);
+  const dias = Math.round((Date.parse(d.prazo) - Date.parse(hojeLocal())) / 864e5);
   return dias < 0 ? "atrasado" : dias <= 3 ? "breve" : "";
 }
 const nm = <T extends { id: string; nome: string }>(l: T[], id: string | null | undefined) => l.find((x) => x.id === id)?.nome || "";
@@ -29,7 +29,7 @@ export function DealCard({ d, onOpen, drag }: { d: Deal; onOpen: () => void; dra
         {vez && <span className={`vez v-${vez.id}`}>{vez.curto}</span>}
         {d.prazo && <span className={`pz ${pz === "atrasado" ? "late" : pz === "breve" ? "soon" : ""}`} title="Prazo"><Icon name="calendar-blank" />{fdCurto(d.prazo)}</span>}
         <span className="sp" />
-        <span className={`dias${dias > 30 ? " old" : ""}`} title="Dias nesta fase">{dias} d</span>
+        <span className={`dias${dias > 30 ? " old" : ""}`} title={`${nDias(dias)} nesta fase`}>{dias} d</span>
       </div>
     </article>
   );

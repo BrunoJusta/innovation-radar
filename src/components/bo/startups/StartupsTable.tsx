@@ -46,8 +46,9 @@ export function StartupsTable({ list, sectors, onOpen, onAnalise, onApprove, onR
   const all = rows.length > 0 && sel.length === rows.length;
   const status = rows[0]?.status;
   const toggle = (id: string) => { const n = new Set(picked); if (n.has(id)) n.delete(id); else n.add(id); setPicked(n); };
+  // Função (não componente): o botão de ordenar não é recriado e mantém o foco
   const Th = ({ col, children, cls = "" }: { col: Col; children: React.ReactNode; cls?: string }) => (
-    <th className={cls} aria-sort={sort.col === col ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+    <th key={col} className={cls} aria-sort={sort.col === col ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button className="thb" onClick={() => setSort(sort.col === col ? { col, dir: sort.dir === 1 ? -1 : 1 } : { col, dir: col === "relevancia" || col === "criadoEm" || col === "fundacao" || col === "analise" ? -1 : 1 })}>
         {children}<Icon name={sort.col === col ? (sort.dir === 1 ? "caret-up" : "caret-down") : "caret-up-down"} /></button>
     </th>
@@ -59,14 +60,14 @@ export function StartupsTable({ list, sectors, onOpen, onAnalise, onApprove, onR
       <table>
         <thead><tr>
           <th className="ck"><input type="checkbox" aria-label="Selecionar todas" checked={all} onChange={() => setPicked(all ? new Set() : new Set(rows.map((r) => r.id)))} /></th>
-          <Th col="nome">Startup</Th><Th col="setor">Setor</Th><Th col="fase">Fase</Th><Th col="pais">País</Th>
-          <Th col="fundacao" cls="n">Fundação</Th><th>Financiamento</th><Th col="analise">Análise</Th><Th col="relevancia" cls="n">Relevância</Th><Th col="criadoEm" cls="n">Entrou</Th>
+          {Th({ col: "nome", children: "Startup" })}{Th({ col: "setor", children: "Setor" })}{Th({ col: "fase", children: "Fase" })}{Th({ col: "pais", children: "País" })}
+          {Th({ col: "fundacao", cls: "n", children: "Fundação" })}<th>Financiamento</th>{Th({ col: "analise", children: "Análise" })}{Th({ col: "relevancia", cls: "n", children: "Relevância" })}{Th({ col: "criadoEm", cls: "n", children: "Entrou" })}
           <th className="acts"><span className="sr">Ações</span></th>
         </tr></thead>
         <tbody>{rows.map((s) => {
           const c = sec(s.setor), f = FASES.find((x) => x.id === s.fase);
           return (<Fragment key={s.id}>
-            <tr className={picked.has(s.id) ? "on" : ""} onClick={() => onOpen(s.id)} style={{ ["--c" as string]: c?.cor || "var(--ink-tertiary)" }}>
+            <tr className={picked.has(s.id) ? "on" : ""} tabIndex={0} onClick={() => onOpen(s.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) onOpen(s.id); }} style={{ ["--c" as string]: c?.cor || "var(--ink-tertiary)" }}>
               <td className="ck" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Selecionar ${s.nome}`} checked={picked.has(s.id)} onChange={() => toggle(s.id)} /></td>
               <td><div className="tname"><span className="slogo">{s.nome.slice(0, 1).toUpperCase()}</span>
                 <div><b>{s.nome}</b><a href={s.site} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>{s.dominio}</a></div></div></td>
@@ -76,8 +77,8 @@ export function StartupsTable({ list, sectors, onOpen, onAnalise, onApprove, onR
               <td className="n">{s.fundacao || <span className="mut">-</span>}</td>
               <td className="fin">{s.financiamento || <span className="mut">Sem dados</span>}</td>
               <td>{running.has(`startups/${s.id}`) ? <AnaliseLoading path={`startups/${s.id}`} /> : <button type="button" className={`anchip btn-an ${s.analiseResumo ? s.analiseResumo.decisao : "none"}`} onClick={(e) => { e.stopPropagation(); onAnalise(s); }}
-                title={s.analiseResumo ? `Ver a análise (${s.analiseResumo.positivos} de 11 critérios positivos)` : "Fazer a análise de investimento"}>
-                <Icon name="scales" />{s.analiseResumo ? <>{s.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}{s.analiseResumo.ticket ? ` · ${nomeTicket(s.analiseResumo.ticket)}` : ""}</> : "Analisar"}</button>}</td>
+                title={s.analiseResumo ? `Análise de investimento: ${s.analiseResumo.decisao === "investir" ? "investir" : "não investir"}${s.analiseResumo.ticket ? `, ${nomeTicket(s.analiseResumo.ticket)}` : ""}, ${s.analiseResumo.positivos} de 11 critérios positivos` : "Fazer a análise de investimento"}>
+                <Icon name="scales" />{s.analiseResumo ? "Ver análise" : "Fazer análise"}</button>}</td>
               <td className="n"><span className={`trel lv-${relLevel(s.relevancia)}`}><Gauge v={s.relevancia} />{s.relevancia}</span></td>
               <td className="n mut">{fdCurto(s.criadoEm)}</td>
               <td className="acts" onClick={(e) => e.stopPropagation()}>

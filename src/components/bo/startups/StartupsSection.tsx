@@ -40,15 +40,15 @@ function Section({ initial }: { initial: Page }) {
     { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Arquivo", icon: "prohibit" },
   ];
   const Tab = ({ t }: { t: (typeof TABS)[number] }) => (
-    <button aria-current={page === t.id} onClick={() => setPage(t.id)}><Icon name={t.icon} />{t.label}
+    <button key={t.id} aria-current={page === t.id} onClick={() => setPage(t.id)}><Icon name={t.icon} />{t.label}
       {cnt(t.id) > 0 && <span className={t.id === "pending" ? "c" : "c soft"}>{cnt(t.id)}</span>}</button>
   );
   return (<>
     <div className="pagebar">
       <nav className="subnav" aria-label="Startups">
-        {TABS.slice(0, 2).map((t) => <Tab key={t.id} t={t} />)}
+        {TABS.slice(0, 2).map((t) => Tab({ t }))}
         {canPipeline && <button aria-current={page === "pipeline"} onClick={() => setPage("pipeline")}><Icon name="kanban" />Pipeline<PipeCount /></button>}
-        {TABS.slice(2).map((t) => <Tab key={t.id} t={t} />)}
+        {TABS.slice(2).map((t) => Tab({ t }))}
         <button aria-current={page === "radar"} onClick={() => setPage("radar")}><Icon name="globe" />Radar</button>
       </nav>
       {page !== "radar" && (

@@ -10,11 +10,12 @@ import { useDeals } from "./DealsLookup";
 import { PipelineBoard, prazoEstado } from "./PipelineBoard";
 import { PipelineTable } from "./PipelineTable";
 import { DealDrawer } from "./DealDrawer";
+import { PipelineCalendar } from "./PipelineCalendar";
 
 type Estado = "ativas" | "arquivadas";
-type Vista = "quadro" | "lista";
+type Vista = "quadro" | "lista" | "calendario";
 const VIEW_KEY = "radar.pipeline.vista";
-const readView = (): Vista => { try { return localStorage.getItem(VIEW_KEY) === "lista" ? "lista" : "quadro"; } catch { return "quadro"; } };
+const readView = (): Vista => { try { const v = localStorage.getItem(VIEW_KEY); return v === "lista" || v === "calendario" ? v : "quadro"; } catch { return "quadro"; } };
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /** Pipeline da Sogrape Ventures (página dentro de Startups): o seguimento do primeiro contacto ao investimento. */
@@ -80,6 +81,7 @@ export function PipelineSection({ search }: { search: string }) {
     {!loaded ? <div className="loading">A carregar…</div>
       : erro ? <Empty title="Sem acesso ao pipeline" text={erro} />
       : !deals.length ? <Empty title="O pipeline está vazio" text="Para começar o seguimento de uma startup, abre-a na Triagem ou nas Aprovadas e carrega em «Pôr no pipeline»." />
+      : !arquivadas && vista === "calendario" ? <PipelineCalendar deals={filtradas} onOpen={setOpenId} />
       : !arquivadas && vista === "quadro" ? <PipelineBoard deals={filtradas} onOpen={setOpenId} notify={flash} />
       : !filtradas.length ? <Empty title="Nada encontrado" text="Muda a pesquisa ou os filtros." />
       : <PipelineTable key={`${estado}-${vista}`} deals={filtradas} arquivadas={arquivadas} onOpen={setOpenId} />}

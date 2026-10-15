@@ -18,7 +18,7 @@ export function DraftFields({ value: v, onChange, areas, cats, withSource = fals
   return (
     <div className="dform">
       <label className="fld full"><span>Título</span>
-        <input value={v.titulo} maxLength={140} onChange={(e) => onChange({ titulo: e.target.value })} /></label>
+        <input autoComplete="off" value={v.titulo} maxLength={140} onChange={(e) => onChange({ titulo: e.target.value })} /></label>
 
       <div className="fgrid">
         <label className="fld"><span>Área</span>
@@ -38,14 +38,14 @@ export function DraftFields({ value: v, onChange, areas, cats, withSource = fals
       <label className="fld full"><span>Porque importa para a Sogrape <em>(só no backoffice)</em></span>
         <textarea rows={3} value={v.porque} onChange={(e) => onChange({ porque: e.target.value })} /></label>
       <label className="fld full"><span>Entidades referidas <em>(separadas por vírgulas)</em></span>
-        <input value={ents} onChange={(e) => { setEnts(e.target.value); onChange({ entidades: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) }); }} /></label>
+        <input autoComplete="off" value={ents} onChange={(e) => { setEnts(e.target.value); onChange({ entidades: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) }); }} /></label>
 
       {withSource && v.fonte && (
         <fieldset className="srcf"><legend>Fonte</legend>
           <div className="fgrid">
-            <label className="fld"><span>Site</span><input value={v.fonte.site} onChange={(e) => onChange({ fonte: { ...v.fonte!, site: e.target.value } })} /></label>
-            <label className="fld wide"><span>Título original</span><input value={v.fonte.tituloOriginal} onChange={(e) => onChange({ fonte: { ...v.fonte!, tituloOriginal: e.target.value } })} /></label>
-            <label className="fld"><span>Autor</span><input value={v.fonte.autor || ""} onChange={(e) => onChange({ fonte: { ...v.fonte!, autor: e.target.value || undefined } })} /></label>
+            <label className="fld"><span>Site</span><input autoComplete="off" value={v.fonte.site} onChange={(e) => onChange({ fonte: { ...v.fonte!, site: e.target.value } })} /></label>
+            <label className="fld wide"><span>Título original</span><input autoComplete="off" value={v.fonte.tituloOriginal} onChange={(e) => onChange({ fonte: { ...v.fonte!, tituloOriginal: e.target.value } })} /></label>
+            <label className="fld"><span>Autor</span><input autoComplete="off" value={v.fonte.autor || ""} onChange={(e) => onChange({ fonte: { ...v.fonte!, autor: e.target.value || undefined } })} /></label>
           </div>
           <a className="srcl" href={v.fonte.url} target="_blank" rel="noopener noreferrer">{v.fonte.url}</a>
         </fieldset>

@@ -65,7 +65,7 @@ function Weekly({ signals }: { signals: Signal[] }) {
   return (<div className="dweek">
     <div className="dleg"><span><i className="s-ent" />Entraram na triagem</span><span><i className="s-apr" />Aprovadas</span></div>
     <div className="plot" onMouseLeave={() => setHover(null)}>
-      <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" aria-label="Notícias por semana" role="img">
+      <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" aria-hidden="true">
         {[0.5, 1].map((g) => <line key={g} x1={0} x2={100} y1={H - g * (H - 6)} y2={H - g * (H - 6)} className="grid" vectorEffect="non-scaling-stroke" />)}
         {weeks.map((w, i) => {
           const x = i * W, bw = W * 0.32, he = (w.ent / max) * (H - 6), ha = (w.apr / max) * (H - 6);
@@ -78,6 +78,8 @@ function Weekly({ signals }: { signals: Signal[] }) {
       </svg>
       {h && <div className="tip" style={{ left: `${Math.min(80, (hover! + 0.5) * W)}%` }}><b>Semana de {fdCurto(h.d.toISOString())}</b><span>{h.ent} entraram</span><span>{h.apr} aprovadas</span></div>}
     </div>
+    <table className="sr"><caption>Notícias por semana</caption><thead><tr><th>Semana</th><th>Entraram</th><th>Aprovadas</th></tr></thead>
+      <tbody>{weeks.map((w) => <tr key={w.d.toISOString()}><td>{fdCurto(w.d.toISOString())}</td><td>{w.ent}</td><td>{w.apr}</td></tr>)}</tbody></table>
     <div className="xax"><span>{fdCurto(weeks[0].d.toISOString())}</span><span>{fdCurto(weeks[6].d.toISOString())}</span><span>Esta semana</span></div>
   </div>);
 }
@@ -177,15 +179,15 @@ export function DashboardView({ signals, areas, cats, go, startups, sectors, dea
 
     {/* 2. Startups */}
     <h2 className="dsec">Startups</h2>
-    <div className="dfunnel" role="list" aria-label="Funil das startups">
+    <ul className="dfunnel" aria-label="Funil das startups">
       {[{ k: "Encontradas", n: st.total, p: "startups" as const }, { k: "Aprovadas", n: st.aprov, p: "approved" as const }, { k: "No pipeline", n: st.noPipe, p: "pipeline" as const },
         ...(canPipeline ? [{ k: "Investidas", n: st.investidas, p: "pipeline" as const }] : [])].map((x, i, arr) => (
-        <button key={x.k} role="listitem" className="fstep" onClick={() => go({ view: "startups", page: x.p === "startups" ? "pending" : x.p === "pipeline" && !canPipeline ? "approved" : x.p })}>
+        <li key={x.k}><button className="fstep" onClick={() => go({ view: "startups", page: x.p === "startups" ? "pending" : x.p === "pipeline" && !canPipeline ? "approved" : x.p })}>
           <span className="fb" style={{ width: `${Math.max(8, (x.n / Math.max(1, arr[0].n)) * 100)}%` }} />
           <b>{x.n}</b><span>{x.k}</span>{i > 0 && <em>{pct(x.n, arr[i - 1].n)}% da fase anterior</em>}
-        </button>
+        </button></li>
       ))}
-    </div>
+    </ul>
     <div className="dgrid">
       <Card title="Por setor" sub="Startups em triagem e aprovadas"><Bars rows={st.setores} total={st.setores.reduce((a, r) => a + r.n, 0)} /></Card>
       <Card title="Por fase de investimento"><Bars rows={st.fases} total={st.fases.reduce((a, r) => a + r.n, 0)} /></Card>

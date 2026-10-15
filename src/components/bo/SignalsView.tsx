@@ -147,7 +147,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
         <div className="bulk"><span>{picked.size} selecionada{picked.size > 1 ? "s" : ""}</span>
           <button className="btn primary" onClick={() => doBulk("approved")}><Icon name="check" />Aprovar</button>
           <button className="btn" onClick={() => doBulk("rejected")}><Icon name="x" />Rejeitar</button>
-          <button className="btn icon" title="Limpar seleção" onClick={() => setPicked(new Set())}><Icon name="x" /></button>
+          <button className="btn icon" title="Limpar seleção" aria-label="Limpar seleção" onClick={() => setPicked(new Set())}><Icon name="x" /></button>
         </div>
       )}
 
@@ -196,7 +196,7 @@ function Card({ s, area, cat, picked, rejecting, onOpen, onPick, onApprove, onRe
           <div className="rgrid">{REJECT_REASONS.map((m) => <button key={m} onClick={() => onReason(m)}>{m}</button>)}</div></div>
       ) : (
         <div className="cact">
-          <button className="chk" role="checkbox" aria-checked={picked} aria-label="Selecionar" onClick={onPick}><Icon name="check" /></button>
+          <button className="chk" role="checkbox" aria-checked={picked} aria-label={`Selecionar ${s.titulo}`} onClick={onPick}><Icon name="check" /></button>
           <button className="btn primary" onClick={onApprove}><Icon name="check" />Aprovar</button>
           <button className="btn" onClick={onReject}><Icon name="x" />Rejeitar</button><span className="sp" />
         </div>
@@ -238,9 +238,9 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onB
     <div className="scrim" onClick={onClose} />
     <aside className="drawer" role="dialog" aria-modal="true" aria-label={s.titulo}>
       <div className="dtop"><span className="pos">{i >= 0 ? `${i + 1} de ${list.length}` : ""}</span><span className="sp" />
-        <button className="btn icon" title="Anterior" disabled={i <= 0} onClick={() => onNav(list[i - 1].id)}><Icon name="caret-up" /></button>
-        <button className="btn icon" title="Seguinte" disabled={i < 0 || i >= list.length - 1} onClick={() => onNav(list[i + 1].id)}><Icon name="caret-down" /></button>
-        <button className="btn icon" title="Fechar" onClick={onClose}><Icon name="x" /></button></div>
+        <button className="btn icon" title="Anterior" aria-label="Anterior" disabled={i <= 0} onClick={() => onNav(list[i - 1].id)}><Icon name="caret-up" /></button>
+        <button className="btn icon" title="Seguinte" aria-label="Seguinte" disabled={i < 0 || i >= list.length - 1} onClick={() => onNav(list[i + 1].id)}><Icon name="caret-down" /></button>
+        <button className="btn icon" title="Fechar" aria-label="Fechar" onClick={onClose}><Icon name="x" /></button></div>
       <div className="dscroll">
         <div className="dmeta">
           <span className="tg ar" style={{ ["--c" as string]: area?.cor || "var(--ink-tertiary)" }}>{area?.nome}</span><span className="tg">{cat && <Icon name={cat.icone} />}{cat?.nome}</span>
@@ -294,7 +294,7 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onB
         ) : (<>
           <button className="btn primary lg" onClick={onApprove}><Icon name="check" />Aprovar</button>
           <button className="btn lg" onClick={() => setRejecting(true)}><Icon name="x" />Rejeitar</button><span className="sp" />
-          <button className="btn lg icon" title="Editar" onClick={startEdit}><Icon name="pencil-simple" /></button>
+          <button className="btn lg icon" title="Editar" aria-label="Editar" onClick={startEdit}><Icon name="pencil-simple" /></button>
         </>)) : (
           <button className="btn lg" onClick={onBack}><Icon name="arrow-u-up-left" />Voltar à triagem</button>
         )}

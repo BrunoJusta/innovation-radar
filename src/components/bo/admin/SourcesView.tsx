@@ -69,11 +69,11 @@ export function SourcesView({ para = "noticias" }: { para?: "noticias" | "startu
       <div className="form">
         <h3>{isNew ? "Nova fonte" : `Editar ${edit.nome}`}</h3>
         <div className="fgrid">
-          <label className="fld"><span>Nome</span><input value={edit.nome} onChange={(e) => setEdit({ ...edit, nome: e.target.value })} placeholder="BeverageDaily" /></label>
+          <label className="fld"><span>Nome</span><input autoComplete="off" value={edit.nome} onChange={(e) => setEdit({ ...edit, nome: e.target.value })} placeholder="BeverageDaily" /></label>
           <label className="fld wide"><span>URL do feed</span><input value={edit.url} onChange={(e) => setEdit({ ...edit, url: e.target.value })} placeholder="https://site.com/feed/" type="url" spellCheck={false} autoComplete="off" /></label>
           <label className="fld"><span>Tipo</span><select value={edit.tipo} onChange={(e) => setEdit({ ...edit, tipo: e.target.value as Source["tipo"] })}><option value="rss">RSS</option><option value="wp-api">WordPress API</option></select></label>
           <label className="fld"><span>Língua</span><select value={edit.lingua} onChange={(e) => setEdit({ ...edit, lingua: e.target.value as Source["lingua"] })}><option value="pt">Português</option><option value="en">Inglês</option></select></label>
-          {news && <label className="fld wide"><span>Grupo</span><input value={edit.grupo || ""} list="src-grupos" onChange={(e) => setEdit({ ...edit, grupo: e.target.value })} placeholder="Escolhe ou escreve um grupo" />
+          {news && <label className="fld wide"><span>Grupo</span><input autoComplete="off" value={edit.grupo || ""} list="src-grupos" onChange={(e) => setEdit({ ...edit, grupo: e.target.value })} placeholder="Escolhe ou escreve um grupo" />
             <datalist id="src-grupos">{grupos.map((g) => <option key={g} value={g} />)}</datalist></label>}
         </div>
         <p className="hint">{edit.tipo === "rss" ? "O endereço do feed RSS, normalmente termina em /feed/ ou /rss." : "O endereço base do site WordPress (a recolha usa /wp-json/wp/v2/posts) ou o endereço completo da API com filtros, por exemplo …/wp-json/wp/v2/posts?categories=772."}</p>

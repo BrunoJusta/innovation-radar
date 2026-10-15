@@ -7,14 +7,14 @@ import { nomeTicket } from "@/lib/analise-util";
 import { addInteracao, archiveDeal, delInteracao, moveDeal, reopenDeal, saveDeal } from "@/lib/deal-actions";
 import { AlvoAnalise } from "@/lib/analise-run";
 import { Deal, ETAPAS, ETAPAS_ATIVAS, Etapa, FASES_DF, Interacao, MOTIVOS_ARQUIVO, MotivoArquivo, ORIGENS_DF, TIPOS_INTERACAO, TipoInteracao, VERTICAIS_DF, VEZES, Vez } from "@/lib/types";
-import { fdLongo } from "@/lib/util";
+import { fdLongo, hojeLocal, nDias } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { AnaliseView } from "../startups/AnaliseView";
 import { DealEdit, DealFields, fmtEur, pickDeal } from "./DealFields";
 import { diasDesde, prazoEstado } from "./PipelineBoard";
 
 const nm = <T extends { id: string; nome: string }>(l: T[], id: string | null | undefined) => l.find((x) => x.id === id)?.nome || "";
-const hoje = () => new Date().toISOString().slice(0, 10);
+const hoje = () => hojeLocal();
 
 export const alvoDeal = (d: Deal): AlvoAnalise => d.startupId
   ? { path: `startups/${d.startupId}`, alsoResumo: `deals/${d.id}`, nome: d.nome, site: d.site, dominio: d.dominio, descricao: d.descricao, setor: nm(VERTICAIS_DF, d.vertical) }
@@ -31,6 +31,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
   const [motivo, setMotivo] = useState<MotivoArquivo | "">("");
   const [notaArq, setNotaArq] = useState("");
   const [analise, setAnalise] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [ints, setInts] = useState<Interacao[] | null>(null);
   const [nova, setNova] = useState<{ tipo: TipoInteracao; data: string; texto: string; participantes: string } | null>(null);
   const [next, setNext] = useState({ vez: d.vez, proximaAcao: d.proximaAcao, prazo: d.prazo || "", responsavel: d.responsavel });
@@ -64,9 +65,9 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
     <div className="scrim" onClick={onClose} />
     <aside className="drawer dd" role="dialog" aria-modal="true" aria-label={d.nome}>
       <div className="dtop"><span className="pos">{i >= 0 ? `${i + 1} de ${list.length}` : ""}</span><span className="sp" />
-        <button className="btn icon" title="Anterior" disabled={i <= 0} onClick={() => onNav(list[i - 1].id)}><Icon name="caret-up" /></button>
-        <button className="btn icon" title="Seguinte" disabled={i < 0 || i >= list.length - 1} onClick={() => onNav(list[i + 1].id)}><Icon name="caret-down" /></button>
-        <button className="btn icon" title="Fechar" onClick={onClose}><Icon name="x" /></button></div>
+        <button className="btn icon" title="Anterior" aria-label="Anterior" disabled={i <= 0} onClick={() => onNav(list[i - 1].id)}><Icon name="caret-up" /></button>
+        <button className="btn icon" title="Seguinte" aria-label="Seguinte" disabled={i < 0 || i >= list.length - 1} onClick={() => onNav(list[i + 1].id)}><Icon name="caret-down" /></button>
+        <button className="btn icon" title="Fechar" aria-label="Fechar" onClick={onClose}><Icon name="x" /></button></div>
       <div className="dscroll">
         <div className="dmeta">
           {d.ref && <span className="tg mn">{d.ref}</span>}
@@ -94,7 +95,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
               {d.arquivo?.nota && <p>{d.arquivo.nota}</p>}
               {d.arquivo?.etapaAnterior && <span>Estava em {nm(ETAPAS, d.arquivo.etapaAnterior)}</span>}</div></div>
         )}
-        <p className="since">{ativa ? `Em ${nm(ETAPAS, d.etapa)} há ${diasDesde(d.etapaDesde)} dias · ` : ""}Entrou em {fdLongo(d.entrada)}</p>
+        <p className="since">{ativa ? `Em ${nm(ETAPAS, d.etapa)} há ${nDias(diasDesde(d.etapaDesde))} · ` : ""}Entrou em {fdLongo(d.entrada)}</p>
 
         {/* Próximo passo */}
         {ativa && <div className={`blk nextbox${pz === "atrasado" ? " late" : ""}`}><div className="bh"><h4>Próximo passo</h4>{pz === "atrasado" && <span className="pz late">Atrasado</span>}</div>
@@ -170,19 +171,19 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
               <label className="fld full"><span>O que aconteceu</span><textarea autoFocus rows={4} value={nova.texto} onChange={(e) => setNova({ ...nova, texto: e.target.value })}
                 placeholder="ex.: Intro meeting. Apresentaram a ronda de 1,5 M€; ficámos de partilhar o deck com a BC." /></label>
               <div className="factions"><button className="txtbtn" onClick={() => setNova(null)}>Cancelar</button>
-                <button className="btn primary" disabled={!nova.texto.trim()} onClick={() => act(addInteracao(d.id, { tipo: nova.tipo, data: nova.data, texto: nova.texto.trim(), participantes: nova.participantes.trim() || undefined, por: email })
-                  .then(() => saveDeal(d, {})).then(() => setNova(null)), "Registado na cronologia")}><Icon name="check" />Registar</button></div>
+                <button className="btn primary" disabled={!nova.texto.trim() || saving} onClick={() => { setSaving(true); act(addInteracao(d.id, { tipo: nova.tipo, data: nova.data, texto: nova.texto.trim(), participantes: nova.participantes.trim() || undefined, por: email })
+                  .then(() => saveDeal(d, {})).then(() => setNova(null)), "Registado na cronologia").finally(() => setSaving(false)); }}><Icon name="check" />Registar</button></div>
             </div>
           )}
           {ints === null ? <p className="hint">A carregar…</p> : ints.length === 0 && !nova ? <p className="hint">Ainda não há nada registado. Regista reuniões, emails, documentos recebidos e o feedback da Beta Capital.</p> : (
             <ol className="tl">{grupos.map(([mes, xs]) => (
-              <li key={mes} className="tlm"><span className="tlh">{mes ? new Date(mes + "-01").toLocaleDateString("pt-PT", { month: "long", year: "numeric" }) : "Sem data"}</span>
+              <li key={mes} className="tlm"><span className="tlh">{mes ? new Date(mes + "-15T12:00:00").toLocaleDateString("pt-PT", { month: "long", year: "numeric" }) : "Sem data"}</span>
                 <ol>{xs.map((x) => {
                   const t = TIPOS_INTERACAO.find((k) => k.id === x.tipo);
                   return <li key={x.id} className={`tli t-${x.tipo}`}>
                     <span className="tld"><Icon name={t?.icon || "pencil-simple"} /></span>
                     <div className="tlb"><div className="tlt"><b>{t?.nome}</b><span>{x.data ? fdLongo(x.data) : ""}{x.participantes ? ` · ${x.participantes}` : ""}{x.por ? ` · ${x.por === "Excel" ? "importado do Excel" : x.por.split("@")[0]}` : ""}</span>
-                      {x.tipo !== "etapa" && (x.por === email || x.por === "Excel") && <button className="tlx" title="Apagar" aria-label="Apagar registo" onClick={() => act(delInteracao(d.id, x.id), "Registo apagado")}><Icon name="trash" /></button>}</div>
+                      {x.tipo !== "etapa" && (x.por === email || x.por === "Excel") && <button className="tlx" title="Apagar" aria-label="Apagar registo" onClick={() => { if (window.confirm("Apagar este registo da cronologia? Não dá para anular.")) act(delInteracao(d.id, x.id), "Registo apagado"); }}><Icon name="trash" /></button>}</div>
                       <p>{x.texto}</p></div>
                   </li>;
                 })}</ol></li>
@@ -194,7 +195,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
         {ativa ? (archiving ? (
           <div className="reasons"><div className="rh">Porque arquivas?<button className="txtbtn" onClick={() => setArchiving(false)}>Cancelar</button></div>
             <div className="rgrid">{MOTIVOS_ARQUIVO.filter((m) => m.id !== "sem-registo").map((m) => <button key={m.id} aria-pressed={motivo === m.id} onClick={() => setMotivo(m.id)}>{m.nome}</button>)}</div>
-            <div className="arqf"><input value={notaArq} onChange={(e) => setNotaArq(e.target.value)} placeholder="Nota (opcional): o que foi comunicado à startup" />
+            <div className="arqf"><input aria-label="Nota de arquivo" value={notaArq} onChange={(e) => setNotaArq(e.target.value)} placeholder="Nota (opcional): o que foi comunicado à startup" />
               <button className="btn primary" disabled={!motivo} onClick={() => motivo && act(archiveDeal(d, motivo, notaArq.trim(), email).then(() => { setArchiving(false); setMotivo(""); setNotaArq(""); }), "Arquivada")}>Arquivar</button></div></div>
         ) : (<>
           {etapaIdx < ETAPAS_ATIVAS.length - 1 && <button className="btn primary lg" onClick={() => act(moveDeal(d, ETAPAS_ATIVAS[etapaIdx + 1].id, email), `Passou para ${ETAPAS_ATIVAS[etapaIdx + 1].nome}`)}>

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Icon } from "@/components/Icon";
 
 export function AdmHead({ title, text, children }: { title: string; text: string; children?: React.ReactNode }) {
@@ -25,8 +25,11 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
 
 export function useFlash() {
   const [msg, setMsg] = useState("");
-  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 2600); };
-  const el = msg ? <div className="toast" role="status"><span>{msg}</span></div> : null;
+  const t = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(t.current), []);
+  const flash = (m: string) => { setMsg(m); clearTimeout(t.current); t.current = setTimeout(() => setMsg(""), 4000); };
+  // A região "status" fica sempre montada para os leitores de ecrã anunciarem as mensagens
+  const el = <div className={msg ? "toast" : "sr"} role="status" aria-live="polite">{msg && <span>{msg}</span>}</div>;
   return { flash, el };
 }
 

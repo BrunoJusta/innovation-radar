@@ -3,10 +3,10 @@
 import { addDoc, collection, deleteDoc, doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import { Deal, ETAPAS, Etapa, Interacao, MotivoArquivo, MOTIVOS_ARQUIVO, ORIGENS_DF, Startup, VERTICAIS_DF, FASES_DF, VEZES } from "./types";
-import { nowIso, slug } from "./util";
+import { hojeLocal, nowIso, slug } from "./util";
 
 const ref = (id: string) => doc(db, "deals", id);
-const hoje = () => nowIso().slice(0, 10);
+const hoje = () => hojeLocal();
 const clean = (o: Record<string, any>) => JSON.parse(JSON.stringify(o));
 export const nomeEtapa = (e: string) => ETAPAS.find((x) => x.id === e)?.nome || e;
 export const normNome = (s: string) => slug(s.replace(/\(.*?\)/g, "")).replace(/-/g, "");

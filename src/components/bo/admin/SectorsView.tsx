@@ -41,7 +41,7 @@ export function SectorsView() {
       <div className="form">
         <h3>{e._new ? "Novo setor" : `Editar ${e.nome}`}</h3>
         <div className="fgrid">
-          <label className="fld"><span>Nome</span><input value={e.nome} onChange={(x) => setE({ ...e, nome: x.target.value })} /></label>
+          <label className="fld"><span>Nome</span><input autoComplete="off" value={e.nome} onChange={(x) => setE({ ...e, nome: x.target.value })} /></label>
           <label className="fld"><span>Ordem</span><input type="number" min={1} value={e.ordem} onChange={(x) => setE({ ...e, ordem: +x.target.value })} /></label>
           <div className="fld wide"><span>Cor</span><div className="swatches">{AREA_COLORS.map((c) => (
             <button key={c} className="sw" aria-pressed={e.cor === c} style={{ background: c }} aria-label={c} onClick={() => setE({ ...e, cor: c })} />))}
