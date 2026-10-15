@@ -40,7 +40,7 @@ export function InvestmentView() {
         <label className="fld"><span>Análise automática a partir de (relevância 0 a 100)</span>
           <input type="number" min={0} max={100} value={corte} onChange={(e) => setCorte(+e.target.value)} /></label>
       </div>
-      <p className="hint">A recolha semanal faz a análise às startups novas com esta relevância ou mais (no máximo 8 por semana). 0 desliga. No backoffice podes fazer a análise a qualquer startup, no painel da ficha.</p>
+      <p className="hint">A recolha semanal faz a análise a todas as startups com esta relevância ou mais que ainda não tenham análise (as novas e as que já estavam na triagem ou aprovadas; as rejeitadas não). Não há limite de quantidade. 0 desliga. No backoffice podes fazer a análise a qualquer startup, no painel da ficha.</p>
       <div className="factions"><button className="btn primary" onClick={save}><Icon name="check" />Guardar</button></div>
     </div>
     <div className="form crit-ref">

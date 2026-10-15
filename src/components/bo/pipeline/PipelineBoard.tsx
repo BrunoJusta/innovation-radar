@@ -5,6 +5,7 @@ import { moveDeal } from "@/lib/deal-actions";
 import { Deal, ETAPAS_ATIVAS, Etapa, VERTICAIS_DF, VEZES } from "@/lib/types";
 import { fdCurto } from "@/lib/util";
 import { useSession } from "../AuthGate";
+import { AnaliseLoading } from "../AnaliseQueue";
 
 export const diasDesde = (iso: string | null | undefined) => { const t = Date.parse(iso || ""); return isNaN(t) ? 0 : Math.max(0, Math.floor((Date.now() - t) / 864e5)); };
 /** Estado do prazo: atrasado, nos próximos 3 dias, ou sem urgência. */
@@ -21,7 +22,7 @@ export function DealCard({ d, onOpen, drag }: { d: Deal; onOpen: () => void; dra
   return (
     <article className={`dcard${pz ? ` pz-${pz}` : ""}`} draggable={drag} onDragStart={(e) => { e.dataTransfer.setData("text/deal", d.id); e.dataTransfer.effectAllowed = "move"; }}
       role="button" tabIndex={0} aria-label={`Abrir ${d.nome}`} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}>
-      <div className="dc1"><b>{d.nome}</b>{d.analiseResumo && <span className={`anchip ${d.analiseResumo.decisao}`} title="Análise de investimento"><Icon name="scales" />{d.analiseResumo.decisao === "investir" ? "Investir" : "Não"}</span>}</div>
+      <div className="dc1"><b>{d.nome}</b><AnaliseLoading path={d.startupId ? `startups/${d.startupId}` : `deals/${d.id}`} short />{d.analiseResumo && <span className={`anchip ${d.analiseResumo.decisao}`} title="Análise de investimento"><Icon name="scales" />{d.analiseResumo.decisao === "investir" ? "Investir" : "Não"}</span>}</div>
       <div className="dc2">{[nm(VERTICAIS_DF, d.vertical), d.pais].filter(Boolean).join(" · ") || "Sem vertical"}</div>
       {d.proximaAcao && <p className="dcn">{d.proximaAcao}</p>}
       <div className="dc3">

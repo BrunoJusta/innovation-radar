@@ -16,7 +16,8 @@ import { DEFAULT_SETTINGS, STARTUP_SITES } from "../src/lib/types";
 
 const DRY = process.env.DRY_RUN === "1";
 const MAX_NEW = Number(process.env.MAX_NEW_STARTUPS || 40);
-const MAX_ANALISES = Number(process.env.MAX_ANALISES || 8);
+/** Análises em paralelo (cada uma faz 3 pedidos à Gemini). */
+const ANALISES_PARALELO = Number(process.env.ANALISES_PARALELO || 3);
 const now = () => new Date().toISOString();
 const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
@@ -154,13 +155,21 @@ async function main() {
       for (const n of named) await fromNamed(n, st);
     } catch (e) { st.erros.push(`Notícias: ${(e as Error).message.slice(0, 160)}`); }
 
-    // 4) Análise de investimento às novas mais relevantes
-    if (paraAnalise.length) {
+    // 4) Análise de investimento: todas as startups (novas e antigas, menos as rejeitadas) com relevância igual ou acima
+    //    do corte e que ainda não têm análise. Sem limite de quantidade.
+    if (corteAnalise > 0) {
       const sa: RunSource = { sourceId: "analise", nome: "Análise de investimento", lidos: 0, jaVistos: 0, filtro: 0, relevantes: 0, novos: 0, fundidos: 0, erros: [] };
       run.fontes.push(sa);
+      const todas = await db.collection("startups").where("relevancia", ">=", corteAnalise).get();
+      const fila = todas.docs.map((d) => ({ ...(d.data() as Startup), id: d.id }))
+        .filter((x) => x.status !== "rejected" && !x.analiseResumo)
+        .map((x) => ({ id: x.id, nome: x.nome, site: x.site, setor: sectors.find((k) => k.id === x.setor)?.nome || "", descricao: x.descricao, relevancia: x.relevancia }));
+      for (const n of paraAnalise) if (!fila.some((x) => x.id === n.id)) fila.push(n); // em simulação as novas não estão gravadas
+      fila.sort((a, b) => b.relevancia - a.relevancia);
+      log(`Análise de investimento: ${fila.length} startups com relevância >= ${corteAnalise} sem análise`);
       const guidelines = ((await db.doc("config/investimento").get()).data()?.texto as string) || "";
       if (!guidelines) sa.erros.push("Sem guidelines em Definições › Startups › Critérios de investimento: a análise usou só os critérios base.");
-      for (const x of paraAnalise.sort((a, b) => b.relevancia - a.relevancia).slice(0, MAX_ANALISES)) {
+      const uma = async (x: (typeof fila)[number]) => {
         sa.lidos++;
         try {
           const a = await analisar(x, guidelines);
@@ -173,7 +182,11 @@ async function main() {
           sa.novos++; if (a.decisao === "investir") sa.relevantes++;
           log(`  $ ${x.nome}: ${a.decisao}, ${resumo.positivos}/11`);
         } catch (e) { sa.erros.push(`${x.nome}: ${(e as Error).message.slice(0, 160)}`); log("  ! análise", x.nome, (e as Error).message); }
-      }
+      };
+      // Algumas em paralelo, para caber no tempo do workflow mesmo com muitas
+      const workers = Array.from({ length: Math.max(1, ANALISES_PARALELO) }, async () => { for (let x = fila.shift(); x; x = fila.shift()) await uma(x); });
+      await Promise.all(workers);
+      if (!DRY) await runRef.update({ fontes: run.fontes });
     }
 
     if (!DRY) await runRef.update({ estado: "ok", fim: now(), fontes: run.fontes });

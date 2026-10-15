@@ -114,7 +114,7 @@ Secção **Startups** com duas páginas:
 2. lê os feeds de startups (Definições › Startups › Fontes) e as notícias dos últimos 8 dias, encontra as startups citadas e prepara a ficha delas;
 3. só aceita startups com site próprio a responder; a chave é o domínio do site, por isso a mesma startup nunca aparece duas vezes (só ganha mais origens);
 4. abaixo do corte de relevância das startups (Definições › Startups › Regras da recolha) é descartada e não volta a ser proposta;
-5. às novas com relevância igual ou acima do corte da análise (75 por defeito, no máximo 8 por semana) faz a análise de investimento.
+5. faz a análise de investimento a todas as startups (menos as rejeitadas) com relevância igual ou acima do corte da análise (Definições › Startups › Critérios de investimento) que ainda não a tenham, 3 em paralelo e sem limite de quantidade.
 
 **Análise de investimento:** no painel de cada startup, "Fazer análise" avalia-a com os critérios da Sogrape Ventures: perfil (empresa, produto, tração, equipa, financiamento), os 11 critérios em 3 grupos com veredicto e fontes, a matriz por ticket (como nas guidelines), decisão, ticket, follow-on e próximos passos. São três pedidos curtos à Gemini (dois com pesquisa web em paralelo e a avaliação) e cada análise fica guardada em `startups/{id}/analises`, com histórico. "Copiar relatório" copia tudo em Markdown. As guidelines ficam em Definições › Startups › Critérios de investimento (documento `config/investimento`, que só o backoffice lê); depois de mudar as regras, publica de novo o `firestore.rules`.
 
@@ -124,11 +124,11 @@ Secção **Startups** com duas páginas:
 
 ## Pipeline (Sogrape Ventures, só administradores)
 
-Separador **Pipeline**: o seguimento das startups do primeiro contacto ao investimento, em substituição do Excel do dealflow.
+Página **Startups › Pipeline**: o seguimento das startups do primeiro contacto ao investimento, em substituição do Excel do dealflow.
 
 - **Fases:** Radar → Primeiro contacto → Validação de fit → Análise Beta Capital → Análise aprofundada → Negociação → Investida. Arquivar é possível em qualquer fase, com um motivo de uma lista fechada e uma nota.
 - **Próximo passo:** de quem é a vez (Sogrape, startup, Beta Capital, reunião por marcar), o que falta fazer, prazo e responsável. O quadro marca o que passou do prazo e mostra há quantos dias cada uma está na fase.
 - **Cronologia:** reuniões, emails, documentos, feedback da Beta Capital e notas, com data e autor; as mudanças de fase ficam registadas sozinhas.
 - **Vistas:** quadro (arrastar muda a fase), lista ordenável e arquivadas; filtros por vez, "as minhas" e atrasadas; exportação para Excel (CSV).
-- **Ligação ao radar:** "Pôr no pipeline" na ficha de uma startup do radar; as startups do radar mostram a etiqueta da fase em que estão no pipeline. A análise de investimento também se faz a partir do pipeline.
+- **Entrada:** "Pôr no pipeline" na ficha de uma startup (Triagem ou Aprovadas); as startups do radar mostram a etiqueta da fase em que estão no pipeline. A análise de investimento também se faz a partir do pipeline.
 - **Dados:** coleção `deals` com `interacoes` e `analises` por baixo. Só administradores leem e escrevem (ver `firestore.rules`).

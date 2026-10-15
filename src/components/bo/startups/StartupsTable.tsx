@@ -6,6 +6,7 @@ import { fdCurto, relLevel } from "@/lib/util";
 import { Gauge } from "../ui";
 import { SREJECT } from "./StartupDrawer";
 import { nomeTicket } from "@/lib/analise-util";
+import { AnaliseLoading, useAnaliseQueue } from "../AnaliseQueue";
 
 type Col = "nome" | "setor" | "fase" | "pais" | "fundacao" | "relevancia" | "criadoEm" | "analise";
 const FASE_ORD: Record<string, number> = { ideia: 0, seed: 1, "serie-a": 2, crescimento: 3 };
@@ -21,6 +22,7 @@ export function StartupsTable({ list, sectors, onOpen, onApprove, onReject, onSt
   const [rejectRow, setRejectRow] = useState<string | null>(null);
   const [bulkReject, setBulkReject] = useState(false);
   const sec = (id: string) => sectors.find((x) => x.id === id);
+  const { running } = useAnaliseQueue();
 
   const rows = useMemo(() => {
     const v = (s: Startup): string | number => {
@@ -73,7 +75,7 @@ export function StartupsTable({ list, sectors, onOpen, onApprove, onReject, onSt
               <td>{s.pais || <span className="mut">Sem dados</span>}</td>
               <td className="n">{s.fundacao || <span className="mut">-</span>}</td>
               <td className="fin">{s.financiamento || <span className="mut">Sem dados</span>}</td>
-              <td>{s.analiseResumo ? <span className={`anchip ${s.analiseResumo.decisao}`} title={`${s.analiseResumo.positivos} de 11 critérios positivos`}>
+              <td>{running.has(`startups/${s.id}`) ? <AnaliseLoading path={`startups/${s.id}`} /> : s.analiseResumo ? <span className={`anchip ${s.analiseResumo.decisao}`} title={`${s.analiseResumo.positivos} de 11 critérios positivos`}>
                 {s.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}{s.analiseResumo.ticket ? ` · ${nomeTicket(s.analiseResumo.ticket)}` : ""}</span> : <span className="mut">-</span>}</td>
               <td className="n"><span className={`trel lv-${relLevel(s.relevancia)}`}><Gauge v={s.relevancia} />{s.relevancia}</span></td>
               <td className="n mut">{fdCurto(s.criadoEm)}</td>

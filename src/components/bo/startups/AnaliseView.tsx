@@ -117,23 +117,26 @@ export function AnaliseReport({ a }: { a: Analise }) {
   return (<>
           {/* Decisão */}
           <section className={`an-hero ${a.decisao}`}>
-            <div className="an-dec">
-              <span className="lbl">Decisão</span>
-              <b>{a.decisao === "investir" ? "Investir" : "Não investir"}</b>
-              {a.condicoes && <span className="cond">{a.condicoes}</span>}
+            <div className="an-top">
+              <div className="an-dec"><span className="lbl">Decisão</span><b>{a.decisao === "investir" ? "Investir" : "Não investir"}</b></div>
+              <dl className="an-kpis">
+                <div><dt>Ticket</dt><dd>{nomeTicket(a.ticket)}</dd></div>
+                <div><dt>Follow-on</dt><dd>{a.followOn ? "Sim" : "Não"}</dd></div>
+                <div><dt>Critérios positivos</dt><dd>{a.criterios.filter((c) => c.veredicto === "positivo").length} de {a.criterios.length}</dd></div>
+                <div className="wide"><dt>Desafio 2026</dt><dd className="dz">{a.desafio || "Nenhum"}</dd></div>
+              </dl>
             </div>
-            <dl className="an-kpis">
-              <div><dt>Ticket</dt><dd>{nomeTicket(a.ticket)}</dd></div>
-              <div><dt>Follow-on</dt><dd>{a.followOn ? "Sim" : "Não"}</dd></div>
-              <div><dt>Critérios positivos</dt><dd>{a.criterios.filter((c) => c.veredicto === "positivo").length} de {a.criterios.length}</dd></div>
-              <div><dt>Desafio 2026</dt><dd>{a.desafio || "Nenhum"}</dd></div>
-            </dl>
+            {a.condicoes && <div className="an-cond"><span className="lbl">Condições</span><p>{a.condicoes}</p></div>}
             <p className="an-rac">{a.racional}</p>
           </section>
 
           {/* Matriz */}
-          <section className="an-sec">
-            <h3>Matriz por ticket</h3>
+          <details className="an-sec an-mxd">
+            <summary>
+              <span className="t"><Icon name="caret-down" />Matriz por ticket</span>
+              <span className="els">{elegibilidade(a).map((e, i) => <span key={i} className={`el el-${e}`}>{TICKETS[i].nome}: {({ sim: "cumpre", dados: "faltam dados", nao: "não cumpre" })[e]}</span>)}</span>
+              <span className="ver">Ver matriz</span>
+            </summary>
             <p className="hint">Como nas guidelines: a cor mostra o veredicto de cada critério nos tickets em que conta. Os tickets até 200 mil € pedem a maioria; acima, todos.</p>
             <div className="an-mx-wrap"><table className="an-mx">
               <thead><tr><th>Critério</th>{TICKETS.map((t) => <th key={t.id} className={a.ticket === t.id ? "on" : ""}>{t.nome}</th>)}</tr></thead>
@@ -148,7 +151,7 @@ export function AnaliseReport({ a }: { a: Analise }) {
               <tfoot><tr><th>Cumpre?</th>{elegibilidade(a).map((e, i) => <td key={i} className={`el-${e}`}>{({ sim: "Sim", dados: "Faltam dados", nao: "Não" })[e]}</td>)}</tr></tfoot>
             </table></div>
             <div className="an-leg"><span className="mx-positivo" />Positivo<span className="mx-incerto" />Incerto<span className="mx-negativo" />Negativo<span className="mx-0" />Não conta</div>
-          </section>
+          </details>
 
           {/* Perfil */}
           <section className="an-sec">

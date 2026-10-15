@@ -5,6 +5,8 @@ import { nomeEtapa } from "@/lib/deal-actions";
 import { Deal, ETAPAS, MOTIVOS_ARQUIVO, ORIGENS_DF, VERTICAIS_DF, VEZES } from "@/lib/types";
 import { fdCurto } from "@/lib/util";
 import { diasDesde, prazoEstado } from "./PipelineBoard";
+import { AnaliseLoading, useAnaliseQueue } from "../AnaliseQueue";
+import { alvoDeal } from "./DealDrawer";
 
 type Col = "ref" | "nome" | "etapa" | "vez" | "prazo" | "vertical" | "pais" | "origem" | "entrada" | "motivo" | "arquivo";
 const nm = <T extends { id: string; nome: string }>(l: T[], id: string | null | undefined) => l.find((x) => x.id === id)?.nome || "";
@@ -12,6 +14,7 @@ const ORD = Object.fromEntries(ETAPAS.map((e, i) => [e.id, i]));
 
 /** Vista em lista do pipeline (ativas ou arquivadas), com colunas ordenáveis. */
 export function PipelineTable({ deals, arquivadas, onOpen }: { deals: Deal[]; arquivadas: boolean; onOpen: (id: string) => void }) {
+  const { running } = useAnaliseQueue();
   const [sort, setSort] = useState<{ col: Col; dir: 1 | -1 }>(arquivadas ? { col: "arquivo", dir: -1 } : { col: "etapa", dir: 1 });
   const rows = useMemo(() => {
     const v = (d: Deal): string | number => {
@@ -56,7 +59,7 @@ export function PipelineTable({ deals, arquivadas, onOpen }: { deals: Deal[]; ar
               <td>{d.pais || <span className="mut">-</span>}</td>
               <td>{d.origem?.nome || nm(ORIGENS_DF, d.origem?.tipo)}</td>
               <td className="n mut">{d.entrada ? `${fdCurto(d.entrada)} ${d.entrada.slice(2, 4)}` : ""}</td>
-              <td>{d.analiseResumo ? <span className={`anchip ${d.analiseResumo.decisao}`}>{d.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}</span> : <span className="mut">-</span>}</td>
+              <td>{running.has(alvoDeal(d).path) ? <AnaliseLoading path={alvoDeal(d).path} /> : d.analiseResumo ? <span className={`anchip ${d.analiseResumo.decisao}`}>{d.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}</span> : <span className="mut">-</span>}</td>
             </tr>
           );
         })}</tbody>

@@ -11,6 +11,7 @@ import { FindStartups } from "./FindStartups";
 import { StartupsTable } from "./StartupsTable";
 import { useDeals } from "../pipeline/DealsLookup";
 import { nomeEtapa } from "@/lib/deal-actions";
+import { AnaliseLoading } from "../AnaliseQueue";
 
 const VIEW_KEY = "radar.startups.vista";
 const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; } };
@@ -109,6 +110,7 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
                     {s.destaque && <span className="tg star"><Icon name="star-fill" />Destaque</span>}
                     {s.status === "rejected" && <span className="tg no">{s.motivoRejeicao}</span>}
                     {dealOf(s) && <span className="tg pipe" title={`No pipeline: ${nomeEtapa(dealOf(s)!.etapa)}`}><Icon name="kanban" />{dealOf(s)!.etapa === "arquivada" ? "Arquivada no pipeline" : nomeEtapa(dealOf(s)!.etapa)}</span>}
+                    <AnaliseLoading path={`startups/${s.id}`} short />
                     {s.analiseResumo && <span className={`anchip ${s.analiseResumo.decisao}`} title={`Análise de investimento: ${s.analiseResumo.positivos} de 11 critérios positivos`}><Icon name="scales" />{s.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}</span>}
                   </div>
                   <Gauge v={s.relevancia} />

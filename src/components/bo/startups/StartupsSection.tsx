@@ -7,11 +7,14 @@ import { Icon } from "@/components/Icon";
 import { StartupsTriage } from "./StartupsTriage";
 import { StartupRadar } from "./StartupRadar";
 import { SearchField } from "../ui";
-import { DealsLookup } from "../pipeline/DealsLookup";
+import { DealsLookup, useDeals } from "../pipeline/DealsLookup";
+import { PipelineSection } from "../pipeline/PipelineSection";
+import { useSession } from "../AuthGate";
 
 /** Secção Startups do backoffice: duas páginas, Triagem e Radar. */
 export function StartupsSection() {
-  const [page, setPage] = useState<Status | "radar">("pending");
+  const { canPipeline } = useSession();
+  const [page, setPage] = useState<Status | "radar" | "pipeline">("pending");
   const [startups, setStartups] = useState<Startup[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -35,14 +38,22 @@ export function StartupsSection() {
             {cnt(t.id) > 0 && <span className={t.id === "pending" ? "c" : "c soft"}>{cnt(t.id)}</span>}</button>
         ))}
         <button aria-current={page === "radar"} onClick={() => setPage("radar")}><Icon name="globe" />Radar</button>
+        {canPipeline && <button aria-current={page === "pipeline"} onClick={() => setPage("pipeline")}><Icon name="kanban" />Pipeline<PipeCount /></button>}
       </nav>
       {page !== "radar" && (
         <div className="pageact">
-          <SearchField value={search} onChange={setSearch} placeholder="Pesquisar startups" />
-          <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" />Adicionar startups</button>
+          <SearchField value={search} onChange={setSearch} placeholder={page === "pipeline" ? "Pesquisar no pipeline" : "Pesquisar startups"} />
+          {page !== "pipeline" && <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" />Adicionar startups</button>}
         </div>
       )}
     </div>
-    {page !== "radar" ? <StartupsTriage status={page} onStatus={setPage} startups={startups} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
+    {page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage status={page as Status} onStatus={setPage} startups={startups} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
   </DealsLookup>);
+}
+
+/** Número de startups em curso no pipeline (no separador). */
+function PipeCount() {
+  const { deals } = useDeals();
+  const n = deals.filter((d) => d.etapa !== "arquivada").length;
+  return n ? <span className="c soft">{n}</span> : null;
 }

@@ -11,6 +11,7 @@ import { nomeTicket } from "@/lib/analise-util";
 import { useDeals } from "../pipeline/DealsLookup";
 import { createDeal, dealFromStartup, nomeEtapa } from "@/lib/deal-actions";
 import { useSession } from "../AuthGate";
+import { useAnaliseQueue } from "../AnaliseQueue";
 
 const ORIGEM: Record<string, string> = { pesquisa: "Pesquisa online", noticia: "Notícia", manual: "Adicionada à mão" };
 export const pickEdit = (s: Startup): StartupEdit => ({ nome: s.nome, site: s.site, pais: s.pais || "", cidade: s.cidade || "", fundacao: s.fundacao ?? null, fase: s.fase, setor: s.setor,
@@ -26,6 +27,8 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
   const [analise, setAnalise] = useState(false);
   const { dealOf, deals, on: pipeOn } = useDeals();
   const { email } = useSession();
+  const { running } = useAnaliseQueue();
+  const aCorrer = running.has(`startups/${s.id}`);
   const deal = pipeOn ? dealOf(s) : undefined;
   const toPipeline = async () => {
     try {
@@ -77,7 +80,10 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
             <p className="relnote">{s.porque || "Sem nota sobre o interesse para a Sogrape."}</p>
           </div></div>
           <div className="blk"><div className="bh"><h4>Análise de investimento</h4></div>
-            {s.analiseResumo ? (
+            {aCorrer ? (
+              <button className="anbox vazio" onClick={() => setAnalise(true)}><span className="spin" aria-hidden="true" />
+                <span className="m">A análise de investimento está a correr em segundo plano. Avisamos quando estiver pronta.</span><span className="go">Ver estado</span></button>
+            ) : s.analiseResumo ? (
               <button className={`anbox ${s.analiseResumo.decisao}`} onClick={() => setAnalise(true)}>
                 <span className="d">{s.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}</span>
                 <span className="m">{nomeTicket(s.analiseResumo.ticket)} · {s.analiseResumo.positivos} de 11 critérios positivos{s.analiseResumo.desafio ? ` · ${s.analiseResumo.desafio}` : ""}</span>
