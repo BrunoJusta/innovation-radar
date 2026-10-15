@@ -89,7 +89,7 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
         )}
         {isSignals && st === "radar" && <RadarApp inBo />}
         {isSignals && st !== "radar" && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} search={search} />}
-        {view === "dashboard" && <Dashboard signals={signals} areas={areas} cats={cats} go={go} />}
+        {view === "dashboard" && <Dashboard signals={signals} areas={areas} go={go} />}
         {view === "startups" && <StartupsSection key={sPage.k} initial={sPage.p} />}
         {view === "settings" && isAdmin && <SettingsHub areas={areas} cats={cats} />}
       </main>

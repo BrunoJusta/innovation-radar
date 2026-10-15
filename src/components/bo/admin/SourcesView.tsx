@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, deleteDoc, deleteField, doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, deleteField, doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { SOURCE_GROUPS, Source } from "@/lib/types";
+import { SOURCE_GROUPS, Source, STARTUP_SITES } from "@/lib/types";
 import { fdLongo, slug } from "@/lib/util";
 import { Icon } from "@/components/Icon";
-import { AdmHead, DangerBtn, Toggle, errMsg, useFlash } from "./common";
+import { AdmHead, DangerBtn, FormModal, Toggle, errMsg, useFlash } from "./common";
 
 const BLANK: Omit<Source, "id"> = { nome: "", tipo: "rss", url: "", lingua: "en", ativo: true };
 const SEM_GRUPO = "Sem grupo";
@@ -65,9 +65,9 @@ export function SourcesView({ para = "noticias" }: { para?: "noticias" | "startu
     </div>
     ))}
     {list.length === 0 && <div className="rows"><p className="hint">Ainda não há fontes. Corre o seed ou adiciona uma.</p></div>}
+    {!news && <RefSites flash={flash} />}
     {edit && (
-      <div className="form">
-        <h3>{isNew ? "Nova fonte" : `Editar ${edit.nome}`}</h3>
+      <FormModal title={isNew ? "Nova fonte" : `Editar ${edit.nome}`} onClose={() => setEdit(null)} onSave={save}>
         <div className="fgrid">
           <label className="fld"><span>Nome</span><input autoComplete="off" value={edit.nome} onChange={(e) => setEdit({ ...edit, nome: e.target.value })} placeholder="BeverageDaily" /></label>
           <label className="fld wide"><span>URL do feed</span><input value={edit.url} onChange={(e) => setEdit({ ...edit, url: e.target.value })} placeholder="https://site.com/feed/" type="url" spellCheck={false} autoComplete="off" /></label>
@@ -77,9 +77,35 @@ export function SourcesView({ para = "noticias" }: { para?: "noticias" | "startu
             <datalist id="src-grupos">{grupos.map((g) => <option key={g} value={g} />)}</datalist></label>}
         </div>
         <p className="hint">{edit.tipo === "rss" ? "O endereço do feed RSS, normalmente termina em /feed/ ou /rss." : "O endereço base do site WordPress (a recolha usa /wp-json/wp/v2/posts) ou o endereço completo da API com filtros, por exemplo …/wp-json/wp/v2/posts?categories=772."}</p>
-        <div className="factions"><button className="txtbtn" onClick={() => setEdit(null)}>Cancelar</button><button className="btn primary" onClick={save}><Icon name="check" />Guardar</button></div>
-      </div>
+      </FormModal>
     )}
     {el}
   </>);
+}
+
+const dominio = (x: string) => x.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+
+/** Sites de referência da pesquisa de startups (settings/geral.sitesStartups). */
+function RefSites({ flash }: { flash: (m: string) => void }) {
+  const [sites, setSites] = useState<string[] | null>(null);
+  const [edit, setEdit] = useState<string | null>(null);
+  useEffect(() => { getDoc(doc(db, "settings", "geral")).then((d) => { const v = d.data()?.sitesStartups; setSites(Array.isArray(v) ? v : STARTUP_SITES); }).catch(() => setSites(STARTUP_SITES)); }, []);
+  const save = async () => {
+    const v = Array.from(new Set((edit || "").split(/[\s,]+/).map(dominio).filter(Boolean)));
+    try { await setDoc(doc(db, "settings", "geral"), { sitesStartups: v }, { merge: true }); setSites(v); setEdit(null); flash("Sites de referência guardados"); }
+    catch (e) { flash(errMsg(e)); }
+  };
+  return (<section className="adm-sec">
+    <div className="gh"><h2>Sites de referência</h2><span>{sites?.length ?? ""}</span><span className="sp" />
+      <button className="btn" onClick={() => setEdit((sites || []).join("\n"))}><Icon name="pencil-simple" />Editar</button></div>
+    <p className="hint">A pesquisa online (a semanal e o Procurar online) dá prioridade a estes sites, e a recolha semanal faz uma pesquisa por setor só dentro deles. Bases pagas como a Dealroom e a Crunchbase entram só pelo que a Pesquisa Google mostra.</p>
+    <div className="refsites">{(sites || []).map((d) => <a key={d} href={`https://${d}`} target="_blank" rel="noopener noreferrer" className="chipf">{d}<Icon name="arrow-up-right" /></a>)}</div>
+    {edit !== null && (
+      <FormModal title="Sites de referência" onClose={() => setEdit(null)} onSave={save}>
+        <label className="fld full"><span>Um domínio por linha</span>
+          <textarea rows={10} value={edit} onChange={(e) => setEdit(e.target.value)} spellCheck={false} autoComplete="off" placeholder="dealroom.co" /></label>
+        <p className="hint">Basta o domínio (por exemplo eitfood.eu). Links completos são encurtados ao guardar.</p>
+      </FormModal>
+    )}
+  </section>);
 }

@@ -5,7 +5,7 @@ import { db } from "@/lib/firebase";
 import { AREA_COLORS, Area, Category } from "@/lib/types";
 import { slug } from "@/lib/util";
 import { CATEGORY_ICONS, Icon } from "@/components/Icon";
-import { AdmHead, DangerBtn, errMsg, useFlash } from "./common";
+import { AdmHead, DangerBtn, errMsg, FormModal, useFlash } from "./common";
 
 type AEdit = Area & { _new?: boolean };
 type CEdit = Omit<Category, "palavrasChave"> & { kw: string; _new?: boolean };
@@ -44,45 +44,41 @@ export function TaxonomyView({ areas, cats }: { areas: Area[]; cats: Category[] 
           <DangerBtn onConfirm={() => deleteDoc(doc(db, "areas", a.id)).then(() => flash("Área removida")).catch((e) => flash(errMsg(e)))} />
         </div>))}</div>
       {ae && (
-        <div className="form">
-          <h3>{ae._new ? "Nova área" : `Editar ${ae.nome}`}</h3>
+        <FormModal title={ae._new ? "Nova área" : `Editar ${ae.nome}`} onClose={() => setAe(null)} onSave={saveArea}>
           <div className="fgrid">
             <label className="fld"><span>Nome</span><input autoComplete="off" value={ae.nome} onChange={(e) => setAe({ ...ae, nome: e.target.value })} /></label>
             <label className="fld"><span>Ordem (anel, 1 = centro)</span><input type="number" min={1} value={ae.ordem} onChange={(e) => setAe({ ...ae, ordem: +e.target.value })} /></label>
             <div className="fld wide"><span>Cor</span><div className="swatches">{AREA_COLORS.map((c) => (
-              <button key={c} className="sw" aria-pressed={ae.cor === c} style={{ background: c }} aria-label={c} onClick={() => setAe({ ...ae, cor: c })} />))}
+              <button type="button" key={c} className="sw" aria-pressed={ae.cor === c} style={{ background: c }} aria-label={c} onClick={() => setAe({ ...ae, cor: c })} />))}
               <input type="color" value={ae.cor} onChange={(e) => setAe({ ...ae, cor: e.target.value.toUpperCase() })} aria-label="Outra cor" /></div></div>
             <label className="fld full"><span>Descrição para a Gemini</span><textarea rows={3} value={ae.descricao} onChange={(e) => setAe({ ...ae, descricao: e.target.value })} placeholder="Que tipo de notícia pertence a esta área." /></label>
           </div>
-          <div className="factions"><button className="txtbtn" onClick={() => setAe(null)}>Cancelar</button><button className="btn primary" onClick={saveArea}><Icon name="check" />Guardar</button></div>
-        </div>)}
+        </FormModal>)}
     </section>
 
     <section className="adm-sec">
       <div className="gh"><h2>Categorias</h2><span>{cats.length}</span><span className="sp" />
-        <button className="btn" onClick={() => setCe({ id: "", nome: "", icone: "sparkle", descricao: "", ordem: cats.length + 1, kw: "", _new: true })}><Icon name="plus" />Nova categoria</button></div>
+        <button type="button" className="btn" onClick={() => setCe({ id: "", nome: "", icone: "sparkle", descricao: "", ordem: cats.length + 1, kw: "", _new: true })}><Icon name="plus" />Nova categoria</button></div>
       <div className="rows">{cats.map((c) => (
         <div className="row" key={c.id}>
           <span className="cic"><Icon name={c.icone} size={18} /></span>
           <div className="rmain"><b>{c.nome}</b><span>{(c.palavrasChave || []).slice(0, 8).join(", ")}{(c.palavrasChave || []).length > 8 ? "…" : ""}</span></div>
           <span className="tg mn">{(c.palavrasChave || []).length} palavras</span>
-          <button className="btn icon" title="Editar" aria-label="Editar" onClick={() => setCe({ ...c, kw: (c.palavrasChave || []).join(", ") })}><Icon name="pencil-simple" /></button>
+          <button type="button" className="btn icon" title="Editar" aria-label="Editar" onClick={() => setCe({ ...c, kw: (c.palavrasChave || []).join(", ") })}><Icon name="pencil-simple" /></button>
           <DangerBtn onConfirm={() => deleteDoc(doc(db, "categories", c.id)).then(() => flash("Categoria removida")).catch((e) => flash(errMsg(e)))} />
         </div>))}</div>
       {ce && (
-        <div className="form">
-          <h3>{ce._new ? "Nova categoria" : `Editar ${ce.nome}`}</h3>
+        <FormModal title={ce._new ? "Nova categoria" : `Editar ${ce.nome}`} onClose={() => setCe(null)} onSave={saveCat}>
           <div className="fgrid">
             <label className="fld"><span>Nome</span><input autoComplete="off" value={ce.nome} onChange={(e) => setCe({ ...ce, nome: e.target.value })} /></label>
             <label className="fld"><span>Ordem</span><input type="number" min={1} value={ce.ordem} onChange={(e) => setCe({ ...ce, ordem: +e.target.value })} /></label>
             <div className="fld wide"><span>Ícone</span><div className="icons">{CATEGORY_ICONS.map((n) => (
-              <button key={n} className="ico" aria-pressed={ce.icone === n} aria-label={n} onClick={() => setCe({ ...ce, icone: n })}><Icon name={n} size={18} /></button>))}</div></div>
+              <button type="button" key={n} className="ico" aria-pressed={ce.icone === n} aria-label={n} onClick={() => setCe({ ...ce, icone: n })}><Icon name={n} size={18} /></button>))}</div></div>
             <label className="fld full"><span>Descrição para a Gemini</span><textarea rows={3} value={ce.descricao} onChange={(e) => setCe({ ...ce, descricao: e.target.value })} /></label>
             <label className="fld full"><span>Palavras-chave (PT e EN, separadas por vírgulas)</span><textarea rows={4} value={ce.kw} onChange={(e) => setCe({ ...ce, kw: e.target.value })} placeholder="sem álcool, non-alcoholic, alcohol-free, 0.0" /></label>
           </div>
           <p className="hint">Um artigo só vai para a Gemini se o título ou o texto tiver pelo menos uma palavra-chave de alguma categoria.</p>
-          <div className="factions"><button className="txtbtn" onClick={() => setCe(null)}>Cancelar</button><button className="btn primary" onClick={saveCat}><Icon name="check" />Guardar</button></div>
-        </div>)}
+        </FormModal>)}
     </section>
     {el}
   </>);

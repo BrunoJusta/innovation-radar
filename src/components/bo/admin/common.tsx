@@ -34,3 +34,33 @@ export function useFlash() {
 }
 
 export const errMsg = (e: unknown) => "Não foi possível guardar. " + ((e as { code?: string }).code === "permission-denied" ? "Não tens permissão." : "Tenta outra vez.");
+
+/** Formulário de criar ou editar numa janela por cima da página (em vez de aparecer no fundo). */
+export function FormModal({ title, onClose, onSave, saveLabel = "Guardar", children }: {
+  title: string; onClose: () => void; onSave: () => void | Promise<unknown>; saveLabel?: string; children: React.ReactNode;
+}) {
+  const [busy, setBusy] = useState(false);
+  const box = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", k);
+    box.current?.querySelector<HTMLElement>("input,textarea,select")?.focus();
+    return () => { document.body.style.overflow = prev; document.removeEventListener("keydown", k); };
+  }, [onClose]);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); if (busy) return;
+    setBusy(true); try { await onSave(); } finally { setBusy(false); }
+  };
+  return (<>
+    <div className="scrim" onClick={() => !busy && onClose()} />
+    <form ref={box} className="mdl wide" role="dialog" aria-modal="true" aria-label={title} onSubmit={submit}>
+      <div className="mdl-h"><h2>{title}</h2><button type="button" className="btn icon" aria-label="Fechar" onClick={onClose}><Icon name="x" /></button></div>
+      <div className="mdl-b scroll fmodal">{children}</div>
+      <div className="mdl-f"><span className="sp" />
+        <button type="button" className="txtbtn" onClick={onClose} disabled={busy}>Cancelar</button>
+        <button type="submit" className="btn primary" disabled={busy}>{busy ? <><span className="spin" aria-hidden="true" />A guardar…</> : <><Icon name="check" />{saveLabel}</>}</button>
+      </div>
+    </form>
+  </>);
+}
