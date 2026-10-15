@@ -42,7 +42,12 @@ export function parseFeed(xml: string): FeedItem[] {
 
 async function get(url: string) {
   const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/rss+xml, application/xml, application/json, text/xml, */*" }, signal: AbortSignal.timeout(25000) });
-  if (!r.ok) throw new Error(`HTTP ${r.status} em ${url}`);
+  if (!r.ok) {
+    // Pistas para perceber quem bloqueou (Cloudflare, WAF do alojamento, etc.)
+    const h = ["server", "cf-ray", "cf-mitigated", "x-sucuri-id", "x-served-by"].map((k) => r.headers.get(k) ? `${k}=${r.headers.get(k)}` : "").filter(Boolean).join(" ");
+    const body = (await r.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 120);
+    throw new Error(`HTTP ${r.status} em ${url}${h ? ` [${h}]` : ""}${body ? ` «${body}»` : ""}`);
+  }
   return r.text();
 }
 
