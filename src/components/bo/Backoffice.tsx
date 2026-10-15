@@ -24,7 +24,6 @@ export function Backoffice() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [query_, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const { flash, el: flashEl } = useFlash();
 
@@ -56,12 +55,6 @@ export function Backoffice() {
             {isAdmin && <button aria-current={view === "settings"} onClick={() => setView("settings")}><span className="l">Definições</span></button>}
           </nav>
           <span className="sp" />
-          {(isSignals || view === "startups") && (
-            <label className={`searchbox${query_ ? " has" : ""}`}><Icon name="magnifying-glass" />
-              <input type="search" placeholder="Pesquisar" aria-label="Pesquisar" value={query_} onChange={(e) => setQuery(e.target.value)} />
-            </label>
-          )}
-          {isSignals && <button className="btn primary addbtn" onClick={() => setAdding(true)}><Icon name="plus" /><span>Adicionar</span></button>}
           <div className="who-me" title={email}>
             <span>{profile.nome || email.split("@")[0]}</span><small>{profile.role === "admin" ? "Admin" : "Editor"}</small>
           </div>
@@ -77,8 +70,8 @@ export function Backoffice() {
             ))}
           </nav>
         )}
-        {isSignals && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} search={query_} />}
-        {view === "startups" && <StartupsSection search={query_} />}
+        {isSignals && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} onAdd={() => setAdding(true)} />}
+        {view === "startups" && <StartupsSection />}
         {view === "settings" && isAdmin && <SettingsHub areas={areas} cats={cats} />}
       </main>
       {adding && <AddByLink areas={areas} cats={cats} signals={signals} onClose={() => setAdding(false)}

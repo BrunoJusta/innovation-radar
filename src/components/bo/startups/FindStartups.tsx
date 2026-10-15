@@ -91,13 +91,13 @@ export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
     <div className="scrim" onClick={() => !busy && onClose()} />
     <div className={`mdl${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby="fs-t">
       <div className="mdl-h">
-        <h2 id="fs-t">{mode === "search" ? "Procurar startups online" : ficha ? "Rever startup" : "Adicionar startup por site"}</h2>
+        <h2 id="fs-t">{ficha ? "Rever startup" : cands ? "Resultados da pesquisa" : "Adicionar startups"}</h2>
         <button className="btn icon" aria-label="Fechar" onClick={onClose} disabled={busy}><Icon name="x" /></button>
       </div>
       {!ficha && !cands && (
         <div className="mdl-tabs seg" role="group">
           <button aria-pressed={mode === "search"} onClick={() => { setMode("search"); setErro(""); }} disabled={busy}><Icon name="magnifying-glass" />Procurar online</button>
-          <button aria-pressed={mode === "site"} onClick={() => { setMode("site"); setErro(""); }} disabled={busy}><Icon name="plus" />Por site</button>
+          <button aria-pressed={mode === "site"} onClick={() => { setMode("site"); setErro(""); }} disabled={busy}><Icon name="globe" />Pelo site</button>
         </div>
       )}
 

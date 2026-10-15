@@ -1,4 +1,5 @@
 "use client";
+import { Icon } from "@/components/Icon";
 import { relLabel, relLevel } from "@/lib/util";
 
 /** Velocímetro de relevância: verde alta, amarelo média, vermelho baixa. */
@@ -26,5 +27,16 @@ export function Empty({ icon, title, text, children }: { icon?: React.ReactNode;
       {icon && <div className="ic">{icon}</div>}
       <h2>{title}</h2><p>{text}</p>{children}
     </div>
+  );
+}
+
+/** Pesquisa dentro da página (filtra só a lista que está à vista). */
+export function SearchField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <label className="fsearch"><Icon name="magnifying-glass" />
+      <input type="search" value={value} placeholder={placeholder} aria-label={placeholder} onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Escape" && value) { e.stopPropagation(); onChange(""); } }} />
+      {value && <button type="button" className="fsx" aria-label="Limpar pesquisa" onClick={() => onChange("")}><Icon name="x" /></button>}
+    </label>
   );
 }

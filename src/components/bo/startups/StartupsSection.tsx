@@ -8,7 +8,7 @@ import { StartupsTriage } from "./StartupsTriage";
 import { StartupRadar } from "./StartupRadar";
 
 /** Secção Startups do backoffice: duas páginas, Triagem e Radar. */
-export function StartupsSection({ search }: { search: string }) {
+export function StartupsSection() {
   const [page, setPage] = useState<"triage" | "radar">("triage");
   const [startups, setStartups] = useState<Startup[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
@@ -25,6 +25,6 @@ export function StartupsSection({ search }: { search: string }) {
       <button aria-current={page === "triage"} onClick={() => setPage("triage")}><Icon name="tray" />Triagem{pend > 0 && <span className="c">{pend}</span>}</button>
       <button aria-current={page === "radar"} onClick={() => setPage("radar")}><Icon name="globe" />Radar</button>
     </nav>
-    {page === "triage" ? <StartupsTriage startups={startups} sectors={sectors} loaded={loaded} search={search} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
+    {page === "triage" ? <StartupsTriage startups={startups} sectors={sectors} loaded={loaded} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
   </>);
 }

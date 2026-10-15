@@ -5,13 +5,14 @@ import { approveStartup, rejectStartup, restoreStartup, SSnapshot, startupBackTo
 import { FASES, Sector, Startup, Status } from "@/lib/types";
 import { fdCurto, relLevel } from "@/lib/util";
 import { useSession } from "../AuthGate";
-import { Empty, Gauge } from "../ui";
+import { Empty, Gauge, SearchField } from "../ui";
 import { SREJECT, StartupDrawer } from "./StartupDrawer";
 import { FindStartups } from "./FindStartups";
 
 const ST: { id: Status; label: string }[] = [{ id: "pending", label: "Por decidir" }, { id: "approved", label: "Aprovadas" }, { id: "rejected", label: "Rejeitadas" }];
 
-export function StartupsTriage({ startups, sectors, loaded, search }: { startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string }) {
+export function StartupsTriage({ startups, sectors, loaded }: { startups: Startup[]; sectors: Sector[]; loaded: boolean }) {
+  const [search, setSearch] = useState("");
   const { email } = useSession();
   const [status, setStatus] = useState<Status>("pending");
   const [fSec, setFSec] = useState("all");
@@ -46,11 +47,11 @@ export function StartupsTriage({ startups, sectors, loaded, search }: { startups
     <div className="head">
       <div><h1>Startups</h1><p>Startups encontradas na pesquisa semanal, nas notícias e à mão. As aprovadas entram no radar de startups.</p></div>
       <div className="adm-act">
-        <button className="btn" onClick={() => setFinding("site")}><Icon name="plus" />Adicionar por site</button>
-        <button className="btn primary" onClick={() => setFinding("search")}><Icon name="magnifying-glass" />Procurar online</button>
+        <button className="btn primary" onClick={() => setFinding("search")}><Icon name="plus" />Adicionar startups</button>
       </div>
     </div>
     <div className="toolbar">
+      <SearchField value={search} onChange={setSearch} placeholder="Pesquisar startups" />
       <div className="seg" role="group" aria-label="Estado">
         {ST.map((x) => <button key={x.id} aria-pressed={status === x.id} onClick={() => setStatus(x.id)}>{x.label}<span className="segc">{counts[x.id]}</span></button>)}
       </div>
@@ -70,7 +71,7 @@ export function StartupsTriage({ startups, sectors, loaded, search }: { startups
 
     {!loaded ? <div className="loading">A carregar…</div> : list.length === 0 ? (
       startups.length === 0
-        ? <Empty icon={<Icon name="rss" size={22} />} title="Ainda sem startups" text="A recolha semanal corre à segunda de manhã. Também podes procurar online ou adicionar uma startup pelo site." />
+        ? <Empty icon={<Icon name="rss" size={22} />} title="Ainda sem startups" text="A recolha semanal corre à segunda de manhã. Também podes usar Adicionar startups para procurar online ou indicar o site de uma startup." />
         : <Empty icon={<Icon name="magnifying-glass" size={22} />} title="Nada por aqui" text="Nenhuma startup corresponde a este estado ou filtro." />
     ) : (
       <div className="grid">

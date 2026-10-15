@@ -6,7 +6,7 @@ import { DraftFields } from "./DraftFields";
 import { Area, Category, REJECT_REASONS, Signal, Status } from "@/lib/types";
 import { fdCurto, fdLongo, monogram, relLevel } from "@/lib/util";
 import { useSession } from "./AuthGate";
-import { Empty, Gauge } from "./ui";
+import { Empty, Gauge, SearchField } from "./ui";
 
 const TITLES: Record<Status, [string, string]> = {
   pending: ["Triagem", "Notícias novas à espera de decisão. Abre um cartão para ler o resumo completo e as fontes."],
@@ -14,9 +14,10 @@ const TITLES: Record<Status, [string, string]> = {
   rejected: ["Rejeitadas", "Ficam guardadas com o motivo, para afinar a classificação."],
 };
 
-export function SignalsView({ status, signals, areas, cats, loaded, search }: {
-  status: Status; signals: Signal[]; areas: Area[]; cats: Category[]; loaded: boolean; search: string;
+export function SignalsView({ status, signals, areas, cats, loaded, onAdd }: {
+  status: Status; signals: Signal[]; areas: Area[]; cats: Category[]; loaded: boolean; onAdd: () => void;
 }) {
+  const [search, setSearch] = useState("");
   const { email } = useSession();
   const [fArea, setFArea] = useState("all");
   const [fCat, setFCat] = useState("all");
@@ -93,8 +94,10 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
             <div className="stxt"><span><b>{pend}</b> por decidir</span><span>{allCount - pend} decididas</span></div>
           </div>
         )}
+        <div className="adm-act"><button className="btn primary" onClick={onAdd}><Icon name="plus" />Adicionar por link</button></div>
       </div>
       <div className="toolbar">
+        <SearchField value={search} onChange={setSearch} placeholder="Pesquisar notícias" />
         <div className="seg" role="group" aria-label="Área">
           <button aria-pressed={fArea === "all"} onClick={() => setFArea("all")}>Todas as áreas</button>
           {areas.map((a) => <button key={a.id} aria-pressed={fArea === a.id} onClick={() => setFArea(a.id)}>{a.nome}</button>)}
