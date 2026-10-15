@@ -1,22 +1,18 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { post } from "@/lib/api";
 import { analiseMarkdown, elegibilidade, euros, nomeCiclo, nomeTicket, nomeVertical, PROCURA } from "@/lib/analise-util";
-import { loadAnalises, saveAnalise } from "@/lib/startup-actions";
-import { Analise, AnaliseFonte, CRITERIOS, GRUPOS_CRITERIOS, MATRIZ, Sector, Startup, TICKETS, VEREDICTOS, Veredicto } from "@/lib/types";
+import { AlvoAnalise, AnaliseErro, loadAnalises, Parte, ParteId, Passos, runAnalise } from "@/lib/analise-run";
+import { useAnaliseQueue } from "../AnaliseQueue";
+import { Analise, CRITERIOS, GRUPOS_CRITERIOS, MATRIZ, TICKETS, VEREDICTOS, Veredicto } from "@/lib/types";
 import { fdLongo } from "@/lib/util";
 import { useSession } from "../AuthGate";
 
-type ParteId = "empresa" | "equipa";
-type Parte = { parte: ParteId; dados: unknown; fontes: AnaliseFonte[] };
-type Passo = "espera" | "a correr" | "ok" | "erro";
 const PASSOS: { id: ParteId | "avaliar"; nome: string; desc: string }[] = [
   { id: "empresa", nome: "Empresa e negócio", desc: "Produto, clientes, modelo de negócio, tração e tecnologia" },
   { id: "equipa", nome: "Equipa e financiamento", desc: "Fundadores, rondas, investidores e ronda atual" },
   { id: "avaliar", nome: "Avaliação", desc: "Os 11 critérios das guidelines, decisão, ticket e próximos passos" },
 ];
-const MSG504 = "A Gemini demorou demasiado e o pedido foi interrompido. Tenta outra vez.";
 const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 
 function Verdict({ v, sm }: { v: Veredicto; sm?: boolean }) {
@@ -28,65 +24,55 @@ function Campo({ k, v }: { k: string; v?: string }) {
 }
 
 /** Análise de investimento com os critérios da Sogrape Ventures: perfil, avaliação, matriz por ticket e decisão. */
-export function AnaliseView({ s, sector, onClose, notify }: { s: Startup; sector?: Sector; onClose: () => void; notify: (m: string) => void }) {
+export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onClose: () => void; notify: (m: string) => void }) {
   const { email } = useSession();
+  const { running } = useAnaliseQueue();
+  const emFundo = running.has(alvo.path);
   const [hist, setHist] = useState<Analise[] | null>(null);
   const [idx, setIdx] = useState(0);
-  const [passos, setPassos] = useState<Record<string, Passo> | null>(null);
+  const [passos, setPassos] = useState<Passos | null>(null);
   const [partes, setPartes] = useState<Partial<Record<ParteId, Parte>>>({});
   const [erro, setErro] = useState("");
   const busy = !!passos && Object.values(passos).includes("a correr");
 
-  useEffect(() => { loadAnalises(s.id).then(setHist).catch(() => setHist([])); }, [s.id]);
+  useEffect(() => { if (!emFundo) loadAnalises(alvo.path).then(setHist).catch(() => setHist([])); }, [alvo.path, emFundo]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); if (!busy) onClose(); } };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
   }, [busy, onClose]);
 
-  const startup = { nome: s.nome, site: s.site, setor: sector?.nome || "", descricao: s.descricao };
   const run = useCallback(async (jaTem: Partial<Record<ParteId, Parte>> = {}) => {
     setErro("");
-    const st: Record<string, Passo> = { empresa: jaTem.empresa ? "ok" : "a correr", equipa: jaTem.equipa ? "ok" : "a correr", avaliar: "espera" };
-    setPassos({ ...st });
-    const got: Partial<Record<ParteId, Parte>> = { ...jaTem };
-    const falhas: string[] = [];
-    await Promise.all((["empresa", "equipa"] as ParteId[]).filter((p) => !jaTem[p]).map(async (p) => {
-      try { got[p] = await post<Parte>("/api/startups/analise", { etapa: "perfil", parte: p, startup }, MSG504); st[p] = "ok"; }
-      catch (e) { st[p] = "erro"; falhas.push((e as Error).message); }
-      setPassos({ ...st });
-    }));
-    setPartes(got);
-    if (falhas.length) { setErro(falhas[0]); return; }
-    st.avaliar = "a correr"; setPassos({ ...st });
     try {
-      const r = await post<{ analise: Omit<Analise, "feitaEm" | "por" | "modelo">; comGuidelines: boolean }>("/api/startups/analise",
-        { etapa: "avaliar", startup, partes: [got.empresa, got.equipa] }, MSG504);
-      const a: Analise = { ...r.analise, feitaEm: new Date().toISOString(), por: email, modelo: "gemini" };
-      const id = await saveAnalise(s, a);
-      setHist((h) => [{ ...a, id }, ...(h || [])]); setIdx(0); setPassos(null); setPartes({});
+      const r = await runAnalise(alvo, email, setPassos, jaTem);
+      setHist((h) => [r.analise, ...(h || [])]); setIdx(0); setPassos(null); setPartes({});
       notify(r.comGuidelines ? "Análise feita e guardada" : "Análise feita sem as guidelines completas. Cola-as em Definições › Startups › Critérios de investimento.");
-    } catch (e) { st.avaliar = "erro"; setPassos({ ...st }); setErro((e as Error).message); }
-  }, [s, email]); // eslint-disable-line react-hooks/exhaustive-deps
+    } catch (e) {
+      setErro((e as Error).message);
+      if (e instanceof AnaliseErro) setPartes(e.partes);
+    }
+  }, [alvo, email, notify]);
 
   const a = hist?.[idx];
   const copiar = async () => {
     if (!a) return;
-    try { await navigator.clipboard.writeText(analiseMarkdown(s, a)); notify("Relatório copiado em Markdown"); } catch { notify("Não foi possível copiar."); }
+    try { await navigator.clipboard.writeText(analiseMarkdown({ nome: alvo.nome, site: alvo.site }, a)); notify("Relatório copiado em Markdown"); } catch { notify("Não foi possível copiar."); }
   };
 
   return (<>
     <div className="scrim top" onClick={() => !busy && onClose()} />
     <div className="mdl xl" role="dialog" aria-modal="true" aria-labelledby="an-t">
       <div className="mdl-h">
-        <div><h2 id="an-t">Análise de investimento</h2><span className="mdl-sub">{s.nome} · {s.dominio}</span></div>
+        <div><h2 id="an-t">Análise de investimento</h2><span className="mdl-sub">{alvo.nome}{alvo.dominio ? ` · ${alvo.dominio}` : ""}</span></div>
         <button className="btn icon" aria-label="Fechar" onClick={onClose} disabled={busy}><Icon name="x" /></button>
       </div>
 
       <div className="mdl-b scroll an">
-        {hist === null && <div className="loading">A carregar…</div>}
+        {emFundo && <div className="an-intro"><span className="spin" aria-hidden="true" /><div><b>A análise está a correr em segundo plano</b><p>Começou quando a startup foi adicionada. Avisamos quando estiver pronta; podes fechar esta janela.</p></div></div>}
+        {!emFundo && hist === null && <div className="loading">A carregar…</div>}
 
-        {hist !== null && (passos || !a) && (
+        {!emFundo && hist !== null && (passos || !a) && (
           <div className="an-run">
             {!passos && <>
               <div className="an-intro"><Icon name="scales" size={22} />
@@ -120,7 +106,7 @@ export function AnaliseView({ s, sector, onClose, notify }: { s: Startup; sector
         {passos && erro && !busy && <button className="txtbtn" onClick={() => { setPassos(null); setErro(""); setPartes({}); }}>Cancelar</button>}
         {busy ? <button className="btn primary" disabled><span className="spin" aria-hidden="true" />A analisar…</button>
           : passos && erro ? <button className="btn primary" onClick={() => run(partes)}><Icon name="arrows-clockwise" />Tentar outra vez</button>
-          : hist !== null && <button className={`btn${a ? "" : " primary"}`} onClick={() => run()}><Icon name={a ? "arrows-clockwise" : "sparkle"} />{a ? "Refazer análise" : "Fazer análise"}</button>}
+          : !emFundo && hist !== null && <button className={`btn${a ? "" : " primary"}`} onClick={() => run()}><Icon name={a ? "arrows-clockwise" : "sparkle"} />{a ? "Refazer análise" : "Fazer análise"}</button>}
       </div>
     </div>
   </>);

@@ -8,6 +8,9 @@ import { Gauge } from "../ui";
 import { StartupFields } from "./StartupFields";
 import { AnaliseView } from "./AnaliseView";
 import { nomeTicket } from "@/lib/analise-util";
+import { useDeals } from "../pipeline/DealsLookup";
+import { createDeal, dealFromStartup, nomeEtapa } from "@/lib/deal-actions";
+import { useSession } from "../AuthGate";
 
 const ORIGEM: Record<string, string> = { pesquisa: "Pesquisa online", noticia: "Notícia", manual: "Adicionada à mão" };
 export const pickEdit = (s: Startup): StartupEdit => ({ nome: s.nome, site: s.site, pais: s.pais || "", cidade: s.cidade || "", fundacao: s.fundacao ?? null, fase: s.fase, setor: s.setor,
@@ -21,6 +24,15 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
   const [rejecting, setRejecting] = useState(false);
   const [f, setF] = useState<StartupEdit>(pickEdit(s));
   const [analise, setAnalise] = useState(false);
+  const { dealOf, deals, on: pipeOn } = useDeals();
+  const { email } = useSession();
+  const deal = pipeOn ? dealOf(s) : undefined;
+  const toPipeline = async () => {
+    try {
+      const id = await createDeal(dealFromStartup(s, deals, sectors.find((x) => x.id === s.setor)?.nome || ""), email, "Veio do radar de startups.");
+      notify(`«${s.nome}» no pipeline (${id.replace("df-", "")})`);
+    } catch { notify("Não foi possível pôr no pipeline. Confirma o acesso e as regras do Firestore."); }
+  };
   useEffect(() => { setEditing(false); setRejecting(false); setAnalise(false); setF(pickEdit(s)); }, [s.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
@@ -79,6 +91,18 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
               </button>
             )}
           </div>
+          {pipeOn && <div className="blk"><div className="bh"><h4>Pipeline da Sogrape Ventures</h4></div>
+            {deal ? (
+              <div className="pipebox"><Icon name="kanban" size={18} />
+                <span><b>{deal.etapa === "arquivada" ? "Arquivada no pipeline" : `No pipeline: ${nomeEtapa(deal.etapa)}`}</b>
+                  {deal.etapa === "arquivada" && deal.arquivo?.em ? ` em ${fdLongo(deal.arquivo.em)}` : ""}{deal.ref ? ` · ${deal.ref}` : ""}
+                  {deal.proximaAcao ? <em>Próximo passo: {deal.proximaAcao}</em> : null}</span></div>
+            ) : (
+              <button className="anbox vazio" onClick={toPipeline}><Icon name="kanban" size={20} />
+                <span className="m">Começar o seguimento desta startup: fase, próximo passo, reuniões e ronda.</span>
+                <span className="go">Pôr no pipeline<Icon name="plus" /></span></button>
+            )}
+          </div>}
           <div className="blk"><div className="bh"><h4>Ficha</h4>{s.status !== "rejected" && <button className="txtbtn" onClick={() => setEditing(true)}><Icon name="pencil-simple" />Editar</button>}</div>
             <dl className="facts">
               <div><dt>País</dt><dd>{[s.cidade, s.pais].filter(Boolean).join(", ") || "Sem dados"}</dd></div>
@@ -115,8 +139,10 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
         </>)}
       </div>
     </aside>
-    {analise && <AnaliseView s={s} sector={sec} onClose={() => setAnalise(false)} notify={notify} />}
+    {analise && <AnaliseView alvo={alvoStartup(s, sec?.nome)} onClose={() => setAnalise(false)} notify={notify} />}
   </>);
 }
+
+export const alvoStartup = (s: Startup, setor = "") => ({ path: `startups/${s.id}`, nome: s.nome, site: s.site, dominio: s.dominio, descricao: s.descricao, setor });
 
 export const SREJECT = ["Fora de tema", "Pouco relevante", "Não é startup", "Já não existe"];

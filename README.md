@@ -121,3 +121,14 @@ Secção **Startups** com duas páginas:
 **Configurar:** setores e pesquisas em Definições › Startups › Setores e pesquisas. O seed cria os 4 setores iniciais (Vinha e adega, Embalagem e rótulos, Consumidor e vendas, Dados e operações) com 4 pesquisas cada e substitui os setores da primeira versão, passando as startups que os usavam para o setor mais próximo. As execuções aparecem em Definições › Execuções, com a coluna Recolha a dizer "Startups".
 
 **Custos:** cada pesquisa online usa uma pesquisa Google da Gemini. Com 16 pesquisas por semana mais as fichas das startups citadas nas notícias, fica dentro da parte gratuita da Gemini 2.5 Flash.
+
+## Pipeline (Sogrape Ventures, só administradores)
+
+Separador **Pipeline**: o seguimento das startups do primeiro contacto ao investimento, em substituição do Excel do dealflow.
+
+- **Fases:** Radar → Primeiro contacto → Validação de fit → Análise Beta Capital → Análise aprofundada → Negociação → Investida. Arquivar é possível em qualquer fase, com um motivo de uma lista fechada e uma nota.
+- **Próximo passo:** de quem é a vez (Sogrape, startup, Beta Capital, reunião por marcar), o que falta fazer, prazo e responsável. O quadro marca o que passou do prazo e mostra há quantos dias cada uma está na fase.
+- **Cronologia:** reuniões, emails, documentos, feedback da Beta Capital e notas, com data e autor; as mudanças de fase ficam registadas sozinhas.
+- **Vistas:** quadro (arrastar muda a fase), lista ordenável e arquivadas; filtros por vez, "as minhas" e atrasadas; exportação para Excel (CSV).
+- **Ligação ao radar:** "Pôr no pipeline" na ficha de uma startup do radar; as startups do radar mostram a etiqueta da fase em que estão no pipeline. A análise de investimento também se faz a partir do pipeline.
+- **Dados:** coleção `deals` com `interacoes` e `analises` por baixo. Só administradores leem e escrevem (ver `firestore.rules`).

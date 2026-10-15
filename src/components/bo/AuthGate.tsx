@@ -5,7 +5,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { auth, db, microsoftProvider } from "@/lib/firebase";
 import { AppUser } from "@/lib/types";
 
-type Ctx = { user: User; profile: AppUser; email: string; isAdmin: boolean };
+type Ctx = { user: User; profile: AppUser; email: string; isAdmin: boolean; canPipeline: boolean };
 const SessionCtx = createContext<Ctx | null>(null);
 export const useSession = () => { const c = useContext(SessionCtx); if (!c) throw new Error("Sem sessão"); return c; };
 
@@ -23,7 +23,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       const p = await getDoc(doc(db, "users", email));
       if (!p.exists()) { setState("denied"); setCtx(null); return; }
       const profile = { email, ...p.data() } as AppUser;
-      setCtx({ user: u, profile, email, isAdmin: profile.role === "admin" });
+      setCtx({ user: u, profile, email, isAdmin: profile.role === "admin", canPipeline: profile.role === "admin" });
       setState("in");
     } catch (e) { console.error(e); setState("denied"); }
   }), []);

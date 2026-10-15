@@ -9,16 +9,18 @@ import { SettingsHub } from "./admin/SettingsHub";
 import { useFlash } from "./admin/common";
 import { AddByLink } from "./AddByLink";
 import { StartupsSection } from "./startups/StartupsSection";
+import { PipelineSection } from "./pipeline/PipelineSection";
 import { SearchField } from "./ui";
+import { AnaliseQueueProvider } from "./AnaliseQueue";
 import { Icon } from "@/components/Icon";
 
-type View = "news" | "startups" | "settings";
+type View = "news" | "startups" | "pipeline" | "settings";
 const NEWS: { id: Status; label: string; icon: string }[] = [
   { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Rejeitadas", icon: "prohibit" },
 ];
 
 export function Backoffice() {
-  const { isAdmin, profile, email } = useSession();
+  const { isAdmin, profile, email, canPipeline } = useSession();
   const [view, setView] = useState<View>("news");
   const [st, setSt] = useState<Status>("pending");
   const [signals, setSignals] = useState<Signal[]>([]);
@@ -47,6 +49,7 @@ export function Backoffice() {
   const isSignals = view === "news";
 
   return (
+    <AnaliseQueueProvider notify={flash}>
     <div className="bo-app">
       <header className="top">
         <div className="wrap topin">
@@ -54,6 +57,7 @@ export function Backoffice() {
           <nav className="tabs" aria-label="Secções">
             <button aria-current={view === "news"} onClick={() => setView("news")}><span className="l">Notícias</span>{counts.pending > 0 && <span className="c">{counts.pending}</span>}</button>
             <button aria-current={view === "startups"} onClick={() => setView("startups")}><span className="l">Startups</span></button>
+            {canPipeline && <button aria-current={view === "pipeline"} onClick={() => setView("pipeline")}><span className="l">Pipeline</span></button>}
             {isAdmin && <button aria-current={view === "settings"} onClick={() => setView("settings")}><span className="l">Definições</span></button>}
           </nav>
           <span className="sp" />
@@ -80,11 +84,13 @@ export function Backoffice() {
         )}
         {isSignals && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} search={search} />}
         {view === "startups" && <StartupsSection />}
+        {view === "pipeline" && canPipeline && <PipelineSection />}
         {view === "settings" && isAdmin && <SettingsHub areas={areas} cats={cats} />}
       </main>
       {adding && <AddByLink areas={areas} cats={cats} signals={signals} onClose={() => setAdding(false)}
         onDone={(msg, aprovada) => { setAdding(false); setView("news"); setSt(aprovada ? "approved" : "pending"); flash(msg); }} />}
       {flashEl}
     </div>
+    </AnaliseQueueProvider>
   );
 }

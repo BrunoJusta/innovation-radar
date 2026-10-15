@@ -8,6 +8,8 @@ service cloud.firestore {
     function profile() { return /databases/$(database)/documents/users/$(me()); }
     function member() { return signedIn() && exists(profile()); }
     function admin() { return member() && get(profile()).data.role == 'admin'; }
+    // Pipeline da Sogrape Ventures: só administradores
+    function ventures() { return admin(); }
 
     // Notícias: o radar público só lê as que estão publicadas no radar
     match /signals/{id} {
@@ -45,6 +47,13 @@ service cloud.firestore {
     // Configuração privada (guidelines de investimento): só para o BO
     match /config/{id}   { allow read: if member(); allow write: if admin(); }
     match /startupSeen/{id} { allow read, write: if false; }
+    // Pipeline (dealflow): confidencial, só para administradores
+    match /deals/{id} {
+      allow read, create, update: if ventures();
+      allow delete: if admin();
+      match /interacoes/{i} { allow read, create, update, delete: if ventures(); }
+      match /analises/{a}   { allow read, create: if ventures(); allow update, delete: if admin(); }
+    }
     // Uso do pipeline (a conta de serviço ignora as regras); o BO só cria registos das notícias manuais
     match /seen/{id}       { allow read, update, delete: if false; allow create: if member(); }
     match /embeddings/{id} { allow read, update, delete: if false; allow create: if member(); }

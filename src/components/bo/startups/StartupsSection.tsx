@@ -7,6 +7,7 @@ import { Icon } from "@/components/Icon";
 import { StartupsTriage } from "./StartupsTriage";
 import { StartupRadar } from "./StartupRadar";
 import { SearchField } from "../ui";
+import { DealsLookup } from "../pipeline/DealsLookup";
 
 /** Secção Startups do backoffice: duas páginas, Triagem e Radar. */
 export function StartupsSection() {
@@ -26,7 +27,7 @@ export function StartupsSection() {
   const TABS: { id: Status; label: string; icon: string }[] = [
     { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Rejeitadas", icon: "prohibit" },
   ];
-  return (<>
+  return (<DealsLookup>
     <div className="pagebar">
       <nav className="subnav" aria-label="Startups">
         {TABS.map((t) => (
@@ -43,5 +44,5 @@ export function StartupsSection() {
       )}
     </div>
     {page !== "radar" ? <StartupsTriage status={page} onStatus={setPage} startups={startups} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
-  </>);
+  </DealsLookup>);
 }

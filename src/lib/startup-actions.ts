@@ -1,8 +1,8 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { addDoc, collection, deleteField, doc, getDoc, getDocs, limit, orderBy, query, setDoc, updateDoc } from "firebase/firestore";
+import { deleteField, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
-import { Analise, AnaliseResumo, Startup, StartupOrigem } from "./types";
+import { Startup, StartupOrigem } from "./types";
 import { nowIso } from "./util";
 
 const ref = (id: string) => doc(db, "startups", id);
@@ -53,25 +53,4 @@ export async function createStartup(id: string, f: StartupEdit & { dominio: stri
   if (!data.cidade) delete data.cidade;
   await setDoc(r, Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)));
   return "criada";
-}
-
-/* ---------- Análise de investimento ---------- */
-
-export const resumoDe = (a: Analise): AnaliseResumo => ({
-  decisao: a.decisao, ticket: a.ticket, desafio: a.desafio, feitaEm: a.feitaEm,
-  positivos: a.criterios.filter((c) => c.veredicto === "positivo").length,
-});
-
-/** Guarda uma análise nova (as anteriores ficam no histórico) e o resumo na ficha. */
-export async function saveAnalise(s: Startup, a: Analise) {
-  const { id: _id, ...data } = a; // eslint-disable-line @typescript-eslint/no-unused-vars
-  const r = await addDoc(collection(db, "startups", s.id, "analises"), JSON.parse(JSON.stringify(data)));
-  await updateDoc(ref(s.id), { analiseResumo: resumoDe(a), atualizadoEm: nowIso() });
-  return r.id;
-}
-
-/** Últimas análises de uma startup, da mais recente para a mais antiga. */
-export async function loadAnalises(id: string, n = 5): Promise<Analise[]> {
-  const q = query(collection(db, "startups", id, "analises"), orderBy("feitaEm", "desc"), limit(n));
-  return (await getDocs(q)).docs.map((d) => ({ id: d.id, ...d.data() }) as Analise);
 }

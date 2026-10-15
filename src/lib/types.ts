@@ -224,3 +224,78 @@ export interface Analise {
   fontes: AnaliseFonte[];
 }
 export interface AnaliseResumo { decisao: Analise["decisao"]; ticket: Ticket | null; desafio: string; positivos: number; feitaEm: string }
+
+/* ---------- Pipeline (dealflow da Sogrape Ventures) ---------- */
+
+export type Etapa = "radar" | "contacto" | "fit" | "analise-bc" | "aprofundada" | "negociacao" | "investida" | "arquivada";
+/** Fases do pipeline, pela ordem do processo. Arquivar é possível em qualquer uma. */
+export const ETAPAS: { id: Etapa; nome: string; desc: string }[] = [
+  { id: "radar", nome: "Radar", desc: "Identificada como possível fit, ainda sem contacto" },
+  { id: "contacto", nome: "Primeiro contacto", desc: "Candidatura recebida ou primeira conversa" },
+  { id: "fit", nome: "Validação de fit", desc: "A Sogrape valida o encaixe e o caso de uso" },
+  { id: "analise-bc", nome: "Análise Beta Capital", desc: "Avaliação pela Beta Capital" },
+  { id: "aprofundada", nome: "Análise aprofundada", desc: "Due diligence e comité de investimento" },
+  { id: "negociacao", nome: "Negociação", desc: "MoU e acordo de investimento" },
+  { id: "investida", nome: "Investida", desc: "No portefólio" },
+  { id: "arquivada", nome: "Arquivada", desc: "Processo terminado" },
+];
+export const ETAPAS_ATIVAS = ETAPAS.filter((e) => e.id !== "arquivada");
+
+export type Vez = "startup" | "sogrape" | "beta" | "reuniao";
+export const VEZES: { id: Vez; nome: string; curto: string }[] = [
+  { id: "sogrape", nome: "Do lado da Sogrape", curto: "Sogrape" },
+  { id: "startup", nome: "À espera da startup", curto: "Startup" },
+  { id: "beta", nome: "À espera da Beta Capital", curto: "Beta Capital" },
+  { id: "reuniao", nome: "Reunião por marcar", curto: "Reunião" },
+];
+
+export type VerticalDF = "viticultura" | "enologia" | "producao" | "distribuicao" | "produtos-vinho" | "servicos-vinho" | "outro-estrategico" | "fora-ambito";
+export const VERTICAIS_DF: { id: VerticalDF; nome: string }[] = [
+  { id: "viticultura", nome: "Viticultura" }, { id: "enologia", nome: "Enologia" }, { id: "producao", nome: "Produção" },
+  { id: "distribuicao", nome: "Distribuição" }, { id: "produtos-vinho", nome: "Produtos ligados ao vinho" }, { id: "servicos-vinho", nome: "Serviços ligados ao vinho" },
+  { id: "outro-estrategico", nome: "Outro estratégico" }, { id: "fora-ambito", nome: "Fora de âmbito" },
+];
+export type FaseDF = "ideia" | "pre-seed" | "seed" | "serie-a" | "scale-up" | "crescimento" | "turnaround";
+export const FASES_DF: { id: FaseDF; nome: string }[] = [
+  { id: "ideia", nome: "Ideia" }, { id: "pre-seed", nome: "Pre-seed" }, { id: "seed", nome: "Seed" }, { id: "serie-a", nome: "Série A" },
+  { id: "scale-up", nome: "Scale-up" }, { id: "crescimento", nome: "Crescimento" }, { id: "turnaround", nome: "Turnaround" },
+];
+export type OrigemTipo = "candidatura" | "parceiro" | "evento" | "pesquisa" | "rede" | "radar" | "outro";
+export const ORIGENS_DF: { id: OrigemTipo; nome: string }[] = [
+  { id: "candidatura", nome: "Candidatura" }, { id: "parceiro", nome: "Parceiro" }, { id: "evento", nome: "Evento" },
+  { id: "pesquisa", nome: "Pesquisa ativa" }, { id: "rede", nome: "Rede interna" }, { id: "radar", nome: "Radar de startups" }, { id: "outro", nome: "Outro" },
+];
+export type MotivoArquivo = "sem-caso-uso" | "fora-ambito" | "early" | "ronda" | "valuation" | "diferenciacao" | "marca" | "sem-resposta" | "ic" | "sem-registo" | "outro";
+export const MOTIVOS_ARQUIVO: { id: MotivoArquivo; nome: string }[] = [
+  { id: "sem-caso-uso", nome: "Sem caso de uso" }, { id: "fora-ambito", nome: "Fora de âmbito ou sem alinhamento estratégico" },
+  { id: "early", nome: "Demasiado early-stage" }, { id: "ronda", nome: "Ronda, montante ou condições" }, { id: "valuation", nome: "Valuation" },
+  { id: "diferenciacao", nome: "Baixa diferenciação ou tecnologia incerta" }, { id: "marca", nome: "Marca pura" },
+  { id: "sem-resposta", nome: "Sem resposta ou sem informação" }, { id: "ic", nome: "Rejeitada no comité" },
+  { id: "sem-registo", nome: "Sem motivo registado" }, { id: "outro", nome: "Outro" },
+];
+export type TipoInteracao = "reuniao" | "email" | "documento" | "nota" | "feedback-bc" | "etapa";
+export const TIPOS_INTERACAO: { id: TipoInteracao; nome: string; icon: string }[] = [
+  { id: "reuniao", nome: "Reunião", icon: "users" }, { id: "email", nome: "Email", icon: "tray" }, { id: "documento", nome: "Documento", icon: "stack" },
+  { id: "feedback-bc", nome: "Feedback Beta Capital", icon: "briefcase" }, { id: "nota", nome: "Nota", icon: "pencil-simple" }, { id: "etapa", nome: "Mudança de fase", icon: "arrow-up-right" },
+];
+
+export interface Deal {
+  id: string; ref: string;
+  nome: string; site: string; dominio: string; fundadores: string; descricao: string; pais: string;
+  vertical: VerticalDF | ""; fase: FaseDF | "";
+  etapa: Etapa; etapaDesde: string;
+  /** Interesse quando está no radar: investimento ou outro tipo de relação (piloto, parceria). */
+  interesse: "investimento" | "outro";
+  entrada: string;
+  vez: Vez | null; proximaAcao: string; prazo: string | null; responsavel: string;
+  ronda: { valuation: number | null; valor: number | null; ticket: number | null; lead: string; coinvestidores: string[]; notas: string };
+  origem: { tipo: OrigemTipo; nome: string; contacto: string };
+  documentos: { titulo: string; url: string }[];
+  arquivo?: { motivo: MotivoArquivo; nota: string; em: string; etapaAnterior: Etapa | null } | null;
+  /** Ficha no radar de startups, quando existe. */
+  startupId?: string;
+  analiseResumo?: AnaliseResumo;
+  importado?: boolean;
+  criadoEm: string; atualizadoEm: string; criadoPor?: string;
+}
+export interface Interacao { id: string; data: string; tipo: TipoInteracao; texto: string; participantes?: string; links?: { titulo: string; url: string }[]; por?: string; criadoEm?: string }

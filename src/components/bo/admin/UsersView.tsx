@@ -25,7 +25,7 @@ export function UsersView() {
   };
 
   return (<>
-    <AdmHead title="Utilizadores" text="Quem pode entrar no backoffice. Editores fazem a triagem; administradores gerem também fontes, categorias, utilizadores e definições." />
+    <AdmHead title="Utilizadores" text="Quem pode entrar no backoffice. Editores fazem a triagem; administradores gerem também fontes, categorias, utilizadores e definições. O pipeline da Sogrape Ventures é confidencial e só os administradores o vêem." />
     <div className="form inline">
       <label className="fld wide"><span>Email Sogrape</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome.apelido@sogrape.pt" autoComplete="off" spellCheck={false} inputMode="email" onKeyDown={(e) => e.key === "Enter" && add()} /></label>
       <label className="fld"><span>Perfil</span><select value={role} onChange={(e) => setRole(e.target.value as Role)}><option value="editor">Editor</option><option value="admin">Administrador</option></select></label>

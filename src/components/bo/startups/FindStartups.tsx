@@ -9,6 +9,7 @@ import { nowIso } from "@/lib/util";
 import { Icon } from "@/components/Icon";
 import { useSession } from "../AuthGate";
 import { StartupFields } from "./StartupFields";
+import { useAnaliseQueue } from "../AnaliseQueue";
 
 type Cand = StartupEdit & { id: string; dominio: string; fonte: { titulo: string; url: string }; siteOk?: boolean };
 
@@ -23,6 +24,10 @@ export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
 }) {
   const { email } = useSession();
   const [mode, setMode] = useState(m0);
+  const { queue } = useAnaliseQueue();
+  const [analisar, setAnalisar] = useState(true);
+  const setorNome = (id: string) => sectors.find((x) => x.id === id)?.nome || "";
+  const analisa = (id: string, e: StartupEdit, dominio: string) => queue({ path: `startups/${id}`, nome: e.nome, site: e.site, dominio, descricao: e.descricao, setor: setorNome(e.setor) });
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState("");
   // Procurar
@@ -68,9 +73,9 @@ export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
       let novas = 0, juntas = 0;
       for (const c of sel) {
         const r = await createStartup(c.id, { ...toEdit(c), dominio: c.dominio }, { tipo: "pesquisa", titulo: c.fonte.titulo, url: c.fonte.url, data: nowIso(), pesquisa: query }, email);
-        if (r === "criada") novas++; else juntas++;
+        if (r === "criada") { novas++; if (analisar) analisa(c.id, toEdit(c), c.dominio); } else juntas++;
       }
-      onDone(`${novas} startup${novas === 1 ? "" : "s"} na triagem${juntas ? `, ${juntas} já existia${juntas === 1 ? "" : "m"}` : ""}`);
+      onDone(`${novas} startup${novas === 1 ? "" : "s"} na triagem${juntas ? `, ${juntas} já existia${juntas === 1 ? "" : "m"}` : ""}${analisar && novas ? ". A análise de investimento corre em segundo plano." : ""}`);
     } catch (e) { setErro((e as { code?: string }).code === "permission-denied" ? "Sem permissão para gravar. Confirma que as regras do Firestore estão atualizadas." : "Não foi possível guardar. Tenta outra vez."); setBusy(false); }
   };
 
@@ -87,7 +92,9 @@ export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
     try {
       const r = await createStartup(ficha.c.id, { ...ficha.e, dominio: ficha.c.dominio },
         { tipo: "manual", titulo: ficha.c.fonte.titulo || ficha.e.nome, url: ficha.c.fonte.url || ficha.e.site, data: nowIso() }, email, aprovar);
-      onDone(r === "existia" ? `«${ficha.e.nome}» já existia; juntei a origem` : aprovar ? `«${ficha.e.nome}» aprovada e no radar` : `«${ficha.e.nome}» na triagem`);
+      if (r === "criada" && analisar) analisa(ficha.c.id, ficha.e, ficha.c.dominio);
+      const extra = r === "criada" && analisar ? ". A análise de investimento corre em segundo plano." : "";
+      onDone(r === "existia" ? `«${ficha.e.nome}» já existia; juntei a origem` : (aprovar ? `«${ficha.e.nome}» aprovada e no radar` : `«${ficha.e.nome}» na triagem`) + extra);
     } catch (e) { setErro((e as { code?: string }).code === "permission-denied" ? "Sem permissão para gravar. Confirma que as regras do Firestore estão atualizadas." : "Não foi possível guardar. Tenta outra vez."); setBusy(false); }
   };
 
@@ -140,6 +147,7 @@ export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
         <div className="mdl-f">
           {cands && <button className="txtbtn" onClick={() => { setCands(null); setPick(new Set()); }} disabled={busy}><Icon name="arrow-u-up-left" />Nova pesquisa</button>}
           <span className="sp" />
+          {cands && cands.length > 0 && <label className="anchk" title="Avalia com os critérios da Sogrape Ventures depois de gravar (cerca de 1 minuto por startup)"><input type="checkbox" checked={analisar} onChange={(e) => setAnalisar(e.target.checked)} />Fazer análise de investimento</label>}
           {!cands
             ? <button className="btn primary" onClick={procurar} disabled={busy}>{busy ? <><span className="spin" aria-hidden="true" />A pesquisar na web…</> : <><Icon name="sparkle" />Procurar</>}</button>
             : <button className="btn primary" onClick={enviar} disabled={busy || !pick.size}><Icon name="tray" />Enviar {pick.size || ""} para a triagem</button>}
@@ -163,6 +171,7 @@ export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
         <div className="mdl-f">
           {ficha && <button className="txtbtn" onClick={() => setFicha(null)} disabled={busy}><Icon name="arrow-u-up-left" />Outro site</button>}
           <span className="sp" />
+          {ficha && <label className="anchk" title="Avalia com os critérios da Sogrape Ventures depois de gravar (cerca de 1 minuto por startup)"><input type="checkbox" checked={analisar} onChange={(e) => setAnalisar(e.target.checked)} />Fazer análise de investimento</label>}
           {!ficha
             ? <button className="btn primary" onClick={preparar} disabled={busy || !site.trim()}>{busy ? <><span className="spin" aria-hidden="true" />A pesquisar…</> : <><Icon name="sparkle" />Preparar ficha</>}</button>
             : <><button className="btn" onClick={() => guardar(false)} disabled={busy}><Icon name="tray" />Guardar na triagem</button>
