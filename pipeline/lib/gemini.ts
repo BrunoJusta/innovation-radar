@@ -4,38 +4,42 @@ const EMBED = () => process.env.GEMINI_EMBED_MODEL || "gemini-embedding-001";
 const KEY = () => { const k = process.env.GEMINI_API_KEY; if (!k) throw new Error("Falta o secret GEMINI_API_KEY."); return k; };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function call(path: string, body: unknown, tries = 4): Promise<any> { // eslint-disable-line @typescript-eslint/no-explicit-any
+/** Opções para pedidos interativos (backoffice): menos tentativas e limite de tempo curto, para caber nos limites da Vercel. */
+export type Speed = { fast?: boolean };
+
+async function call(path: string, body: unknown, tries = 4, timeoutMs = 90000): Promise<any> { // eslint-disable-line @typescript-eslint/no-explicit-any
   for (let i = 0; ; i++) {
     const r = await fetch(`${BASE}/${path}`, {
       method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": KEY() },
-      body: JSON.stringify(body), signal: AbortSignal.timeout(90000),
+      body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs),
     });
     if (r.ok) return r.json();
     const txt = await r.text();
-    if (i < tries - 1 && (r.status === 429 || r.status >= 500)) { await sleep(2000 * 2 ** i + Math.random() * 500); continue; }
+    if (i < tries - 1 && (r.status === 429 || r.status >= 500)) { await sleep(Math.min(2000 * 2 ** i, timeoutMs / 4) + Math.random() * 500); continue; }
     throw new Error(`Gemini HTTP ${r.status}: ${txt.slice(0, 300)}`);
   }
 }
 
-export async function json<T>(system: string, user: string, schema: object): Promise<T> {
+export async function json<T>(system: string, user: string, schema: object, sp: Speed = {}): Promise<T> {
   const res = await call(`${MODEL()}:generateContent`, {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
     generationConfig: { temperature: 0.2, responseMimeType: "application/json", responseSchema: schema, thinkingConfig: { thinkingBudget: 0 } },
-  });
+  }, sp.fast ? 2 : 4, sp.fast ? 20000 : 90000);
   const text = res?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "";
   if (!text) throw new Error("Gemini sem resposta" + (res?.promptFeedback?.blockReason ? ` (${res.promptFeedback.blockReason})` : ""));
   return JSON.parse(text) as T;
 }
 
 /** Pesquisa na web com a Pesquisa Google da Gemini. Devolve o texto da resposta e as fontes consultadas. */
-export async function searchWeb(system: string, user: string): Promise<{ texto: string; fontes: { titulo: string; uri: string }[] }> {
+export async function searchWeb(system: string, user: string, sp: Speed = {}): Promise<{ texto: string; fontes: { titulo: string; uri: string }[] }> {
   const res = await call(`${MODEL()}:generateContent`, {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
     tools: [{ google_search: {} }],
-    generationConfig: { temperature: 0.2 },
-  });
+    // Sem "pensamento" a resposta chega muito mais depressa; a pesquisa em si continua a ser feita
+    generationConfig: { temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } },
+  }, sp.fast ? 1 : 4, sp.fast ? 38000 : 90000);
   const c = res?.candidates?.[0];
   const texto = c?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "";
   const fontes = (c?.groundingMetadata?.groundingChunks || [])

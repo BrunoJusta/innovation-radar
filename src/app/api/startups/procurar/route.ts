@@ -1,6 +1,6 @@
 /** Procura startups online (Gemini + Pesquisa Google) e devolve candidatas. Não grava nada. */
 import { NextResponse } from "next/server";
-import { checkSite, discover } from "../../../../../pipeline/lib/startups";
+import { discover } from "../../../../../pipeline/lib/startups";
 import { memberFromRequest } from "@/lib/server/auth";
 import type { Sector } from "@/lib/types";
 
@@ -18,9 +18,9 @@ export async function POST(req: Request) {
   if (query.length < 3) return fail("Escreve o que queres procurar.");
   if (!sectors.length) return fail("Não há setores configurados.");
   try {
-    const found = await discover(query, sectors, 10);
-    const checks = await Promise.all(found.map((c) => checkSite(c.site)));
-    return NextResponse.json({ candidatas: found.map((c, i) => ({ ...c, siteOk: checks[i].ok })) });
+    // Só pesquisa e estrutura; a verificação dos sites é um pedido à parte (/api/startups/verificar), para caber no tempo da Vercel
+    const found = await discover(query, sectors, 8, { fast: true });
+    return NextResponse.json({ candidatas: found });
   } catch (e) {
     return fail(`A pesquisa falhou: ${(e as Error).message.slice(0, 200)}`, 502);
   }

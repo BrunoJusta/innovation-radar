@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   if (!domainOf(site)) return fail("Indica o site da startup, por exemplo startup.com");
   if (!sectors.length) return fail("Não há setores configurados.");
   try {
-    const [c, chk] = await Promise.all([profile(site, sectors, body.nome || ""), checkSite(/^https?:/.test(site) ? site : `https://${site}`)]);
+    const [c, chk] = await Promise.all([profile(site, sectors, body.nome || "", { fast: true }), checkSite(/^https?:/.test(site) ? site : `https://${site}`, 6000)]);
     if (!c) return fail("Não foi possível encontrar informação sobre esta startup. Confirma o site.", 422);
     return NextResponse.json({ ficha: c, siteOk: chk.ok });
   } catch (e) {

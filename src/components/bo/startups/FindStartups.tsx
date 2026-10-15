@@ -13,7 +13,9 @@ type Cand = StartupEdit & { id: string; dominio: string; fonte: { titulo: string
 async function post<T>(path: string, body: unknown): Promise<T> {
   const token = await auth.currentUser?.getIdToken();
   const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
-  const j = await r.json().catch(() => ({ erro: `Erro ${r.status}` }));
+  const j = await r.json().catch(() => ({ erro: r.status === 504
+    ? "A pesquisa demorou demasiado e foi interrompida. Tenta outra vez ou usa uma pesquisa mais concreta (tema + tipo de empresa)."
+    : `Erro ${r.status}` }));
   if (!r.ok) throw new Error(j.erro || `Erro ${r.status}`);
   return j as T;
 }
@@ -52,7 +54,13 @@ export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
     try {
       const j = await post<{ candidatas: Cand[] }>("/api/startups/procurar", { query, sectors: secs });
       setCands(j.candidatas);
-      setPick(new Set(j.candidatas.filter((c) => !exists(c.id) && c.siteOk !== false).map((c) => c.id)));
+      setPick(new Set(j.candidatas.filter((c) => !exists(c.id)).map((c) => c.id)));
+      // Verificação dos sites em segundo plano: avisa e desmarca os que não respondem
+      if (j.candidatas.length) post<{ ok: Record<string, boolean> }>("/api/startups/verificar", { sites: j.candidatas.map((c) => c.site) })
+        .then((v) => {
+          setCands((cs) => cs && cs.map((c) => ({ ...c, siteOk: v.ok[c.site] })));
+          setPick((p) => new Set([...p].filter((id) => v.ok[j.candidatas.find((c) => c.id === id)?.site || ""] !== false)));
+        }).catch(() => { /* sem verificação: segue sem avisos */ });
     } catch (e) { setErro((e as Error).message); } finally { setBusy(false); }
   };
   const enviar = async () => {
@@ -107,7 +115,7 @@ export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
             <input autoFocus value={query} disabled={busy} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && procurar()}
               placeholder="ex.: startups de rótulos inteligentes para vinho" /></label>
           {!cands && <div className="sugs">{sectors.flatMap((s) => (s.pesquisas || []).slice(0, 1)).map((q) => <button key={q} className="chipf" onClick={() => setQuery(q)}>{q}</button>)}</div>}
-          {!cands && <p className="hint">A Gemini pesquisa na web e propõe startups com site, fase e setor. Escolhes quais vão para a triagem.</p>}
+          {!cands && <p className="hint">A Gemini pesquisa na web e propõe startups com site, fase e setor. Demora normalmente 15 a 40 segundos. Escolhes quais vão para a triagem.</p>}
           {cands && (cands.length === 0 ? <p className="hint">Não encontrei startups com site próprio para esta pesquisa. Tenta outras palavras.</p> : (
             <ul className="clist">
               {cands.map((c) => {
@@ -136,7 +144,7 @@ export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
           {cands && <button className="txtbtn" onClick={() => { setCands(null); setPick(new Set()); }} disabled={busy}><Icon name="arrow-u-up-left" />Nova pesquisa</button>}
           <span className="sp" />
           {!cands
-            ? <button className="btn primary" onClick={procurar} disabled={busy}>{busy ? <><span className="spin" aria-hidden="true" />A pesquisar…</> : <><Icon name="sparkle" />Procurar</>}</button>
+            ? <button className="btn primary" onClick={procurar} disabled={busy}>{busy ? <><span className="spin" aria-hidden="true" />A pesquisar na web…</> : <><Icon name="sparkle" />Procurar</>}</button>
             : <button className="btn primary" onClick={enviar} disabled={busy || !pick.size}><Icon name="tray" />Enviar {pick.size || ""} para a triagem</button>}
         </div>
       </>)}
