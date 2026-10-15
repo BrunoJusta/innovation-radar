@@ -55,3 +55,16 @@ test("cloudflareBlock distingue bloqueio anti-robôs de site em baixo", () => {
   assert.equal(cloudflareBlock(429, H({ server: "cloudflare", "cf-mitigated": "challenge" })), true);
   assert.equal(cloudflareBlock(500, H({ server: "cloudflare" })), false);
 });
+
+import { domainOf, isOwnSite, startupId, siteUrl } from "./lib/startups";
+test("startups: domínio, id e sites que não são próprios", () => {
+  assert.equal(domainOf("https://www.Vinergy.io/about?x=1"), "vinergy.io");
+  assert.equal(domainOf("vinergy.io"), "vinergy.io");
+  assert.equal(siteUrl("http://www.vinergy.io/pt/"), "https://vinergy.io");
+  assert.equal(startupId("tech.vinergy.io"), "tech-vinergy-io");
+  assert.equal(isOwnSite("vinergy.io"), true);
+  assert.equal(isOwnSite("linkedin.com"), false);
+  assert.equal(isOwnSite("pt.linkedin.com"), false);
+  assert.equal(isOwnSite("crunchbase.com"), false);
+  assert.equal(isOwnSite(""), false);
+});

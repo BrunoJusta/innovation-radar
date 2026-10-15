@@ -29,7 +29,21 @@ const DATA: Record<string, Record<string, object>> = {
     "grande-consumo": { nome: "Grande Consumo", tipo: "rss", url: "https://grandeconsumo.com/feed/", lingua: "pt", ativo: true },
     beveragedaily: { nome: "BeverageDaily", tipo: "rss", url: "https://www.beveragedaily.com/arc/outboundfeeds/rss/", lingua: "en", ativo: true },
   },
-  settings: { geral: { corteRelevancia: 50, janelaDias: 90 } },
+  settings: { geral: { corteRelevancia: 50, janelaDias: 90, corteStartups: 50 } },
+  sectors: {
+    "wine-tech": { nome: "Wine Tech", cor: "#7C3AED", icone: "wine", ordem: 1,
+      descricao: "Software e hardware para adegas e para o negócio do vinho: produção, rastreabilidade, vendas, distribuição, enoturismo e experiência do consumidor.",
+      pesquisas: ["wine tech startup raises funding", "winetech startup seed round", "startup tecnologia vinho Portugal", "wine industry software startup launch"] },
+    "viticultura-agtech": { nome: "Viticultura e AgTech", cor: "#16A34A", icone: "leaf", ordem: 2,
+      descricao: "Viticultura de precisão e agricultura: sensores, drones, robótica, imagem de satélite, gestão de água, solo, clima e doenças da vinha.",
+      pesquisas: ["vineyard precision agriculture startup", "viticulture robotics startup funding", "startup agricultura de precisão vinha", "vineyard disease detection AI startup"] },
+    "ia-aplicada": { nome: "IA aplicada", cor: "#0EA5DE", icone: "sparkle", ordem: 3,
+      descricao: "Inteligência artificial aplicada a bebidas, vinho, retalho e consumo: previsão de procura, qualidade, marketing, recomendação, operações e agentes.",
+      pesquisas: ["AI startup beverage industry", "AI wine recommendation startup", "generative AI startup food and beverage brands", "AI demand forecasting startup drinks"] },
+    "no-low-bebidas": { nome: "No/Low e bebidas", cor: "#E7A912", icone: "flask", ordem: 4,
+      descricao: "Bebidas sem álcool ou com baixo teor, tecnologia de desalcoolização, novas categorias de bebidas, embalagem e sustentabilidade.",
+      pesquisas: ["non-alcoholic wine startup funding", "dealcoholisation technology startup", "alcohol-free drinks startup raises", "sustainable wine packaging startup"] },
+  },
   users: { [ADMIN]: { role: "admin", nome: "Bruno Justa", adicionadoEm: new Date().toISOString(), adicionadoPor: "seed" } },
 };
 

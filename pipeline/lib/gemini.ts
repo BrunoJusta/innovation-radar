@@ -17,7 +17,7 @@ async function call(path: string, body: unknown, tries = 4): Promise<any> { // e
   }
 }
 
-async function json<T>(system: string, user: string, schema: object): Promise<T> {
+export async function json<T>(system: string, user: string, schema: object): Promise<T> {
   const res = await call(`${MODEL()}:generateContent`, {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
@@ -26,6 +26,23 @@ async function json<T>(system: string, user: string, schema: object): Promise<T>
   const text = res?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "";
   if (!text) throw new Error("Gemini sem resposta" + (res?.promptFeedback?.blockReason ? ` (${res.promptFeedback.blockReason})` : ""));
   return JSON.parse(text) as T;
+}
+
+/** Pesquisa na web com a Pesquisa Google da Gemini. Devolve o texto da resposta e as fontes consultadas. */
+export async function searchWeb(system: string, user: string): Promise<{ texto: string; fontes: { titulo: string; uri: string }[] }> {
+  const res = await call(`${MODEL()}:generateContent`, {
+    systemInstruction: { parts: [{ text: system }] },
+    contents: [{ role: "user", parts: [{ text: user }] }],
+    tools: [{ google_search: {} }],
+    generationConfig: { temperature: 0.2 },
+  });
+  const c = res?.candidates?.[0];
+  const texto = c?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "";
+  const fontes = (c?.groundingMetadata?.groundingChunks || [])
+    .map((g: { web?: { title?: string; uri?: string } }) => ({ titulo: g.web?.title || "", uri: g.web?.uri || "" }))
+    .filter((f: { uri: string }) => f.uri);
+  if (!texto) throw new Error("Gemini sem resposta à pesquisa" + (res?.promptFeedback?.blockReason ? ` (${res.promptFeedback.blockReason})` : ""));
+  return { texto, fontes };
 }
 
 export async function embed(text: string): Promise<number[]> {

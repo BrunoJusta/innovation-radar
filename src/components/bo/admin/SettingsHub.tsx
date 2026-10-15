@@ -7,12 +7,14 @@ import { SourcesView } from "./SourcesView";
 import { TaxonomyView } from "./TaxonomyView";
 import { UsersView } from "./UsersView";
 import { RunsView } from "./RunsView";
+import { SectorsView } from "./SectorsView";
 
-type Sec = "geral" | "sources" | "taxonomy" | "users" | "runs";
+type Sec = "geral" | "sources" | "taxonomy" | "sectors" | "users" | "runs";
 const SECS: { id: Sec; label: string; icon: string }[] = [
   { id: "geral", label: "Geral", icon: "gear" },
   { id: "sources", label: "Fontes", icon: "rss" },
   { id: "taxonomy", label: "Áreas e categorias", icon: "stack" },
+  { id: "sectors", label: "Setores das startups", icon: "lightbulb" },
   { id: "users", label: "Utilizadores", icon: "users" },
   { id: "runs", label: "Execuções", icon: "chart-line" },
 ];
@@ -34,6 +36,7 @@ export function SettingsHub({ areas, cats }: { areas: Area[]; cats: Category[] }
         {sec === "geral" && <SettingsView />}
         {sec === "sources" && <SourcesView />}
         {sec === "taxonomy" && <TaxonomyView areas={areas} cats={cats} />}
+        {sec === "sectors" && <SectorsView />}
         {sec === "users" && <UsersView />}
         {sec === "runs" && <RunsView />}
       </section>

@@ -1,0 +1,31 @@
+name: Recolha semanal de startups
+on:
+  schedule:
+    # Segunda às 7h30 em Lisboa (06:30 UTC no verão, 07:30 UTC no inverno). O script só corre uma vez por semana.
+    - cron: "30 6 * * 1"
+    - cron: "30 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Simular sem gravar nada"
+        type: boolean
+        default: false
+concurrency: { group: startups, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm test
+      - name: Procurar startups e preparar fichas
+        run: npm run startups
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          SCHEDULED: ${{ github.event_name == 'schedule' && '1' || '0' }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}

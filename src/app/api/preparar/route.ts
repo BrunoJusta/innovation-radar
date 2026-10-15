@@ -8,31 +8,17 @@ import { NextResponse } from "next/server";
 import { extractPage, htmlToText, type Page } from "../../../../pipeline/lib/text";
 import { classify, embed } from "../../../../pipeline/lib/gemini";
 import { normalizeUrl, urlHash } from "../../../../pipeline/lib/url";
+import { memberFromRequest } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const PROJECT = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "sogrape-ai-studio";
-const DB = process.env.NEXT_PUBLIC_FIRESTORE_DB || "innovationradar-prod";
 type Opt = { id: string; nome: string; descricao: string };
-
-/** Confirma o login e o acesso ao BO: o Firestore valida o token e as regras só deixam ler o próprio perfil. */
-async function member(token: string) {
-  try {
-    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
-    const email = String(payload.email || "").toLowerCase();
-    if (!email) return null;
-    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/${DB}/documents/users/${encodeURIComponent(email)}`,
-      { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-    return r.ok ? email : null;
-  } catch { return null; }
-}
 
 const fail = (msg: string, status = 400) => NextResponse.json({ erro: msg }, { status });
 
 export async function POST(req: Request) {
-  const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!token || !(await member(token))) return fail("Sem sessão ou sem acesso ao backoffice.", 401);
+  if (!(await memberFromRequest(req))) return fail("Sem sessão ou sem acesso ao backoffice.", 401);
   if (!process.env.GEMINI_API_KEY) return fail("Falta configurar a GEMINI_API_KEY na Vercel.", 500);
 
   let body: { url?: string; texto?: string; titulo?: string; areas?: Opt[]; cats?: Opt[] };

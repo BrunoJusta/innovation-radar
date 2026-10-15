@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "../radar.css";
 import "./bo.css";
 import { BackofficeRoot } from "./root";
 

@@ -478,3 +478,45 @@
 .bo .head h1,.bo .hubnav h1{letter-spacing:-.03em}
 .bo .tg,.bo .badge{line-height:1}
 .bo .btn,.bo .tabs button,.bo .seg button{line-height:1}
+
+/* ===== Startups ===== */
+.bo .subnav{display:flex;gap:4px;padding-top:24px}
+.bo .subnav button{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:999px;font-family:var(--f-display);font-weight:500;font-size:14px;color:var(--ink-subtle);line-height:1}
+.bo .subnav button:hover{background:var(--sel);color:var(--ink)}
+.bo .subnav button[aria-current="true"]{background:var(--surface-1);color:var(--ink);box-shadow:var(--e2)}
+.bo .subnav .c{font-family:var(--f-mono);font-size:11px;padding:2px 6px;border-radius:999px;background:var(--ink);color:var(--canvas)}
+.bo .subnav+.head{padding-top:20px}
+.bo .seg .segc{font-family:var(--f-mono);font-size:11px;opacity:.7;margin-left:2px}
+.bo .scard .sname{display:flex;gap:12px;align-items:center;margin-top:2px}
+.bo .scard .slogo{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:none;font-family:var(--f-display);font-weight:600;font-size:17px;color:#fff;background:var(--c)}
+.bo .scard .sname h3{margin:0}
+.bo .scard .sdom{font-family:var(--f-mono);font-size:12px;color:var(--ink-tertiary)}
+.bo .scard .snip{-webkit-line-clamp:3;margin-top:0}
+.bo .sweb{display:inline-flex;align-items:center;gap:6px;font-family:var(--f-mono);font-size:13px;color:var(--ink-muted);text-decoration:none;margin:-6px 0 4px}
+.bo .sweb:hover{color:var(--ink);text-decoration:underline}
+.bo .facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}
+.bo .facts div{background:var(--surface-1);box-shadow:var(--e2);border-radius:12px;padding:10px 12px}
+.bo .facts dt{font-size:12px;color:var(--ink-subtle)}
+.bo .facts dd{margin:2px 0 0;font-family:var(--f-display);font-weight:500;font-size:14.5px}
+.bo .sources .s .mono svg.i{width:13px;height:13px}
+.bo .mdl-tabs{margin:14px 20px 0;align-self:flex-start}
+.bo .sugs{display:flex;flex-wrap:wrap;gap:6px}
+.bo .sugs .chipf{font-size:12.5px}
+.bo .clist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.bo .clist li{border-radius:12px;box-shadow:var(--e2);background:var(--surface-1);transition:box-shadow .15s}
+.bo .clist li.on{box-shadow:0 0 0 1.5px var(--ink)}
+.bo .clist label{display:flex;gap:12px;padding:12px 14px;cursor:pointer;align-items:flex-start}
+.bo .clist input[type=checkbox]{width:17px;height:17px;margin-top:3px;accent-color:var(--ink);flex:none}
+.bo .cinfo{display:flex;flex-direction:column;gap:4px;min-width:0}
+.bo .cl1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bo .cl1 b{font-family:var(--f-display);font-size:15px}
+.bo .cl1 a{font-family:var(--f-mono);font-size:12px;color:var(--ink-subtle)}
+.bo .cinfo p{margin:0;font-size:13.5px;color:var(--ink-muted);line-height:1.5}
+.bo .cwarn{font-size:12.5px;color:var(--warn)}
+/* Radar de startups dentro do backoffice */
+.bo .rp.rp-embed{min-height:0;background:transparent}
+.bo .rp-embed .hero{min-height:0;padding-block:28px 48px}
+.bo .rp-embed .hero h1{font-size:clamp(30px,3.4vw,42px)}
+.bo .rp-embed .chip .scdot{width:8px;height:8px;border-radius:50%;background:var(--sc)}
+.bo .rp .lg .sw{width:12px;height:12px;border:0;box-shadow:none;border-radius:50%;background:var(--c)}
+.bo .subnav .c.soft{background:var(--surface-3);color:var(--ink-subtle)}

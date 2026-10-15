@@ -29,6 +29,15 @@ service cloud.firestore {
       allow read: if signedIn() && (id == me() || admin());
       allow write: if admin() && !(id == me() && request.resource.data.role != 'admin');
     }
+    // Startups: só no backoffice (sem página pública)
+    match /sectors/{id}  { allow read: if member(); allow write: if admin(); }
+    match /startups/{id} {
+      allow read, update: if member();
+      allow create: if member() && request.resource.data.manual == true
+                    && request.resource.data.status in ['pending', 'approved'];
+      allow delete: if admin();
+    }
+    match /startupSeen/{id} { allow read, write: if false; }
     // Uso do pipeline (a conta de serviço ignora as regras); o BO só cria registos das notícias manuais
     match /seen/{id}       { allow read, update, delete: if false; allow create: if member(); }
     match /embeddings/{id} { allow read, update, delete: if false; allow create: if member(); }

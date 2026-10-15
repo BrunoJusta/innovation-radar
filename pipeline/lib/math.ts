@@ -5,7 +5,7 @@ export function cosine(a: number[], b: number[]): number {
   return na && nb ? d / Math.sqrt(na * nb) : 0;
 }
 
-/** Hora em Lisboa (0–23) e data AAAA-MM-DD em Lisboa. */
+/** Hora em Lisboa (0 a 23) e data AAAA-MM-DD em Lisboa. */
 export function lisbon(d = new Date()) {
   const f = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Lisbon", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
   const p = Object.fromEntries(f.formatToParts(d).map((x) => [x.type, x.value]));

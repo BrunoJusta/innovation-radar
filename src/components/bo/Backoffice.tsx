@@ -8,17 +8,18 @@ import { SignalsView } from "./SignalsView";
 import { SettingsHub } from "./admin/SettingsHub";
 import { useFlash } from "./admin/common";
 import { AddByLink } from "./AddByLink";
+import { StartupsSection } from "./startups/StartupsSection";
 import { Icon } from "@/components/Icon";
 
-type View = Status | "settings";
-const MAIN: { id: Status; label: string }[] = [
-  { id: "pending", label: "Triagem" }, { id: "approved", label: "Aprovadas" }, { id: "rejected", label: "Rejeitadas" },
+type View = "news" | "startups" | "settings";
+const NEWS: { id: Status; label: string; icon: string }[] = [
+  { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Rejeitadas", icon: "prohibit" },
 ];
-const ADMIN: { id: View; label: string }[] = [{ id: "settings", label: "Definições" }];
 
 export function Backoffice() {
   const { isAdmin, profile, email } = useSession();
-  const [view, setView] = useState<View>("pending");
+  const [view, setView] = useState<View>("news");
+  const [st, setSt] = useState<Status>("pending");
   const [signals, setSignals] = useState<Signal[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
@@ -42,7 +43,7 @@ export function Backoffice() {
     rejected: signals.filter((s) => s.status === "rejected").length,
   }), [signals]);
 
-  const isSignals = view === "pending" || view === "approved" || view === "rejected";
+  const isSignals = view === "news";
 
   return (
     <div className="bo-app">
@@ -50,22 +51,17 @@ export function Backoffice() {
         <div className="wrap topin">
           <a className="brand" href="/" title="Abrir o radar"><b>Radar de Inovação</b></a>
           <nav className="tabs" aria-label="Secções">
-            {MAIN.map((v) => (
-              <button key={v.id} aria-current={view === v.id} onClick={() => setView(v.id)}>
-                <span className="l">{v.label}</span><span className="c">{counts[v.id]}</span>
-              </button>
-            ))}
-            {isAdmin && ADMIN.map((v) => (
-              <button key={v.id} aria-current={view === v.id} onClick={() => setView(v.id)}><span className="l">{v.label}</span></button>
-            ))}
+            <button aria-current={view === "news"} onClick={() => setView("news")}><span className="l">Notícias</span>{counts.pending > 0 && <span className="c">{counts.pending}</span>}</button>
+            <button aria-current={view === "startups"} onClick={() => setView("startups")}><span className="l">Startups</span></button>
+            {isAdmin && <button aria-current={view === "settings"} onClick={() => setView("settings")}><span className="l">Definições</span></button>}
           </nav>
           <span className="sp" />
-          {isSignals && (
+          {(isSignals || view === "startups") && (
             <label className={`searchbox${query_ ? " has" : ""}`}><Icon name="magnifying-glass" />
               <input type="search" placeholder="Pesquisar" aria-label="Pesquisar" value={query_} onChange={(e) => setQuery(e.target.value)} />
             </label>
           )}
-          <button className="btn primary addbtn" onClick={() => setAdding(true)}><Icon name="plus" /><span>Adicionar</span></button>
+          {isSignals && <button className="btn primary addbtn" onClick={() => setAdding(true)}><Icon name="plus" /><span>Adicionar</span></button>}
           <div className="who-me" title={email}>
             <span>{profile.nome || email.split("@")[0]}</span><small>{profile.role === "admin" ? "Admin" : "Editor"}</small>
           </div>
@@ -73,11 +69,20 @@ export function Backoffice() {
         </div>
       </header>
       <main className="wrap" id="main">
-        {isSignals && <SignalsView status={view as Status} signals={signals} areas={areas} cats={cats} loaded={loaded} search={query_} />}
+        {isSignals && (
+          <nav className="subnav" aria-label="Notícias">
+            {NEWS.map((v) => (
+              <button key={v.id} aria-current={st === v.id} onClick={() => setSt(v.id)}><Icon name={v.icon} />{v.label}
+                {counts[v.id] > 0 && <span className={v.id === "pending" ? "c" : "c soft"}>{counts[v.id]}</span>}</button>
+            ))}
+          </nav>
+        )}
+        {isSignals && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} search={query_} />}
+        {view === "startups" && <StartupsSection search={query_} />}
         {view === "settings" && isAdmin && <SettingsHub areas={areas} cats={cats} />}
       </main>
       {adding && <AddByLink areas={areas} cats={cats} signals={signals} onClose={() => setAdding(false)}
-        onDone={(msg, aprovada) => { setAdding(false); setView(aprovada ? "approved" : "pending"); flash(msg); }} />}
+        onDone={(msg, aprovada) => { setAdding(false); setView("news"); setSt(aprovada ? "approved" : "pending"); flash(msg); }} />}
       {flashEl}
     </div>
   );

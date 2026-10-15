@@ -29,8 +29,8 @@ async function main() {
   if (process.env.SCHEDULED === "1") {
     const L = lisbon();
     if (L.hour < 6) { log(`Agendamento ignorado: são ${L.hour}h em Lisboa.`); return; }
-    const today = await db.collection("runs").where("dia", "==", L.day).limit(5).get();
-    if (today.docs.some((d) => d.data().estado !== "erro")) { log(`Já houve uma recolha hoje (${L.day}).`); return; }
+    const today = await db.collection("runs").where("dia", "==", L.day).limit(10).get();
+    if (today.docs.some((d) => d.data().estado !== "erro" && d.data().tipo !== "startups")) { log(`Já houve uma recolha hoje (${L.day}).`); return; }
   }
 
   const [areasS, catsS, srcS, setS] = await Promise.all([

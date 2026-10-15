@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "pipeline": "tsx pipeline/run.ts",
     "seed": "tsx pipeline/seed.ts",
-    "test": "tsx --test pipeline/*.test.ts"
+    "test": "tsx --test pipeline/*.test.ts",
+    "startups": "tsx pipeline/startups-run.ts"
   },
   "dependencies": {
     "@fontsource-variable/outfit": "^5.2.6",
