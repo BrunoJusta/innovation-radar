@@ -586,3 +586,8 @@
 .bo .ntbl .tman{background:var(--surface-2);color:var(--ink-muted)}
 .bo .ntbl .tcat{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .bo .ntbl .tcat svg.i{width:14px;height:14px;color:var(--ink-subtle)}
+/* Fontes agrupadas */
+.bo .srcgrp+.srcgrp{margin-top:22px}
+.bo .srcg{display:flex;align-items:center;gap:8px;margin:18px 0 0;font:600 13px/1.3 var(--f-display);color:var(--ink-secondary)}
+.bo .srcg span{font:500 11.5px/1 var(--f-mono,inherit);color:var(--ink-tertiary);background:var(--surface-2,#f3f3f3);border-radius:99px;padding:3px 7px}
+.bo .form textarea{width:100%;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;padding:10px 12px;border:1px solid var(--hairline);border-radius:10px;background:var(--surface-1);color:inherit;resize:vertical}

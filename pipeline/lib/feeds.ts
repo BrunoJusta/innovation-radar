@@ -67,10 +67,17 @@ async function get(url: string) {
 
 export async function fetchRss(url: string): Promise<FeedItem[]> { return parseFeed(await get(url)); }
 
+/** URL da API: o site base ganha /wp-json/wp/v2/posts; um URL da API já com filtros (ex.: ?categories=772) mantém-nos. */
+export function wpUrl(base: string): string {
+  const u = new URL(base.includes("/wp-json/") ? base : `${base.replace(/\/+$/, "")}/wp-json/wp/v2/posts`);
+  if (!u.searchParams.has("per_page")) u.searchParams.set("per_page", "20");
+  u.searchParams.set("_fields", "link,title,date_gmt,content,excerpt");
+  return u.toString();
+}
+
 /** WordPress REST API: {base}/wp-json/wp/v2/posts */
 export async function fetchWp(base: string): Promise<FeedItem[]> {
-  const b = base.replace(/\/+$/, "").replace(/\/wp-json.*$/, "");
-  const raw = JSON.parse(await get(`${b}/wp-json/wp/v2/posts?per_page=20&_fields=link,title,date_gmt,content,excerpt`));
+  const raw = JSON.parse(await get(wpUrl(base)));
   return (raw as { link: string; title: { rendered: string }; date_gmt: string; content?: { rendered: string }; excerpt?: { rendered: string } }[])
     .map((p) => ({ url: p.link, title: htmlToText(p.title.rendered), date: iso(p.date_gmt + "Z"), html: p.content?.rendered || p.excerpt?.rendered || "" }));
 }

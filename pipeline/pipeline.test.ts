@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { normalizeUrl, urlHash } from "./lib/url";
 import { matchKeywords, htmlToText } from "./lib/text";
-import { parseFeed, cloudflareBlock } from "./lib/feeds";
+import { parseFeed, cloudflareBlock, wpUrl } from "./lib/feeds";
 import { cosine, lisbon } from "./lib/math";
 
 test("normalizeUrl remove tracking, www, barra final e fragmento", () => {
@@ -75,4 +75,11 @@ test("extractJson lê o JSON de respostas em texto", () => {
   assert.deepEqual(extractJson('{"startups":[]} fim'), { startups: [] });
   assert.deepEqual(extractJson('lista: [{"nome":"B"}]'), [{ nome: "B" }]);
   assert.equal(extractJson("sem json nenhum"), null);
+});
+
+test("wpUrl junta o caminho da API e mantém os filtros", () => {
+  assert.equal(wpUrl("https://site.com/"), "https://site.com/wp-json/wp/v2/posts?per_page=20&_fields=link%2Ctitle%2Cdate_gmt%2Ccontent%2Cexcerpt");
+  const u = new URL(wpUrl("https://agfundernews.com/wp-json/wp/v2/posts?categories=772,773"));
+  assert.equal(u.searchParams.get("categories"), "772,773");
+  assert.equal(u.searchParams.get("per_page"), "20");
 });

@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { auth } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import { createStartup, StartupEdit } from "@/lib/startup-actions";
-import { FASES, Sector, Startup } from "@/lib/types";
+import { FASES, Sector, Startup, STARTUP_SITES } from "@/lib/types";
 import { nowIso } from "@/lib/util";
 import { Icon } from "@/components/Icon";
 import { useSession } from "../AuthGate";
@@ -46,13 +47,15 @@ export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
   }, [busy, onClose]);
 
   const exists = (id: string) => startups.find((s) => s.id === id);
+  const [sites, setSites] = useState<string[]>(STARTUP_SITES);
+  useEffect(() => { getDoc(doc(db, "settings", "geral")).then((d) => { const v = d.data()?.sitesStartups; if (Array.isArray(v)) setSites(v); }).catch(() => {}); }, []);
   const secs = sectors.map(({ id, nome, descricao, cor, icone, ordem, pesquisas }) => ({ id, nome, descricao, cor, icone, ordem, pesquisas }));
 
   const procurar = async () => {
     if (query.trim().length < 3) { setErro("Escreve o que queres procurar."); return; }
     setErro(""); setBusy(true); setCands(null);
     try {
-      const j = await post<{ candidatas: Cand[] }>("/api/startups/procurar", { query, sectors: secs });
+      const j = await post<{ candidatas: Cand[] }>("/api/startups/procurar", { query, sectors: secs, sites });
       setCands(j.candidatas);
       setPick(new Set(j.candidatas.filter((c) => !exists(c.id)).map((c) => c.id)));
       // Verificação dos sites em segundo plano: avisa e desmarca os que não respondem

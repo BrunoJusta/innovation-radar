@@ -26,8 +26,27 @@ const DATA: Record<string, Record<string, object>> = {
         "computer vision", "predictive analytics", "ai agent", "ai agents", "agentic", "automation", "algorithm"] },
   },
   sources: {
-    "grande-consumo": { nome: "Grande Consumo", tipo: "rss", url: "https://grandeconsumo.com/feed/", lingua: "pt", ativo: true },
-    beveragedaily: { nome: "BeverageDaily", tipo: "rss", url: "https://www.beveragedaily.com/arc/outboundfeeds/rss/", lingua: "en", ativo: true },
+    // Notícias (recolha diária). Testadas em outubro de 2026.
+    "grande-consumo": { nome: "Grande Consumo", tipo: "rss", url: "https://grandeconsumo.com/feed/", lingua: "pt", ativo: true, grupo: "Tendências de consumo e inovação de produto" },
+    "beveragedaily": { nome: "BeverageDaily", tipo: "rss", url: "https://www.beveragedaily.com/arc/outboundfeeds/rss/", lingua: "en", ativo: true, grupo: "Vinhos, espirituosos e bebidas" },
+    "the-drinks-business": { nome: "The Drinks Business", tipo: "wp-api", url: "https://www.thedrinksbusiness.com", lingua: "en", ativo: true, grupo: "Vinhos, espirituosos e bebidas" },
+    "iwsr": { nome: "IWSR", tipo: "rss", url: "https://www.theiwsr.com/feed/", lingua: "en", ativo: true, grupo: "Vinhos, espirituosos e bebidas" },
+    "foodbev": { nome: "FoodBev", tipo: "rss", url: "https://www.foodbev.com/blog-feed.xml", lingua: "en", ativo: true, grupo: "Vinhos, espirituosos e bebidas" },
+    "just-drinks-vinhos": { nome: "Just Drinks · Vinhos", tipo: "rss", url: "https://www.just-drinks.com/sector/alcoholic-beverages/wines/feed/", lingua: "en", ativo: true, grupo: "Vinhos, espirituosos e bebidas" },
+    "just-drinks-espirituosos": { nome: "Just Drinks · Espirituosos", tipo: "rss", url: "https://www.just-drinks.com/sector/alcoholic-beverages/spirits/feed/", lingua: "en", ativo: true, grupo: "Vinhos, espirituosos e bebidas" },
+    "circana": { nome: "Circana", tipo: "rss", url: "https://www.circana.com/blog-feed.xml", lingua: "en", ativo: true, grupo: "Tendências de consumo e inovação de produto" },
+    "packaging-europe": { nome: "Packaging Europe", tipo: "rss", url: "https://www.packagingeurope.com/latest/rss/", lingua: "en", ativo: true, grupo: "Embalagem, materiais e sustentabilidade" },
+    "sustainable-packaging-news": { nome: "Sustainable Packaging News", tipo: "rss", url: "https://spnews.com/api/rss/content.rss", lingua: "en", ativo: true, grupo: "Embalagem, materiais e sustentabilidade" },
+    "dezeen-packaging": { nome: "Dezeen · Packaging", tipo: "rss", url: "https://www.dezeen.com/tag/packaging/feed/", lingua: "en", ativo: true, grupo: "Embalagem, materiais e sustentabilidade" },
+    "skift": { nome: "Skift", tipo: "rss", url: "https://skift.com/feed/", lingua: "en", ativo: true, grupo: "Experiência do consumidor, hotelaria e retalho" },
+    "hospitality-net-europa": { nome: "Hospitality Net · Europa", tipo: "rss", url: "https://www.hospitalitynet.org/rss/news/europe.xml", lingua: "en", ativo: true, grupo: "Experiência do consumidor, hotelaria e retalho" },
+    "trendwatching": { nome: "TrendWatching", tipo: "rss", url: "https://www.trendwatching.com/trends-and-insights/rss.xml", lingua: "en", ativo: true, grupo: "Experiência do consumidor, hotelaria e retalho" },
+    "retail-touchpoints": { nome: "Retail TouchPoints", tipo: "rss", url: "https://www.retailtouchpoints.com/feed", lingua: "en", ativo: true, grupo: "Experiência do consumidor, hotelaria e retalho" },
+    "the-future-laboratory": { nome: "The Future Laboratory", tipo: "rss", url: "https://www.thefuturelaboratory.com/blog/rss.xml", lingua: "en", ativo: true, grupo: "Experiência do consumidor, hotelaria e retalho" },
+    // Startups (recolha semanal): artigos da semana → startups citadas → ficha
+    "agfundernews": { nome: "AgFunderNews", tipo: "wp-api", url: "https://agfundernews.com/wp-json/wp/v2/posts?categories=772,773,1471,1479", lingua: "en", ativo: true, para: "startups" },
+    "crunchbase-news-agrifood": { nome: "Crunchbase News · Agrifood", tipo: "wp-api", url: "https://news.crunchbase.com/wp-json/wp/v2/posts?categories=2046", lingua: "en", ativo: true, para: "startups" },
+    "the-spoon": { nome: "The Spoon", tipo: "rss", url: "https://thespoon.tech/feed/", lingua: "en", ativo: true, para: "startups" },
   },
   settings: { geral: { corteRelevancia: 50, janelaDias: 90, corteStartups: 50 } },
   sectors: {
@@ -64,7 +83,16 @@ async function main() {
   }
   for (const [col, docs] of Object.entries(DATA)) for (const [id, data] of Object.entries(docs)) {
     try { await db.collection(col).doc(id).create(data); console.log(`criado   ${col}/${id}`); }
-    catch (e) { if ((e as { code?: number }).code === 6) console.log(`já existe ${col}/${id}`); else throw e; }
+    catch (e) {
+      if ((e as { code?: number }).code !== 6) throw e;
+      console.log(`já existe ${col}/${id}`);
+      // Fontes antigas sem grupo ficam com o grupo sugerido (não mexe no resto)
+      const grupo = (data as { grupo?: string }).grupo;
+      if (col === "sources" && grupo) {
+        const ref = db.collection(col).doc(id);
+        if (!(await ref.get()).data()?.grupo) { await ref.update({ grupo }); console.log(`  grupo  ${grupo}`); }
+      }
+    }
   }
   console.log("Seed concluído. Nenhuma notícia foi criada.");
 }

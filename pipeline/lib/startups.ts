@@ -26,7 +26,7 @@ export const startupId = (dominio: string) => dominio.replace(/[^a-z0-9]+/g, "-"
 export const siteUrl = (url: string) => { const d = domainOf(url); return d ? `https://${d}` : ""; };
 
 /** Domínios que não são o site próprio de uma startup (redes sociais, bases de dados, imprensa). */
-const NOT_OWN = /(^|\.)(linkedin|facebook|instagram|twitter|x|youtube|crunchbase|dealroom|tracxn|pitchbook|cbinsights|f6s|angel|wellfound|medium|github|google|wikipedia|bloomberg|techcrunch|forbes|sifted|eu-startups|producthunt|apple|play\.google)\.[a-z.]+$/;
+const NOT_OWN = /(^|\.)(linkedin|facebook|instagram|twitter|x|youtube|crunchbase|dealroom|tracxn|agfundernews|thespoon|foodhack|eitfood|plugandplaytechcenter|startus-insights|pitchbook|cbinsights|f6s|angel|wellfound|medium|github|google|wikipedia|bloomberg|techcrunch|forbes|sifted|eu-startups|producthunt|apple|play\.google)\.[a-z.]+$/;
 export const isOwnSite = (dominio: string) => !!dominio && dominio.includes(".") && !NOT_OWN.test(dominio);
 
 /** O site existe? (403/401/429 contam: o site existe mas não gosta de robôs) */
@@ -103,8 +103,13 @@ async function searchStartups(pedido: string, sectors: Sector[], sp: Speed): Pro
 }
 
 /** Descobre startups com uma pesquisa online. */
-export async function discover(query: string, sectors: Sector[], max = 8, sp: Speed = {}): Promise<Candidate[]> {
-  const raw = await searchStartups(`Pesquisa na web: «${query}».
+export async function discover(query: string, sectors: Sector[], max = 8, sp: Speed = {}, sites: string[] = [], soNosSites = false): Promise<Candidate[]> {
+  const ref = sites.length
+    ? soNosSites
+      ? `\nPesquisa SÓ nestes sites especializados (usa ${sites.map((d) => `site:${d}`).join(" OR ")}): ${sites.join(", ")}. O site oficial de cada startup confirma-se depois, fora deles.`
+      : `\nDá prioridade a estes sites especializados em startups, sem te limitares a eles: ${sites.join(", ")}.`
+    : "";
+  const raw = await searchStartups(`Pesquisa na web: «${query}».${ref}
 Encontra até ${max} startups (empresas jovens e independentes) relevantes para estes setores. Para cada uma: nome, site oficial, país e cidade, ano de fundação, fase de investimento, o que faz, financiamento conhecido, investidores e o URL da página onde encontraste a informação. Prefere notícias e anúncios dos últimos 2 anos. Não incluas empresas sem site próprio.`, sectors, sp);
   return raw.map((r) => clean(r, sectors)).filter((x): x is Candidate => !!x).slice(0, max);
 }

@@ -6,19 +6,24 @@ import { DEFAULT_SETTINGS, Settings } from "@/lib/types";
 import { Icon } from "@/components/Icon";
 import { AdmHead, errMsg, useFlash } from "./common";
 
+const dominio = (x: string) => x.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, Math.round(v)));
 
 /** Regras da recolha: as das notícias ou as das startups (guardadas no mesmo documento settings/geral). */
 export function SettingsView({ scope }: { scope: "news" | "startups" }) {
   const [s, setS] = useState<Settings | null>(null);
+  const [sitesTxt, setSitesTxt] = useState("");
   const { flash, el } = useFlash();
-  useEffect(() => { getDoc(doc(db, "settings", "geral")).then((d) => setS({ ...DEFAULT_SETTINGS, ...(d.data() || {}) })).catch(() => setS(DEFAULT_SETTINGS)); }, []);
+  useEffect(() => {
+    const put = (v: Settings) => { setS(v); setSitesTxt((v.sitesStartups || []).join("\n")); };
+    getDoc(doc(db, "settings", "geral")).then((d) => put({ ...DEFAULT_SETTINGS, ...(d.data() || {}) })).catch(() => put(DEFAULT_SETTINGS));
+  }, []);
   if (!s) return <div className="loading">A carregar…</div>;
 
   const save = async () => {
     const v: Partial<Settings> = scope === "news"
       ? { corteRelevancia: clamp(s.corteRelevancia, 0, 100), janelaDias: clamp(s.janelaDias, 7, 365) }
-      : { corteStartups: clamp(s.corteStartups ?? 50, 0, 100) };
+      : { corteStartups: clamp(s.corteStartups ?? 50, 0, 100), sitesStartups: sitesTxt.split(/[\s,]+/).map(dominio).filter(Boolean) };
     try { await setDoc(doc(db, "settings", "geral"), v, { merge: true }); setS({ ...s, ...v }); flash("Regras guardadas"); } catch (e) { flash(errMsg(e)); }
   };
 
@@ -43,6 +48,9 @@ export function SettingsView({ scope }: { scope: "news" | "startups" }) {
             <input type="number" min={0} max={100} value={s.corteStartups ?? 50} onChange={(e) => setS({ ...s, corteStartups: +e.target.value })} /></label>
         </div>
         <p className="hint">Startups abaixo do corte são descartadas e não voltam a ser propostas nas recolhas seguintes. A pesquisa à mão (Procurar online) mostra todas, para decidires tu.</p>
+        <label className="fld"><span>Sites de referência (um por linha)</span>
+          <textarea rows={8} value={sitesTxt} onChange={(e) => setSitesTxt(e.target.value)} spellCheck={false} placeholder="dealroom.co" /></label>
+        <p className="hint">A pesquisa online (a semanal e o Procurar online) dá prioridade a estes sites e a recolha semanal faz uma pesquisa extra por setor só dentro deles. Bases de dados pagas como a Dealroom e a Crunchbase entram só pelo que a Pesquisa Google mostra.</p>
         <div className="factions"><button className="btn primary" onClick={save}><Icon name="check" />Guardar</button></div>
       </div>
     </>)}

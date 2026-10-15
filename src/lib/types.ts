@@ -56,10 +56,28 @@ export interface Category {
 }
 export interface Source {
   id: string; nome: string; tipo: "rss" | "wp-api"; url: string; lingua: "pt" | "en"; ativo: boolean;
+  /** Onde a fonte é usada: recolha diária de notícias (por defeito) ou recolha semanal de startups. */
+  para?: "noticias" | "startups";
+  /** Grupo para organizar a lista de fontes (ex.: "Vinhos, espirituosos e bebidas"). */
+  grupo?: string;
   /** Preenchido pela recolha quando o site bloqueia robôs; a fonte é desligada automaticamente. */
   bloqueado?: { em: string; por: "cloudflare"; http: number; url: string } | null;
 }
-export interface Settings { corteRelevancia: number; janelaDias: number; corteStartups?: number; }
+export interface Settings {
+  corteRelevancia: number; janelaDias: number; corteStartups?: number;
+  /** Sites especializados a que a pesquisa de startups dá prioridade (domínios). */
+  sitesStartups?: string[];
+}
+/** Sites de referência para a pesquisa de startups, usados enquanto não forem editados nas Definições. */
+export const STARTUP_SITES = [
+  "dealroom.co", "news.crunchbase.com", "agfundernews.com", "thespoon.tech", "foodhack.global",
+  "eitfood.eu", "plugandplaytechcenter.com", "startus-insights.com",
+];
+/** Grupos sugeridos para as fontes de notícias. */
+export const SOURCE_GROUPS = [
+  "Vinhos, espirituosos e bebidas", "Tendências de consumo e inovação de produto", "Embalagem, materiais e sustentabilidade",
+  "Experiência do consumidor, hotelaria e retalho", "Ciência e tecnologia",
+];
 export interface AppUser { email: string; nome?: string; role: Role; adicionadoEm?: string; adicionadoPor?: string; }
 
 export interface RunSource {
@@ -68,7 +86,7 @@ export interface RunSource {
 }
 export interface Run { id: string; tipo?: "startups"; inicio: string; fim?: string; estado: "ok" | "erro" | "a correr"; fontes: RunSource[]; erroGeral?: string; }
 
-export const DEFAULT_SETTINGS: Settings = { corteRelevancia: 50, janelaDias: 90, corteStartups: 50 };
+export const DEFAULT_SETTINGS: Settings = { corteRelevancia: 50, janelaDias: 90, corteStartups: 50, sitesStartups: STARTUP_SITES };
 export const REJECT_REASONS = ["Fora de tema", "Pouco relevante", "Duplicada", "Fonte pouco fiável"];
 export const AREA_COLORS = ["#7C3AED", "#0EA5DE", "#16C784", "#E7A912", "#E5487D", "#3D4170"];
 

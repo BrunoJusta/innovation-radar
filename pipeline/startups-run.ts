@@ -1,14 +1,17 @@
 /**
  * Recolha semanal de startups.
- * Pesquisas online por setor (Gemini + Pesquisa Google) + startups citadas nas notícias da semana
+ * Pesquisas online por setor (Gemini + Pesquisa Google, com prioridade aos sites de referência)
+ * + startups citadas nos feeds de startups (Definições › Startups › Fontes) e nas notícias da semana
  * → site próprio e a responder → já existe? junta a origem : corte de relevância → startups (pending)
  */
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "./lib/admin";
 import { checkSite, Candidate, discover, domainOf, fromNews, profile, startupId } from "./lib/startups";
 import { lisbon } from "./lib/math";
-import type { RunSource, Sector, Settings, Signal, Startup, StartupOrigem } from "../src/lib/types";
-import { DEFAULT_SETTINGS } from "../src/lib/types";
+import { fetchRss, fetchWp, FetchError } from "./lib/feeds";
+import { htmlToText } from "./lib/text";
+import type { RunSource, Sector, Settings, Signal, Source, Startup, StartupOrigem } from "../src/lib/types";
+import { DEFAULT_SETTINGS, STARTUP_SITES } from "../src/lib/types";
 
 const DRY = process.env.DRY_RUN === "1";
 const MAX_NEW = Number(process.env.MAX_NEW_STARTUPS || 40);
@@ -33,14 +36,17 @@ async function main() {
     if (feitas.docs.some((d) => d.data().tipo === "startups" && d.data().estado !== "erro")) { log(`Já houve recolha de startups na semana ${semana}.`); return; }
   }
 
-  const [secS, setS, stS, seenS] = await Promise.all([
+  const [secS, setS, stS, seenS, srcS] = await Promise.all([
     db.collection("sectors").get(), db.doc("settings/geral").get(),
     db.collection("startups").select("origens", "status").get(), db.collection("startupSeen").select().get(),
+    db.collection("sources").where("para", "==", "startups").get(),
   ]);
+  const feeds = srcS.docs.map((d) => ({ id: d.id, ...d.data() }) as Source).filter((s) => s.ativo);
   const sectors = secS.docs.map((d) => ({ id: d.id, ...d.data() }) as Sector).sort((a, b) => a.ordem - b.ordem);
   if (!sectors.length) throw new Error("Não há setores de startups. Corre primeiro o seed.");
   const settings: Settings = { ...DEFAULT_SETTINGS, ...(setS.data() || {}) };
   const corte = settings.corteStartups ?? 50;
+  const sites = (settings.sitesStartups?.length ? settings.sitesStartups : STARTUP_SITES).slice(0, 20);
   const existing = new Map(stS.docs.map((d) => [d.id, new Set(((d.data().origens || []) as StartupOrigem[]).map((o) => o.url))]));
   const seen = new Set(seenS.docs.map((d) => d.id));
   log(`${sectors.length} setores, ${existing.size} startups já registadas, corte ${corte}`);
@@ -79,22 +85,58 @@ async function main() {
     log(`  + ${c.relevancia} ${c.nome} (${c.dominio})`);
   }
 
+  /** Startup citada num artigo: junta a origem se já existe, senão faz a ficha pelo site/nome. */
+  async function fromNamed(n: { nome: string; site: string; url: string; titulo: string }, st: RunSource) {
+    const origem: StartupOrigem = { tipo: "noticia", titulo: n.titulo, url: n.url, data: now() };
+    const d = domainOf(n.site);
+    if (d && (existing.has(startupId(d)) || seen.has(startupId(d)))) { await handle({ id: startupId(d) } as Candidate, origem, st); return; }
+    try {
+      const c = await profile(n.site, sectors, n.nome);
+      if (c) await handle(c, origem, st); else st.filtro++;
+    } catch (e) { st.erros.push(`${n.nome}: ${(e as Error).message.slice(0, 160)}`); }
+  }
+
   try {
     // 1) Pesquisas online por setor
     for (const sec of sectors) {
       const st: RunSource = { sourceId: sec.id, nome: `Pesquisa · ${sec.nome}`, lidos: 0, jaVistos: 0, filtro: 0, relevantes: 0, novos: 0, fundidos: 0, erros: [] };
       run.fontes.push(st);
-      for (const q of sec.pesquisas || []) {
+      // Pesquisas do setor (com prioridade aos sites de referência) + uma pesquisa só dentro desses sites
+      const qs = (sec.pesquisas || []).map((q) => ({ q, so: false }));
+      if (sites.length) qs.push({ q: `startups: ${sec.nome}. ${sec.descricao}`, so: true });
+      for (const { q, so } of qs) {
         try {
-          const found = await discover(q, sectors);
+          const found = await discover(q, sectors, 8, {}, sites, so);
           log(`${sec.nome} «${q}»: ${found.length}`);
-          for (const c of found) await handle(c, { tipo: "pesquisa", titulo: c.fonte.titulo, url: c.fonte.url, data: now(), pesquisa: q }, st);
+          for (const c of found) await handle(c, { tipo: "pesquisa", titulo: c.fonte.titulo, url: c.fonte.url, data: now(), pesquisa: so ? `Sites de referência · ${sec.nome}` : q }, st);
         } catch (e) { st.erros.push(`«${q}»: ${(e as Error).message.slice(0, 160)}`); log("  ! erro", q, (e as Error).message); }
       }
       if (!DRY) await runRef.update({ fontes: run.fontes });
     }
 
-    // 2) Startups citadas nas notícias dos últimos 8 dias
+    // 2) Feeds de startups: artigos da última semana → startups citadas → ficha
+    const since8 = Date.now() - 8 * 864e5;
+    for (const src of feeds) {
+      const st: RunSource = { sourceId: src.id, nome: `Fonte · ${src.nome}`, lidos: 0, jaVistos: 0, filtro: 0, relevantes: 0, novos: 0, fundidos: 0, erros: [] };
+      run.fontes.push(st);
+      try {
+        const items = (src.tipo === "wp-api" ? await fetchWp(src.url) : await fetchRss(src.url))
+          .filter((i) => Date.parse(i.date) >= since8).slice(0, 30);
+        log(`${src.nome}: ${items.length} artigos da semana`);
+        const named = await fromNews(items.map((i) => ({ titulo: i.title, resumo: htmlToText(i.html).slice(0, 900), entidades: [], url: i.url })));
+        log(`  ${named.length} startups citadas`);
+        for (const n of named) await fromNamed(n, st);
+      } catch (e) {
+        st.erros.push(`Feed: ${(e as Error).message.slice(0, 200)}`); log(src.nome, "erro no feed", (e as Error).message);
+        if (e instanceof FetchError && e.bloqueio && !DRY) {
+          await db.doc(`sources/${src.id}`).update({ ativo: false, bloqueado: { em: now(), por: e.bloqueio, http: e.status, url: src.url } });
+          st.erros.push("Fonte desligada automaticamente: o site bloqueia a recolha (Cloudflare).");
+        }
+      }
+      if (!DRY) await runRef.update({ fontes: run.fontes });
+    }
+
+    // 3) Startups citadas nas notícias dos últimos 8 dias
     const st: RunSource = { sourceId: "noticias", nome: "Notícias da semana", lidos: 0, jaVistos: 0, filtro: 0, relevantes: 0, novos: 0, fundidos: 0, erros: [] };
     run.fontes.push(st);
     try {
@@ -104,18 +146,7 @@ async function main() {
         .map((s) => ({ titulo: s.titulo, resumo: s.resumo, entidades: s.entidades || [], url: s.fontes?.[0]?.url || "" })).filter((n) => n.url).slice(0, 60);
       const named = await fromNews(news);
       log(`Notícias: ${news.length} lidas, ${named.length} startups citadas`);
-      for (const n of named) {
-        const d = domainOf(n.site);
-        if (d && (existing.has(startupId(d)) || seen.has(startupId(d)))) {
-          await handle({ id: startupId(d) } as Candidate, { tipo: "noticia", titulo: n.titulo, url: n.url, data: now() }, st);
-          continue;
-        }
-        try {
-          const c = await profile(n.site, sectors, n.nome);
-          if (c) await handle(c, { tipo: "noticia", titulo: n.titulo, url: n.url, data: now() }, st);
-          else st.filtro++;
-        } catch (e) { st.erros.push(`${n.nome}: ${(e as Error).message.slice(0, 160)}`); }
-      }
+      for (const n of named) await fromNamed(n, st);
     } catch (e) { st.erros.push(`Notícias: ${(e as Error).message.slice(0, 160)}`); }
 
     if (!DRY) await runRef.update({ estado: "ok", fim: now(), fontes: run.fontes });

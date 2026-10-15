@@ -39,7 +39,8 @@ async function main() {
   ]);
   const areas = areasS.docs.map((d) => ({ id: d.id, ...d.data() }) as Area);
   const cats = catsS.docs.map((d) => ({ id: d.id, ...d.data() }) as Category);
-  const sources = srcS.docs.map((d) => ({ id: d.id, ...d.data() }) as Source);
+  // As fontes das startups são lidas pela recolha semanal (startups-run.ts)
+  const sources = srcS.docs.map((d) => ({ id: d.id, ...d.data() }) as Source).filter((s) => s.para !== "startups");
   const settings: Settings = { ...DEFAULT_SETTINGS, ...(setS.data() || {}) };
   if (!areas.length || !cats.length) throw new Error("Não há áreas ou categorias. Corre primeiro o seed.");
   const keywords = [...new Set(cats.flatMap((c) => c.palavrasChave || []))];
