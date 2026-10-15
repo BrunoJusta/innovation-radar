@@ -832,3 +832,5 @@
 .bo .an-mxd[open] .ver{display:none}
 .bo .an-mxd>.hint,.bo .an-mxd>.an-mx-wrap,.bo .an-mxd>.an-leg{margin-left:16px;margin-right:16px}
 .bo .an-mxd>.an-leg{margin-bottom:16px}
+/* Radar público dentro do backoffice */
+.bo .radar-frame{display:block;width:100%;height:calc(100dvh - 190px);min-height:620px;border:0;border-radius:16px;box-shadow:var(--e2);background:#fff;margin-bottom:32px}

@@ -14,6 +14,9 @@ export interface RadarItem extends ChartItem {
 }
 
 export default function RadarApp() {
+  // Dentro do backoffice (separador Radar das notícias) o radar abre sem o cabeçalho do site
+  const [embed, setEmbed] = useState(false);
+  useEffect(() => { setEmbed(new URLSearchParams(window.location.search).has("embed")); }, []);
   const [areas, setAreas] = useState<Area[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -61,8 +64,8 @@ export default function RadarApp() {
   const open = items.find((x) => x.id === openId) || null;
 
   return (
-    <div className="rp">
-      <header className="top"><div className="wrap topin"><a className="brand" href="/">Radar de Inovação</a></div></header>
+    <div className={`rp${embed ? " embed" : ""}`}>
+      {!embed && <header className="top"><div className="wrap topin"><a className="brand" href="/">Radar de Inovação</a></div></header>}
       <main>
         <section className="wrap hero" aria-label="Radar">
           <div className="htxt">

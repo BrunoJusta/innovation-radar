@@ -54,3 +54,6 @@ export async function createStartup(id: string, f: StartupEdit & { dominio: stri
   await setDoc(r, Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)));
   return "criada";
 }
+
+/** Marca a ficha como estando no pipeline (fica aprovada; só sai da lista de Aprovadas). */
+export const saveStartupLink = (id: string, dealId: string) => updateDoc(ref(id), { dealId, pipelineEm: nowIso(), atualizadoEm: nowIso() });

@@ -21,7 +21,7 @@ const NEWS: { id: Status; label: string; icon: string }[] = [
 export function Backoffice() {
   const { isAdmin, profile, email } = useSession();
   const [view, setView] = useState<View>("news");
-  const [st, setSt] = useState<Status>("pending");
+  const [st, setSt] = useState<Status | "radar">("pending");
   const [signals, setSignals] = useState<Signal[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
@@ -73,14 +73,16 @@ export function Backoffice() {
                 <button key={v.id} aria-current={st === v.id} onClick={() => setSt(v.id)}><Icon name={v.icon} />{v.label}
                   {counts[v.id] > 0 && <span className={v.id === "pending" ? "c" : "c soft"}>{counts[v.id]}</span>}</button>
               ))}
+              <button aria-current={st === "radar"} onClick={() => setSt("radar")}><Icon name="globe" />Radar</button>
             </nav>
-            <div className="pageact">
+            {st === "radar" ? <div className="pageact"><a className="btn" href="/" target="_blank" rel="noopener noreferrer"><Icon name="arrow-up-right" />Abrir o site</a></div> : <div className="pageact">
               <SearchField value={search} onChange={setSearch} placeholder="Pesquisar notícias" />
               <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" />Adicionar por link</button>
-            </div>
+            </div>}
           </div>
         )}
-        {isSignals && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} search={search} />}
+        {isSignals && st === "radar" && <iframe className="radar-frame" src="/?embed=1" title="Radar de Inovação (como o público o vê)" />}
+        {isSignals && st !== "radar" && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} search={search} />}
         {view === "startups" && <StartupsSection />}
         {view === "settings" && isAdmin && <SettingsHub areas={areas} cats={cats} />}
       </main>

@@ -18,8 +18,8 @@ const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIE
 
 const TITLES: Record<Status, [string, string]> = {
   pending: ["Triagem", "Startups encontradas na pesquisa semanal, nas notícias e à mão, à espera de decisão."],
-  approved: ["Aprovadas", "Estas startups estão no radar de startups. Os destaques aparecem primeiro."],
-  rejected: ["Rejeitadas", "Ficam guardadas com o motivo e não voltam a ser propostas pela recolha."],
+  approved: ["Aprovadas", "Estas startups estão no radar de startups. Os destaques aparecem primeiro. As que passam para o Pipeline saem desta lista, mas continuam aprovadas e no radar."],
+  rejected: ["Arquivo", "Startups rejeitadas. Ficam guardadas com o motivo e não voltam a ser propostas pela recolha."],
 };
 
 export function StartupsTriage({ status, onStatus, startups, sectors, loaded, search, adding, setAdding }: {

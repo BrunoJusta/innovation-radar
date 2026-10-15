@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { saveStartup, StartupEdit } from "@/lib/startup-actions";
+import { approveStartup, saveStartup, saveStartupLink, StartupEdit } from "@/lib/startup-actions";
 import { FASES, Sector, Startup } from "@/lib/types";
 import { fdLongo, relLevel } from "@/lib/util";
 import { Gauge } from "../ui";
@@ -33,7 +33,10 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
   const toPipeline = async () => {
     try {
       const id = await createDeal(dealFromStartup(s, deals, sectors.find((x) => x.id === s.setor)?.nome || ""), email, "Veio do radar de startups.");
-      notify(`«${s.nome}» no pipeline (${id.replace("df-", "")})`);
+      // Fica registada como aprovada (se ainda não estava) e ligada ao pipeline; sai da lista de Aprovadas
+      if (s.status !== "approved") await approveStartup(s, email);
+      await saveStartupLink(s.id, id);
+      notify(`«${s.nome}» passou para o pipeline (${id.replace("df-", "")}). Continua aprovada e no radar de startups.`);
     } catch { notify("Não foi possível pôr no pipeline. Confirma o acesso e as regras do Firestore."); }
   };
   useEffect(() => { setEditing(false); setRejecting(false); setAnalise(false); setF(pickEdit(s)); }, [s.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -105,7 +108,7 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
                   {deal.proximaAcao ? <em>Próximo passo: {deal.proximaAcao}</em> : null}</span></div>
             ) : (
               <button className="anbox vazio" onClick={toPipeline}><Icon name="kanban" size={20} />
-                <span className="m">Começar o seguimento desta startup: fase, próximo passo, reuniões e ronda.</span>
+                <span className="m">Começar o seguimento desta startup: fase, próximo passo, reuniões e ronda. Sai da lista de Aprovadas e passa a ser acompanhada no Pipeline.</span>
                 <span className="go">Pôr no pipeline<Icon name="plus" /></span></button>
             )}
           </div>}

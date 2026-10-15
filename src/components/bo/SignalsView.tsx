@@ -80,8 +80,6 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
   const togglePick = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   const allCount = signals.length;
-  const pend = signals.filter((s) => s.status === "pending").length;
-  const ord = [...signals].sort((a, b) => b.relevancia - a.relevancia);
 
   const groups: [string, Signal[], string?][] =
     sort !== "score" || status === "rejected" ? [["", list]]
@@ -93,13 +91,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
   return (
     <>
       <div className="head">
-        <div style={{ flex: 1, minWidth: 260 }}><h1>{TITLES[status][0]}</h1><p>{TITLES[status][1]}</p></div>
-        {status === "pending" && allCount > 0 && (
-          <div className="stat">
-            <div className="segs" aria-hidden="true">{ord.slice(0, 60).map((s) => <i key={s.id} className={s.status === "approved" ? "ok" : s.status === "rejected" ? "no" : ""} />)}</div>
-            <div className="stxt"><span><b>{pend}</b> por decidir</span><span>{allCount - pend} decididas</span></div>
-          </div>
-        )}
+        <div><h1>{TITLES[status][0]}</h1><p>{TITLES[status][1]}</p></div>
       </div>
       <div className="toolbar">
         <div className="seg" role="group" aria-label="Área">

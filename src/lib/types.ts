@@ -134,6 +134,8 @@ export interface Startup {
   flagNovaInfo?: boolean;
   /** Resumo da última análise de investimento (a análise completa fica em startups/{id}/analises). */
   analiseResumo?: AnaliseResumo;
+  /** Ficha no pipeline, quando passou para lá (sai da lista de Aprovadas, mas continua aprovada). */
+  dealId?: string; pipelineEm?: string;
 }
 
 /* ---------- Análise de investimento (Sogrape Ventures) ---------- */
