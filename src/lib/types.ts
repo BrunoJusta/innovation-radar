@@ -281,6 +281,9 @@ export const TIPOS_INTERACAO: { id: TipoInteracao; nome: string; icon: string }[
   { id: "feedback-bc", nome: "Feedback Beta Capital", icon: "briefcase" }, { id: "nota", nome: "Nota", icon: "pencil-simple" }, { id: "etapa", nome: "Mudança de fase", icon: "arrow-up-right" },
 ];
 
+/** Um próximo passo de uma startup do pipeline. Uma startup pode ter vários em aberto ao mesmo tempo. */
+export interface Passo { id: string; texto: string; vez: Vez | null; prazo: string | null; responsavel: string; feito?: string | null; feitoPor?: string }
+
 export interface Deal {
   id: string; ref: string;
   nome: string; site: string; dominio: string; fundadores: string; descricao: string; pais: string;
@@ -290,6 +293,8 @@ export interface Deal {
   interesse: "investimento" | "outro";
   entrada: string;
   vez: Vez | null; proximaAcao: string; prazo: string | null; responsavel: string;
+  /** Lista de próximos passos. Os campos vez, proximaAcao, prazo e responsavel guardam sempre o passo em aberto mais urgente. */
+  passos?: Passo[];
   ronda: { valuation: number | null; valor: number | null; ticket: number | null; lead: string; coinvestidores: string[]; notas: string };
   origem: { tipo: OrigemTipo; nome: string; contacto: string };
   documentos: { titulo: string; url: string }[];

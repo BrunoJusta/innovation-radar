@@ -4,12 +4,12 @@ import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestor
 import { db } from "@/lib/firebase";
 import { Icon } from "@/components/Icon";
 import { nomeTicket } from "@/lib/analise-util";
-import { nomeEtapa } from "@/lib/deal-actions";
+import { nomeEtapa, passosAbertos } from "@/lib/deal-actions";
 import { Deal, ETAPAS_ATIVAS, Interacao, TIPOS_INTERACAO, VERTICAIS_DF, VEZES } from "@/lib/types";
 import { fdCurto, fdLongo, nDias } from "@/lib/util";
 import { logout, useSession } from "../AuthGate";
 import { DealsLookup, useDeals } from "../pipeline/DealsLookup";
-import { diasDesde, prazoEstado } from "../pipeline/PipelineBoard";
+import { diasDesde, estadoPrazo, prazoEstado } from "../pipeline/PipelineBoard";
 import { PipelineCalendar } from "../pipeline/PipelineCalendar";
 import { fmtEur } from "../pipeline/DealFields";
 
@@ -78,10 +78,10 @@ function MobilePipeline() {
         if (!l.length) return null;
         return <section key={e.id} className="mob-sec"><h2>{e.nome}<span>{l.length}</span></h2>
           <ul className="mob-list">{l.map((d) => {
-            const pz = prazoEstado(d), vez = VEZES.find((v) => v.id === d.vez);
+            const pz = prazoEstado(d), vez = VEZES.find((v) => v.id === d.vez), mais = passosAbertos(d).length - 1;
             return <li key={d.id}><button onClick={() => setOpenId(d.id)} className={pz === "atrasado" ? "late" : ""}>
               <span className="r1"><b>{d.nome}</b>{d.prazo && <span className={`pz ${pz === "atrasado" ? "late" : pz === "breve" ? "soon" : ""}`}>{fdCurto(d.prazo)}</span>}</span>
-              <span className="r2">{d.proximaAcao || "Sem próximo passo definido"}</span>
+              <span className="r2">{d.proximaAcao || "Sem próximo passo definido"}{mais > 0 && <span className="pmais"> +{mais}</span>}</span>
               <span className="r3">{vez && <span className={`vez v-${vez.id}`}>{vez.curto}</span>}<em>{nDias(diasDesde(d.etapaDesde))} na fase</em></span>
             </button></li>;
           })}</ul></section>;
@@ -103,7 +103,7 @@ function MobileDeal({ d, onClose }: { d: Deal; onClose: () => void }) {
     document.addEventListener("keydown", k);
     return () => { document.body.style.overflow = prev; document.removeEventListener("keydown", k); };
   }, [onClose]);
-  const vez = VEZES.find((v) => v.id === d.vez), pz = prazoEstado(d);
+  const abertos = passosAbertos(d);
   const vert = VERTICAIS_DF.find((v) => v.id === d.vertical)?.nome;
   return (<>
     <div className="scrim" onClick={onClose} />
@@ -112,13 +112,16 @@ function MobileDeal({ d, onClose }: { d: Deal; onClose: () => void }) {
       <div className="sheet-h"><div><h2 id="ms-t">{d.nome}</h2><span>{[nomeEtapa(d.etapa), vert, d.pais].filter(Boolean).join(" · ")}</span></div>
         <button className="btn icon" aria-label="Fechar" onClick={onClose}><Icon name="x" /></button></div>
       <div className="sheet-b">
-        <div className={`mob-next${pz === "atrasado" ? " late" : ""}`}>
-          <span className="lbl">Próximo passo</span>
-          <p>{d.proximaAcao || "Sem próximo passo definido"}</p>
-          <div>{vez && <span className={`vez v-${vez.id}`}>{vez.nome}</span>}
-            {d.prazo && <span className={`pz ${pz === "atrasado" ? "late" : pz === "breve" ? "soon" : ""}`}><Icon name="calendar-blank" />{fdLongo(d.prazo)}</span>}
-            {d.responsavel && <em>{d.responsavel.split("@")[0]}</em>}</div>
-        </div>
+        {abertos.length === 0 ? <div className="mob-next"><span className="lbl">Próximos passos</span><p>Sem próximos passos definidos</p></div> : abertos.map((p, k) => {
+          const vez = VEZES.find((v) => v.id === p.vez), pz = estadoPrazo(p.prazo);
+          return <div key={p.id} className={`mob-next${pz === "atrasado" ? " late" : ""}`}>
+            {k === 0 && <span className="lbl">{abertos.length === 1 ? "Próximo passo" : `Próximos passos · ${abertos.length}`}</span>}
+            <p>{p.texto || "Sem descrição"}</p>
+            <div>{vez && <span className={`vez v-${vez.id}`}>{vez.nome}</span>}
+              {p.prazo && <span className={`pz ${pz === "atrasado" ? "late" : pz === "breve" ? "soon" : ""}`}><Icon name="calendar-blank" />{fdLongo(p.prazo)}</span>}
+              {p.responsavel && <em>{p.responsavel.split("@")[0]}</em>}</div>
+          </div>;
+        })}
         <dl className="mob-facts">
           <div><dt>Na fase</dt><dd>{nDias(diasDesde(d.etapaDesde))}</dd></div>
           <div><dt>Ronda</dt><dd>{fmtEur(d.ronda?.valor) || "Sem dados"}</dd></div>

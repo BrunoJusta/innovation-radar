@@ -6,12 +6,13 @@ import { Icon } from "@/components/Icon";
 import { nomeTicket } from "@/lib/analise-util";
 import { addInteracao, archiveDeal, delInteracao, moveDeal, reopenDeal, saveDeal } from "@/lib/deal-actions";
 import { AlvoAnalise } from "@/lib/analise-run";
-import { Deal, ETAPAS, ETAPAS_ATIVAS, Etapa, FASES_DF, Interacao, MOTIVOS_ARQUIVO, MotivoArquivo, ORIGENS_DF, TIPOS_INTERACAO, TipoInteracao, VERTICAIS_DF, VEZES, Vez } from "@/lib/types";
+import { Deal, ETAPAS, ETAPAS_ATIVAS, Etapa, FASES_DF, Interacao, MOTIVOS_ARQUIVO, MotivoArquivo, ORIGENS_DF, TIPOS_INTERACAO, TipoInteracao, VERTICAIS_DF } from "@/lib/types";
 import { fdLongo, hojeLocal, nDias } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { AnaliseView } from "../startups/AnaliseView";
 import { DealEdit, DealFields, fmtEur, pickDeal } from "./DealFields";
-import { diasDesde, prazoEstado } from "./PipelineBoard";
+import { diasDesde } from "./PipelineBoard";
+import { PassosBox } from "./PassosBox";
 
 const nm = <T extends { id: string; nome: string }>(l: T[], id: string | null | undefined) => l.find((x) => x.id === id)?.nome || "";
 const hoje = () => hojeLocal();
@@ -34,11 +35,8 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
   const [saving, setSaving] = useState(false);
   const [ints, setInts] = useState<Interacao[] | null>(null);
   const [nova, setNova] = useState<{ tipo: TipoInteracao; data: string; texto: string; participantes: string } | null>(null);
-  const [next, setNext] = useState({ vez: d.vez, proximaAcao: d.proximaAcao, prazo: d.prazo || "", responsavel: d.responsavel });
-  const dirty = next.vez !== d.vez || next.proximaAcao !== d.proximaAcao || (next.prazo || null) !== (d.prazo || null) || next.responsavel !== d.responsavel;
 
-  useEffect(() => { setEditing(false); setArchiving(false); setNova(null); setF(pickDeal(d)); setNext({ vez: d.vez, proximaAcao: d.proximaAcao, prazo: d.prazo || "", responsavel: d.responsavel }); }, [d.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setNext({ vez: d.vez, proximaAcao: d.proximaAcao, prazo: d.prazo || "", responsavel: d.responsavel }); }, [d.vez, d.proximaAcao, d.prazo, d.responsavel]);
+  useEffect(() => { setEditing(false); setArchiving(false); setNova(null); setF(pickDeal(d)); }, [d.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => onSnapshot(query(collection(db, "deals", d.id, "interacoes"), orderBy("data", "desc")),
     (s) => setInts(s.docs.map((x) => ({ id: x.id, ...x.data() }) as Interacao)), () => setInts([])), [d.id]);
   useEffect(() => {
@@ -51,8 +49,6 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
   const i = list.findIndex((x) => x.id === d.id);
   const act = (p: Promise<unknown>, msg: string) => p.then(() => notify(msg)).catch((e) => notify((e as { code?: string }).code === "permission-denied" ? "Sem permissão para alterar o pipeline." : "Não foi possível guardar. Tenta outra vez."));
   const saveFicha = () => { if (!f.nome.trim()) return; act(saveDeal(d, { ...f, dominio: (f.site || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].toLowerCase() }).then(() => setEditing(false)), "Ficha guardada"); };
-  const saveNext = () => act(saveDeal(d, { vez: next.vez, proximaAcao: next.proximaAcao.trim(), prazo: next.prazo || null, responsavel: next.responsavel.trim() }), "Próximo passo guardado");
-  const pz = prazoEstado(d);
   const ativa = d.etapa !== "arquivada";
   const etapaIdx = ETAPAS_ATIVAS.findIndex((e) => e.id === d.etapa);
   const grupos = useMemo(() => {
@@ -97,20 +93,8 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
         )}
         <p className="since">{ativa ? `Em ${nm(ETAPAS, d.etapa)} há ${nDias(diasDesde(d.etapaDesde))} · ` : ""}Entrou em {fdLongo(d.entrada)}</p>
 
-        {/* Próximo passo */}
-        {ativa && <div className={`blk nextbox${pz === "atrasado" ? " late" : ""}`}><div className="bh"><h4>Próximo passo</h4>{pz === "atrasado" && <span className="pz late">Atrasado</span>}</div>
-          <div className="seg vezseg" role="group" aria-label="De quem é a vez">
-            {VEZES.map((v) => <button key={v.id} aria-pressed={next.vez === v.id} onClick={() => setNext({ ...next, vez: next.vez === v.id ? null : v.id as Vez })}>{v.curto}</button>)}
-          </div>
-          <div className="fgrid">
-            <label className="fld wide"><span>O que falta fazer</span><input value={next.proximaAcao} onChange={(e) => setNext({ ...next, proximaAcao: e.target.value })} placeholder="ex.: enviar o deck à Beta Capital" /></label>
-            <label className="fld"><span>Prazo</span><input type="date" value={next.prazo} onChange={(e) => setNext({ ...next, prazo: e.target.value })} /></label>
-            <label className="fld"><span>Responsável</span><input list="df-pessoas" value={next.responsavel} onChange={(e) => setNext({ ...next, responsavel: e.target.value })} placeholder="nome ou email" />
-              <datalist id="df-pessoas">{pessoas.map((p) => <option key={p} value={p} />)}</datalist></label>
-          </div>
-          {dirty && <div className="factions"><button className="txtbtn" onClick={() => setNext({ vez: d.vez, proximaAcao: d.proximaAcao, prazo: d.prazo || "", responsavel: d.responsavel })}>Cancelar</button>
-            <button className="btn primary" onClick={saveNext}><Icon name="check" />Guardar</button></div>}
-        </div>}
+        {/* Próximos passos */}
+        {ativa && <PassosBox d={d} pessoas={pessoas} by={email} act={act} />}
 
         {/* Análise */}
         <div className="blk"><div className="bh"><h4>Análise de investimento</h4></div>

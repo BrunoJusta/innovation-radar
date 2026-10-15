@@ -1,10 +1,17 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { Deal, VEZES } from "@/lib/types";
+import { Deal, Passo, VEZES } from "@/lib/types";
 import { fdCurto, hojeLocal } from "@/lib/util";
-import { nomeEtapa } from "@/lib/deal-actions";
-import { prazoEstado } from "./PipelineBoard";
+import { nomeEtapa, passosAbertos } from "@/lib/deal-actions";
+import { estadoPrazo } from "./PipelineBoard";
+
+/** Um passo com prazo, com a startup a que pertence. */
+export type Item = { d: Deal; p: Passo };
+/** Todos os passos em aberto com prazo, do mais antigo para o mais recente. */
+export const itensComPrazo = (deals: Deal[]): Item[] => deals.filter((d) => d.etapa !== "arquivada")
+  .flatMap((d) => passosAbertos(d).filter((p) => p.prazo).map((p) => ({ d, p })))
+  .sort((a, b) => a.p.prazo!.localeCompare(b.p.prazo!));
 
 const F_MES = new Intl.DateTimeFormat("pt-PT", { month: "long", year: "numeric" });
 const F_DIA = new Intl.DateTimeFormat("pt-PT", { weekday: "long", day: "numeric", month: "long" });
@@ -13,12 +20,12 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 const local = (s: string) => new Date(`${s}T12:00:00`);
 const addDays = (s: string, n: number) => { const d = local(s); d.setDate(d.getDate() + n); return iso(d); };
 
-function AgendaItem({ d, onOpen, showDate = true }: { d: Deal; onOpen: (id: string) => void; showDate?: boolean }) {
-  const pz = prazoEstado(d), vez = VEZES.find((v) => v.id === d.vez);
+function AgendaItem({ it: { d, p }, onOpen, showDate = true }: { it: Item; onOpen: (id: string) => void; showDate?: boolean }) {
+  const pz = estadoPrazo(p.prazo), vez = VEZES.find((v) => v.id === p.vez);
   return (
     <li><button className="agi" onClick={() => onOpen(d.id)}>
-      {showDate && <span className={`pz ${pz === "atrasado" ? "late" : pz === "breve" ? "soon" : ""}`}>{fdCurto(d.prazo!)}</span>}
-      <span className="agt"><b>{d.nome}</b><span>{d.proximaAcao || "Sem próximo passo definido"}</span></span>
+      {showDate && <span className={`pz ${pz === "atrasado" ? "late" : pz === "breve" ? "soon" : ""}`}>{fdCurto(p.prazo!)}</span>}
+      <span className="agt"><b>{d.nome}</b><span>{p.texto || "Sem descrição"}</span></span>
       <span className="agm">{vez && <span className={`vez v-${vez.id}`}>{vez.curto}</span>}<em>{nomeEtapa(d.etapa)}</em></span>
     </button></li>
   );
@@ -33,11 +40,11 @@ export function PipelineCalendar({ deals, onOpen, compact = false }: { deals: De
   const [mes, setMes] = useState(() => hoje.slice(0, 7));
   const [sel, setSel] = useState<string | null>(null);
   const ativas = useMemo(() => deals.filter((d) => d.etapa !== "arquivada"), [deals]);
-  const comPrazo = useMemo(() => ativas.filter((d) => d.prazo).sort((a, b) => (a.prazo || "").localeCompare(b.prazo || "")), [ativas]);
-  const semPrazo = ativas.length - comPrazo.length;
+  const comPrazo = useMemo(() => itensComPrazo(ativas), [ativas]);
+  const semPrazo = ativas.filter((d) => !passosAbertos(d).some((p) => p.prazo)).length;
   const porDia = useMemo(() => {
-    const m = new Map<string, Deal[]>();
-    comPrazo.forEach((d) => m.set(d.prazo!, [...(m.get(d.prazo!) || []), d]));
+    const m = new Map<string, Item[]>();
+    comPrazo.forEach((x) => m.set(x.p.prazo!, [...(m.get(x.p.prazo!) || []), x]));
     return m;
   }, [comPrazo]);
 
@@ -49,10 +56,10 @@ export function PipelineCalendar({ deals, onOpen, compact = false }: { deals: De
   const mover = (n: number) => { const d = local(`${mes}-01`); d.setMonth(d.getMonth() + n); setMes(iso(d).slice(0, 7)); setSel(null); };
 
   const grupos = sel ? [{ t: F_DIA.format(local(sel)), l: porDia.get(sel) || [] }] : [
-    { t: "Atrasados", l: comPrazo.filter((d) => d.prazo! < hoje) },
+    { t: "Atrasados", l: comPrazo.filter((x) => x.p.prazo! < hoje) },
     { t: "Hoje", l: porDia.get(hoje) || [] },
-    { t: "Próximos 7 dias", l: comPrazo.filter((d) => d.prazo! > hoje && d.prazo! <= addDays(hoje, 7)) },
-    { t: "Mais tarde", l: comPrazo.filter((d) => d.prazo! > addDays(hoje, 7)) },
+    { t: "Próximos 7 dias", l: comPrazo.filter((x) => x.p.prazo! > hoje && x.p.prazo! <= addDays(hoje, 7)) },
+    { t: "Mais tarde", l: comPrazo.filter((x) => x.p.prazo! > addDays(hoje, 7)) },
   ].filter((g) => g.l.length);
 
   return (
@@ -73,10 +80,10 @@ export function PipelineCalendar({ deals, onOpen, compact = false }: { deals: De
               return (
                 <div key={d} role="gridcell" aria-selected={sel === d} className={`pcal-d${fora ? " out" : ""}${d === hoje ? " today" : ""}${sel === d ? " sel" : ""}${late ? " late" : ""}`}>
                   <button className="dn" onClick={() => setSel(sel === d ? null : d)} aria-label={`${F_DIA.format(local(d))}${l.length ? `, ${l.length} ${l.length === 1 ? "prazo" : "prazos"}` : ""}`}>
-                    {Number(d.slice(8))}{compact && l.length > 0 && <span className="dots">{l.slice(0, 3).map((x) => <i key={x.id} className={`v-${x.vez || "x"}`} />)}</span>}
+                    {Number(d.slice(8))}{compact && l.length > 0 && <span className="dots">{l.slice(0, 3).map((x) => <i key={`${x.d.id}-${x.p.id}`} className={`v-${x.p.vez || "x"}`} />)}</span>}
                   </button>
                   {!compact && <div className="evs">
-                    {l.slice(0, 3).map((x) => <button key={x.id} className={`ev v-${x.vez || "x"}`} onClick={() => onOpen(x.id)} title={`${x.nome}: ${x.proximaAcao || "sem próximo passo"}`}>{x.nome}</button>)}
+                    {l.slice(0, 3).map((x) => <button key={`${x.d.id}-${x.p.id}`} className={`ev v-${x.p.vez || "x"}`} onClick={() => onOpen(x.d.id)} title={`${x.d.nome}: ${x.p.texto || "sem descrição"}`}>{x.d.nome}</button>)}
                     {l.length > 3 && <button className="ev more" onClick={() => setSel(d)}>+{l.length - 3}</button>}
                   </div>}
                 </div>
@@ -89,15 +96,15 @@ export function PipelineCalendar({ deals, onOpen, compact = false }: { deals: De
       <div className="pcal-ag">
         <div className="pcal-agh">
           {sel ? <><b>{F_DIA.format(local(sel))}</b><button className="txtbtn" onClick={() => setSel(null)}>Ver todos os prazos</button></>
-            : <b>Próximos passos com prazo</b>}
+            : <b>Passos com prazo</b>}
         </div>
         {grupos.length === 0 ? <p className="dempty">{sel ? "Nada marcado para este dia." : "Não há próximos passos com prazo."}</p> : grupos.map((g) => (
           <div key={g.t} className={`ag-g${g.t === "Atrasados" ? " late" : ""}`}>
             {!sel && <h4>{g.t}<span>{g.l.length}</span></h4>}
-            <ul>{g.l.map((d) => <AgendaItem key={d.id} d={d} onOpen={onOpen} showDate={!sel} />)}</ul>
+            <ul>{g.l.map((x) => <AgendaItem key={`${x.d.id}-${x.p.id}`} it={x} onOpen={onOpen} showDate={!sel} />)}</ul>
           </div>
         ))}
-        {semPrazo > 0 && <p className="dnote">{semPrazo} {semPrazo === 1 ? "startup em curso sem prazo" : "startups em curso sem prazo"} no próximo passo.</p>}
+        {semPrazo > 0 && <p className="dnote">{semPrazo} {semPrazo === 1 ? "startup em curso sem passos com prazo" : "startups em curso sem passos com prazo"}.</p>}
       </div>
     </div>
   );

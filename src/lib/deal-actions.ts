@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { addDoc, collection, deleteDoc, doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
-import { Deal, ETAPAS, Etapa, Interacao, MotivoArquivo, MOTIVOS_ARQUIVO, ORIGENS_DF, Startup, VERTICAIS_DF, FASES_DF, VEZES } from "./types";
+import { Deal, ETAPAS, Etapa, Interacao, Passo, MotivoArquivo, MOTIVOS_ARQUIVO, ORIGENS_DF, Startup, VERTICAIS_DF, FASES_DF, VEZES } from "./types";
 import { hojeLocal, nowIso, slug } from "./util";
 
 const ref = (id: string) => doc(db, "deals", id);
@@ -14,7 +14,7 @@ export const normNome = (s: string) => slug(s.replace(/\(.*?\)/g, "")).replace(/
 export const DEAL_VAZIO = (): Omit<Deal, "id"> => ({
   ref: "", nome: "", site: "", dominio: "", fundadores: "", descricao: "", pais: "", vertical: "", fase: "",
   etapa: "contacto", etapaDesde: hoje(), interesse: "investimento", entrada: hoje(),
-  vez: "sogrape", proximaAcao: "", prazo: null, responsavel: "",
+  vez: "sogrape", proximaAcao: "", prazo: null, responsavel: "", passos: [],
   ronda: { valuation: null, valor: null, ticket: null, lead: "", coinvestidores: [], notas: "" },
   origem: { tipo: "candidatura", nome: "Candidatura", contacto: "" }, documentos: [], arquivo: null,
   criadoEm: nowIso(), atualizadoEm: nowIso(),
@@ -42,6 +42,27 @@ export async function createDeal(d: Omit<Deal, "id">, by: string, nota = "") {
 
 export const saveDeal = (d: Deal, p: Partial<Deal>) => updateDoc(ref(d.id), clean({ ...p, atualizadoEm: nowIso() }));
 
+/* ---------- Próximos passos ---------- */
+
+export const novoPasso = (p: Partial<Passo> = {}): Passo => ({ id: Math.random().toString(36).slice(2, 10), texto: "", vez: "sogrape", prazo: null, responsavel: "", feito: null, ...p });
+/** Os passos de uma startup; as fichas antigas, só com um próximo passo, passam a ter um passo na lista. */
+export function passosDe(d: Pick<Deal, "passos" | "proximaAcao" | "vez" | "prazo" | "responsavel">): Passo[] {
+  if (Array.isArray(d.passos)) return d.passos;
+  return d.proximaAcao || d.prazo ? [{ id: "p0", texto: d.proximaAcao || "", vez: d.vez, prazo: d.prazo || null, responsavel: d.responsavel || "", feito: null }] : [];
+}
+/** Primeiro os que têm prazo mais próximo; os sem prazo ficam no fim. */
+export const ordemPassos = (a: Passo, b: Passo) => (a.prazo || "9999").localeCompare(b.prazo || "9999");
+export const passosAbertos = (d: Pick<Deal, "passos" | "proximaAcao" | "vez" | "prazo" | "responsavel">) => passosDe(d).filter((p) => !p.feito).sort(ordemPassos);
+/** Guarda a lista e copia o passo em aberto mais urgente para os campos que o quadro, a lista e o CSV usam. */
+export const resumoPassos = (passos: Passo[]) => {
+  const p = passos.filter((x) => !x.feito).sort(ordemPassos)[0];
+  return { passos, vez: p ? p.vez : null, proximaAcao: p?.texto || "", prazo: p?.prazo || null, responsavel: p?.responsavel || "" };
+};
+export async function savePassos(d: Deal, passos: Passo[], by?: string, log?: string) {
+  await saveDeal(d, resumoPassos(passos));
+  if (log && by) await addInteracao(d.id, { data: hoje(), tipo: "nota", texto: log, por: by });
+}
+
 export async function moveDeal(d: Deal, etapa: Etapa, by: string) {
   if (d.etapa === etapa) return;
   await updateDoc(ref(d.id), { etapa, etapaDesde: hoje(), arquivo: null, atualizadoEm: nowIso() });
@@ -57,7 +78,8 @@ export async function archiveDeal(d: Deal, motivo: MotivoArquivo, nota: string, 
 
 export async function reopenDeal(d: Deal, by: string) {
   const etapa = (d.arquivo?.etapaAnterior || "contacto") as Etapa;
-  await updateDoc(ref(d.id), { etapa, etapaDesde: hoje(), arquivo: null, vez: "sogrape", atualizadoEm: nowIso() });
+  const r = resumoPassos(passosDe(d));
+  await updateDoc(ref(d.id), clean({ etapa, etapaDesde: hoje(), arquivo: null, ...r, vez: r.vez || "sogrape", atualizadoEm: nowIso() }));
   await addInteracao(d.id, { data: hoje(), tipo: "etapa", texto: `Reaberta em ${nomeEtapa(etapa)}`, por: by });
 }
 
@@ -65,7 +87,7 @@ export async function reopenDeal(d: Deal, by: string) {
 export function dealFromStartup(s: Startup, deals: Deal[], setor: string): Omit<Deal, "id"> {
   return {
     ...DEAL_VAZIO(), ref: proximaRef(deals), nome: s.nome, site: s.site, dominio: s.dominio, descricao: s.descricao,
-    pais: s.pais || "", etapa: "radar", interesse: "investimento", vez: "sogrape", proximaAcao: "Fazer o primeiro contacto",
+    pais: s.pais || "", etapa: "radar", interesse: "investimento", vez: "sogrape", proximaAcao: "Fazer o primeiro contacto", passos: [novoPasso({ texto: "Fazer o primeiro contacto" })],
     origem: { tipo: "radar", nome: setor ? `Radar · ${setor}` : "Radar de startups", contacto: "" },
     startupId: s.id, ...(s.analiseResumo ? { analiseResumo: s.analiseResumo } : {}),
   };
@@ -81,11 +103,11 @@ export function findDeal(deals: Deal[], s: Pick<Startup, "id" | "dominio" | "nom
 
 const nome = <T extends { id: string; nome: string }>(l: T[], id: string | null | undefined) => l.find((x) => x.id === id)?.nome || "";
 export function dealsCsv(deals: Deal[]) {
-  const head = ["Ref", "Entrada", "Startup", "Site", "Fundadores", "Descrição", "País", "Vertical", "Fase", "Etapa", "Desde", "De quem é a vez", "Próxima ação", "Prazo", "Responsável",
+  const head = ["Ref", "Entrada", "Startup", "Site", "Fundadores", "Descrição", "País", "Vertical", "Fase", "Etapa", "Desde", "De quem é a vez", "Próxima ação", "Prazo", "Responsável", "Outros passos em aberto",
     "Valuation (€)", "Ronda (€)", "Ticket (€)", "Lead", "Coinvestidores", "Notas da ronda", "Origem", "Origem (nome)", "Contacto", "Motivo de arquivo", "Nota de arquivo", "Análise", "Ticket sugerido"];
   const esc = (v: unknown) => { const t = v == null ? "" : String(v); return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
   const rows = deals.map((d) => [d.ref, d.entrada, d.nome, d.site, d.fundadores, d.descricao, d.pais, nome(VERTICAIS_DF, d.vertical), nome(FASES_DF, d.fase), nomeEtapa(d.etapa), d.etapaDesde,
-    nome(VEZES, d.vez), d.proximaAcao, d.prazo, d.responsavel, d.ronda?.valuation, d.ronda?.valor, d.ronda?.ticket, d.ronda?.lead, (d.ronda?.coinvestidores || []).join(", "), d.ronda?.notas,
+    nome(VEZES, d.vez), d.proximaAcao, d.prazo, d.responsavel, passosAbertos(d).slice(1).map((p) => `${p.texto}${p.prazo ? ` (${p.prazo})` : ""}`).join(" | "), d.ronda?.valuation, d.ronda?.valor, d.ronda?.ticket, d.ronda?.lead, (d.ronda?.coinvestidores || []).join(", "), d.ronda?.notas,
     nome(ORIGENS_DF, d.origem?.tipo), d.origem?.nome, d.origem?.contacto, nome(MOTIVOS_ARQUIVO, d.arquivo?.motivo), d.arquivo?.nota,
     d.analiseResumo ? (d.analiseResumo.decisao === "investir" ? "Investir" : "Não investir") : "", d.analiseResumo?.ticket || ""]);
   return "﻿" + [head, ...rows].map((r) => r.map(esc).join(";")).join("\r\n");

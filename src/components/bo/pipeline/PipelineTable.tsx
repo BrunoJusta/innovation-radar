@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { nomeEtapa } from "@/lib/deal-actions";
+import { nomeEtapa, passosAbertos } from "@/lib/deal-actions";
 import { Deal, ETAPAS, MOTIVOS_ARQUIVO, ORIGENS_DF, VERTICAIS_DF, VEZES } from "@/lib/types";
 import { fdCurto, nDias } from "@/lib/util";
 
@@ -45,7 +45,7 @@ export function PipelineTable({ deals, arquivadas, onOpen }: { deals: Deal[]; ar
           {Th({ col: "vertical", children: "Vertical" })}{Th({ col: "pais", children: "País" })}{Th({ col: "origem", children: "Origem" })}{Th({ col: "entrada", cls: "n", children: "Entrada" })}<th>Análise</th>
         </tr></thead>
         <tbody>{rows.map((d) => {
-          const pz = prazoEstado(d), vez = VEZES.find((v) => v.id === d.vez);
+          const pz = prazoEstado(d), vez = VEZES.find((v) => v.id === d.vez), mais = passosAbertos(d).length - 1;
           return (
             <tr key={d.id} tabIndex={0} onClick={() => onOpen(d.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) onOpen(d.id); }}>
               <td className="mut refc">{d.ref}</td>
@@ -56,7 +56,7 @@ export function PipelineTable({ deals, arquivadas, onOpen }: { deals: Deal[]; ar
               </> : <>
                 <td><span className="tg">{nomeEtapa(d.etapa)}</span><span className="mut sm">{nDias(diasDesde(d.etapaDesde))}</span></td>
                 <td>{vez ? <span className={`vez v-${vez.id}`}>{vez.curto}</span> : <span className="mut">-</span>}</td>
-                <td className="fin">{d.proximaAcao || <span className="mut">-</span>}{d.responsavel && <span className="mut sm">{d.responsavel.split("@")[0]}</span>}</td>
+                <td className="fin">{d.proximaAcao || <span className="mut">-</span>}{mais > 0 && <span className="pmais"> +{mais}</span>}{d.responsavel && <span className="mut sm">{d.responsavel.split("@")[0]}</span>}</td>
                 <td className="n">{d.prazo ? <span className={`pz ${pz === "atrasado" ? "late" : pz === "breve" ? "soon" : ""}`}>{fdCurto(d.prazo)}</span> : <span className="mut">-</span>}</td>
               </>}
               <td>{nm(VERTICAIS_DF, d.vertical) || <span className="mut">-</span>}</td>

@@ -7,7 +7,8 @@ import { nomeEtapa } from "@/lib/deal-actions";
 import { Area, Deal, Run, Signal, Startup, VEZES } from "@/lib/types";
 import { fdCurto, fdLongo, hojeLocal } from "@/lib/util";
 import { useSession } from "../AuthGate";
-import { prazoEstado } from "../pipeline/PipelineBoard";
+import { estadoPrazo } from "../pipeline/PipelineBoard";
+import { itensComPrazo } from "../pipeline/PipelineCalendar";
 
 export type DashGo = { view: "news"; st: "pending" | "approved" | "rejected" | "radar" } | { view: "startups"; page: "pending" | "approved" | "rejected" | "radar" | "pipeline" };
 
@@ -39,8 +40,8 @@ export function DashboardView({ signals, areas, go, startups, deals, runs, isAdm
   const nPend = signals.filter((s) => s.status === "pending").length;
   const sPend = startups.filter((s) => s.status === "pending").length;
   const ativas = deals.filter((d) => d.etapa !== "arquivada");
-  const atrasadas = ativas.filter((d) => prazoEstado(d) === "atrasado").length;
-  const semana = useMemo(() => ativas.filter((d) => d.prazo && d.prazo <= addDays(hoje, 7)).sort((a, b) => (a.prazo || "").localeCompare(b.prazo || "")), [ativas, hoje]);
+  const semana = useMemo(() => itensComPrazo(ativas).filter((x) => x.p.prazo! <= addDays(hoje, 7)), [ativas, hoje]);
+  const atrasadas = semana.filter((x) => estadoPrazo(x.p.prazo) === "atrasado").length;
   const recentes = useMemo(() => signals.filter((s) => s.status === "approved").sort((a, b) => (b.aprovadoEm || b.criadoEm).localeCompare(a.aprovadoEm || a.criadoEm)).slice(0, 5), [signals]);
   const lastDaily = runs.find((r) => r.tipo !== "startups"), lastWeekly = runs.find((r) => r.tipo === "startups");
   const tudoFeito = !nPend && !sPend && !atrasadas;
@@ -62,18 +63,18 @@ export function DashboardView({ signals, areas, go, startups, deals, runs, isAdm
       <button className={`d2-a${sPend ? " on" : ""}`} onClick={() => go({ view: "startups", page: "pending" })}>
         <b>{sPend}</b><span>{sPend === 1 ? "startup por decidir" : "startups por decidir"}</span><em>Abrir a triagem<Icon name="arrow-up-right" /></em></button>
       {canPipeline && <button className={`d2-a${atrasadas ? " late" : ""}`} onClick={() => go({ view: "startups", page: "pipeline" })}>
-        <b>{semana.length}</b><span>{semana.length === 1 ? "próximo passo esta semana" : "próximos passos esta semana"}</span>
-        <em>{atrasadas ? `${atrasadas} com prazo ultrapassado` : "Abrir o pipeline"}<Icon name="arrow-up-right" /></em></button>}
+        <b>{semana.length}</b><span>{semana.length === 1 ? "passo com prazo esta semana" : "passos com prazo esta semana"}</span>
+        <em>{atrasadas ? `${atrasadas} ${atrasadas === 1 ? "atrasado" : "atrasados"}` : "Abrir o pipeline"}<Icon name="arrow-up-right" /></em></button>}
     </div>
 
     <div className="d2-cols">
       {canPipeline ? (
         <section className="d2-p">
           <div className="d2-ph"><h2>Próximos passos</h2><button className="txtbtn" onClick={() => go({ view: "startups", page: "pipeline" })}>Ver o pipeline<Icon name="arrow-up-right" /></button></div>
-          {semana.length ? <ul className="d2-list">{semana.slice(0, 6).map((d) => {
-            const pz = prazoEstado(d), vez = VEZES.find((v) => v.id === d.vez);
-            return <li key={d.id}><span className={`pz ${pz === "atrasado" ? "late" : pz === "breve" ? "soon" : ""}`}>{fdCurto(d.prazo!)}</span>
-              <div><b>{d.nome}</b><span>{d.proximaAcao || "Sem próximo passo definido"}</span></div>
+          {semana.length ? <ul className="d2-list">{semana.slice(0, 8).map(({ d, p }) => {
+            const pz = estadoPrazo(p.prazo), vez = VEZES.find((v) => v.id === p.vez);
+            return <li key={`${d.id}-${p.id}`}><span className={`pz ${pz === "atrasado" ? "late" : pz === "breve" ? "soon" : ""}`}>{fdCurto(p.prazo!)}</span>
+              <div><b>{d.nome}</b><span>{p.texto || "Sem descrição"}</span></div>
               <span className="d2-m">{vez && <span className={`vez v-${vez.id}`}>{vez.curto}</span>}<em>{nomeEtapa(d.etapa)}</em></span></li>;
           })}</ul> : <div className="d2-empty"><Icon name="calendar-blank" /><b>Nada com prazo nos próximos 7 dias</b><span>Quando uma startup do pipeline tiver um próximo passo com prazo, aparece aqui.</span></div>}
         </section>

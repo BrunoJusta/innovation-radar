@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
-import { moveDeal } from "@/lib/deal-actions";
+import { moveDeal, passosAbertos } from "@/lib/deal-actions";
 import { Deal, ETAPAS_ATIVAS, Etapa, VERTICAIS_DF, VEZES } from "@/lib/types";
 import { fdCurto, hojeLocal, nDias } from "@/lib/util";
 import { useSession } from "../AuthGate";
@@ -9,22 +9,23 @@ import { AnaliseLoading } from "../AnaliseQueue";
 
 export const diasDesde = (iso: string | null | undefined) => { const t = Date.parse(iso || ""); return isNaN(t) ? 0 : Math.max(0, Math.floor((Date.now() - t) / 864e5)); };
 /** Estado do prazo: atrasado, nos próximos 3 dias, ou sem urgência. */
-export function prazoEstado(d: Pick<Deal, "prazo" | "etapa">): "atrasado" | "breve" | "" {
-  if (!d.prazo || d.etapa === "arquivada") return "";
-  const dias = Math.round((Date.parse(d.prazo) - Date.parse(hojeLocal())) / 864e5);
+export function estadoPrazo(prazo: string | null | undefined): "atrasado" | "breve" | "" {
+  if (!prazo) return "";
+  const dias = Math.round((Date.parse(prazo) - Date.parse(hojeLocal())) / 864e5);
   return dias < 0 ? "atrasado" : dias <= 3 ? "breve" : "";
 }
+export const prazoEstado = (d: Pick<Deal, "prazo" | "etapa">) => d.etapa === "arquivada" ? "" : estadoPrazo(d.prazo);
 const nm = <T extends { id: string; nome: string }>(l: T[], id: string | null | undefined) => l.find((x) => x.id === id)?.nome || "";
 
 export function DealCard({ d, onOpen, drag }: { d: Deal; onOpen: () => void; drag?: boolean }) {
   const pz = prazoEstado(d), dias = diasDesde(d.etapaDesde);
-  const vez = VEZES.find((v) => v.id === d.vez);
+  const vez = VEZES.find((v) => v.id === d.vez), mais = passosAbertos(d).length - 1;
   return (
     <article className={`dcard${pz ? ` pz-${pz}` : ""}`} draggable={drag} onDragStart={(e) => { e.dataTransfer.setData("text/deal", d.id); e.dataTransfer.effectAllowed = "move"; }}
       role="button" tabIndex={0} aria-label={`Abrir ${d.nome}`} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}>
       <div className="dc1"><b>{d.nome}</b><AnaliseLoading path={d.startupId ? `startups/${d.startupId}` : `deals/${d.id}`} short />{d.analiseResumo && <span className={`anchip ${d.analiseResumo.decisao}`} title="Análise de investimento"><Icon name="scales" />{d.analiseResumo.decisao === "investir" ? "Investir" : "Não"}</span>}</div>
       <div className="dc2">{[nm(VERTICAIS_DF, d.vertical), d.pais].filter(Boolean).join(" · ") || "Sem vertical"}</div>
-      {d.proximaAcao && <p className="dcn">{d.proximaAcao}</p>}
+      {d.proximaAcao && <p className="dcn">{d.proximaAcao}{mais > 0 && <span className="pmais" title={`Mais ${mais} ${mais === 1 ? "passo" : "passos"} em aberto`}> +{mais}</span>}</p>}
       <div className="dc3">
         {vez && <span className={`vez v-${vez.id}`}>{vez.curto}</span>}
         {d.prazo && <span className={`pz ${pz === "atrasado" ? "late" : pz === "breve" ? "soon" : ""}`} title="Prazo"><Icon name="calendar-blank" />{fdCurto(d.prazo)}</span>}
