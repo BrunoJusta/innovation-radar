@@ -18,35 +18,8 @@
   --f-ui:var(--font-geist-sans),"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:var(--font-geist-mono),"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --r-sm:6px; --r-md:8px; --r-lg:12px;
+  color-scheme:light;
 }
-@media (prefers-color-scheme: dark){.bo:not([data-theme="light"]){
-  --canvas:#0A0A0A; --surface-1:#111111; --surface-2:#1A1A1A; --surface-3:#242424;
-  --hairline:#242424; --hairline-strong:#333333;
-  --ink:#EDEDED; --ink-muted:#C2C2C2; --ink-subtle:#A1A1A1; --ink-tertiary:#7A7A7A;
-  --accent:#EDEDED; --accent-hover:#FFFFFF; --on-accent:#0A0A0A; --accent-tint:rgba(237,237,237,.08);
-  --success:#3FB950; --success-tint:rgba(63,185,80,.12);
-  --danger:#F2555A; --danger-tint:rgba(242,85,90,.12);
-  --warn:#F0B44C; --warn-tint:rgba(240,180,76,.12);
-  --sel:rgba(237,237,237,.04); --scrim:rgba(0,0,0,.6);
-  --g-ok:#3FB950; --g-mid:#E3B341; --g-low:#F2555A; --g-track:rgba(237,237,237,.08);
-  --ring:0 0 0 1px rgba(255,255,255,.08);
-  --e2:0 0 0 1px rgba(255,255,255,.07); --e4:0 0 0 1px rgba(255,255,255,.12),0 8px 16px -4px rgba(0,0,0,.5);
-  --shadow:0 0 0 1px rgba(255,255,255,.1),0 24px 32px -8px rgba(0,0,0,.6); --lift:var(--e4);
-  color-scheme:dark}}
-.bo[data-theme="dark"]{
-  --canvas:#0A0A0A; --surface-1:#111111; --surface-2:#1A1A1A; --surface-3:#242424;
-  --hairline:#242424; --hairline-strong:#333333;
-  --ink:#EDEDED; --ink-muted:#C2C2C2; --ink-subtle:#A1A1A1; --ink-tertiary:#7A7A7A;
-  --accent:#EDEDED; --accent-hover:#FFFFFF; --on-accent:#0A0A0A; --accent-tint:rgba(237,237,237,.08);
-  --success:#3FB950; --success-tint:rgba(63,185,80,.12);
-  --danger:#F2555A; --danger-tint:rgba(242,85,90,.12);
-  --warn:#F0B44C; --warn-tint:rgba(240,180,76,.12);
-  --sel:rgba(237,237,237,.04); --scrim:rgba(0,0,0,.6);
-  --g-ok:#3FB950; --g-mid:#E3B341; --g-low:#F2555A; --g-track:rgba(237,237,237,.08);
-  --ring:0 0 0 1px rgba(255,255,255,.08);
-  --e2:0 0 0 1px rgba(255,255,255,.07); --e4:0 0 0 1px rgba(255,255,255,.12),0 8px 16px -4px rgba(0,0,0,.5);
-  --shadow:0 0 0 1px rgba(255,255,255,.1),0 24px 32px -8px rgba(0,0,0,.6); --lift:var(--e4);
-  color-scheme:dark}
 .bo *{box-sizing:border-box}
 .bo{background:var(--canvas);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
 .bo button,.bo input,.bo textarea{font:inherit;color:inherit}
