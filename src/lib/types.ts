@@ -45,6 +45,8 @@ export interface Signal {
   publicado?: Publicado | null;
   aprovadoEm?: string;
   aprovadoPor?: string;
+  manual?: boolean;      // adicionada à mão a partir de um link
+  criadoPor?: string;
 }
 
 export interface Area { id: string; nome: string; descricao: string; cor: string; ordem: number; }

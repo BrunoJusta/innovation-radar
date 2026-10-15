@@ -437,3 +437,35 @@
 .bo .hubbody .head h2{margin:0;font-weight:600;font-size:24px;line-height:32px;letter-spacing:-.03em}
 .bo .hubbody{padding-bottom:64px}
 @media (max-width:860px){.bo .hub{grid-template-columns:1fr;gap:20px;padding-top:24px}.bo .hubnav{position:static}.bo .hubnav nav{flex-direction:row;overflow-x:auto;scrollbar-width:none}.bo .hubnav button{flex:none}}
+
+/* Adicionar notícia por link */
+.bo .addbtn{flex:none}
+.bo .mdl{position:fixed;z-index:12;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,calc(100% - 32px));max-height:calc(100dvh - 48px);display:flex;flex-direction:column;background:var(--surface-1);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.bo .mdl.wide{width:min(820px,calc(100% - 32px))}
+.bo .mdl-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px 14px;border-bottom:1px solid var(--hairline)}
+.bo .mdl-h h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.02em}
+.bo .mdl-b{padding:18px 20px 20px;display:flex;flex-direction:column;gap:14px}
+.bo .mdl-b.scroll{overflow-y:auto;overscroll-behavior:contain}
+.bo .mdl-b .hint{font-size:13.5px;margin:0;line-height:1.5}
+.bo .mdl-b .txtbtn{align-self:flex-start}
+.bo .mdl-f{display:flex;align-items:center;gap:8px;padding:12px 20px;border-top:1px solid var(--hairline);background:var(--surface-1)}
+.bo .notice.warn{border-left-color:var(--warn);color:var(--warn)}
+.bo .spin{width:14px;height:14px;border-radius:50%;border:2px solid color-mix(in srgb,var(--canvas) 35%,transparent);border-top-color:var(--canvas);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bo .btn:disabled{opacity:.55;cursor:default}
+.bo .dform{display:flex;flex-direction:column;gap:14px}
+.bo .dform .fgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.bo .dform .fld>span em{font-style:normal;color:var(--ink-tertiary);font-weight:400}
+.bo .dform textarea{line-height:1.6;font-size:14px}
+.bo .relin{display:flex;align-items:center;gap:10px;min-height:38px}
+.bo .relin input[type=range]{flex:1;accent-color:var(--ink)}
+.bo .relin b{font-family:var(--f-mono);font-variant-numeric:tabular-nums;min-width:24px;text-align:right}
+.bo .relin small{color:var(--ink-subtle);min-width:40px}
+.bo .srcf{border:0;margin:0;padding:14px;border-radius:12px;background:var(--surface-2);display:flex;flex-direction:column;gap:10px;min-width:0}
+.bo .srcf legend{float:left;padding:0;margin-bottom:2px;font-size:12px;font-weight:600;color:var(--ink-subtle)}
+.bo .srcf .fgrid{clear:both;grid-template-columns:repeat(4,minmax(0,1fr))}
+.bo .srcl{font-family:var(--f-mono);font-size:12px;color:var(--ink-subtle);word-break:break-all}
+.bo .chkrow{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:500}
+.bo .chkrow input{width:16px;height:16px;accent-color:var(--ink)}
+.bo .drawer .dform .fgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:760px){.bo .addbtn span{display:none}.bo .addbtn{width:34px;padding:0}.bo .dform .fgrid,.bo .srcf .fgrid{grid-template-columns:1fr}.bo .mdl-f{flex-wrap:wrap}}

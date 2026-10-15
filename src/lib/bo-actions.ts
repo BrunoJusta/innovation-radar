@@ -1,8 +1,8 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { deleteField, doc, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteField, doc, setDoc, Timestamp, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
-import { Publicado, Signal } from "./types";
+import { Fonte, Publicado, Signal } from "./types";
 import { nowIso } from "./util";
 
 export function buildPublicado(s: Signal, over: Partial<Signal> = {}): Publicado {
@@ -51,7 +51,9 @@ export async function toggleStar(s: Signal) {
   await updateDoc(ref(s.id), upd);
 }
 
-export async function saveEdit(s: Signal, f: Pick<Signal, "titulo" | "resumo" | "area" | "categoria">) {
+export type EditFields = Pick<Signal, "titulo" | "resumo" | "porque" | "entidades" | "area" | "categoria" | "relevancia" | "dataPublicacao">;
+
+export async function saveEdit(s: Signal, f: Partial<EditFields>) {
   const upd: Record<string, any> = { ...f, atualizadoEm: nowIso() };
   // Só uma notícia aprovada atualiza logo o radar; as pendentes esperam pela aprovação
   if (s.status === "approved") upd.publicado = buildPublicado(s, f);
@@ -60,4 +62,27 @@ export async function saveEdit(s: Signal, f: Pick<Signal, "titulo" | "resumo" | 
 
 export async function restore(p: Snapshot) {
   await updateDoc(ref(p.id), { ...p.data, atualizadoEm: nowIso() });
+}
+
+/** Rascunho preparado pela Gemini a partir de um link, depois de revisto no backoffice. */
+export type Draft = EditFields & { destaque: boolean; fonte: Fonte };
+
+/** Grava uma notícia adicionada à mão: vai para a triagem ou é logo aprovada. */
+export async function createManual(d: Draft, vec: number[] | null, by: string, aprovar: boolean): Promise<string> {
+  const { fonte: f0, ...f } = d;
+  const fonte = Object.fromEntries(Object.entries(f0).filter(([, x]) => x !== undefined && x !== "")) as Fonte;
+  const base: Omit<Signal, "id"> = {
+    ...f, entidades: f.entidades.slice(0, 8), fontes: [fonte], status: "pending", noRadar: false, publicado: null,
+    criadoEm: nowIso(), atualizadoEm: nowIso(), manual: true, criadoPor: by,
+  };
+  const data = aprovar
+    ? { ...base, status: "approved" as const, noRadar: true, publicado: buildPublicado({ id: "", ...base }), aprovadoEm: nowIso(), aprovadoPor: by }
+    : base;
+  const ref = await addDoc(collection(db, "signals"), data);
+  // Para a recolha diária não voltar a trazer o mesmo link e conseguir juntar notícias iguais de outros sites
+  await Promise.allSettled([
+    setDoc(doc(db, "seen", fonte.urlHash), { url: fonte.url, sourceId: "manual", motivo: "manual", visto: nowIso(), expira: Timestamp.fromMillis(Date.now() + 90 * 864e5) }),
+    vec ? setDoc(doc(db, "embeddings", ref.id), { vec, data: d.dataPublicacao, criadoEm: nowIso() }) : Promise.resolve(),
+  ]);
+  return ref.id;
 }

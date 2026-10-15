@@ -13,7 +13,10 @@ service cloud.firestore {
     match /signals/{id} {
       allow read: if resource.data.noRadar == true || member();
       allow update: if member();
-      allow create, delete: if admin();
+      // Notícias adicionadas à mão a partir de um link
+      allow create: if member() && request.resource.data.manual == true
+                    && request.resource.data.status in ['pending', 'approved'];
+      allow delete: if admin();
     }
     // Estrutura do radar: pública para leitura
     match /areas/{id}      { allow read: if true; allow write: if admin(); }
@@ -26,8 +29,8 @@ service cloud.firestore {
       allow read: if signedIn() && (id == me() || admin());
       allow write: if admin() && !(id == me() && request.resource.data.role != 'admin');
     }
-    // Uso exclusivo do pipeline (conta de serviço ignora as regras)
-    match /seen/{id}       { allow read, write: if false; }
-    match /embeddings/{id} { allow read, write: if false; }
+    // Uso do pipeline (a conta de serviço ignora as regras); o BO só cria registos das notícias manuais
+    match /seen/{id}       { allow read, update, delete: if false; allow create: if member(); }
+    match /embeddings/{id} { allow read, update, delete: if false; allow create: if member(); }
   }
 }

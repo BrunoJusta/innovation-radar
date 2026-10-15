@@ -42,3 +42,24 @@ export function matchKeywords(text: string, keywords: string[]): string[] {
   }
   return hits;
 }
+
+export type Page = { url: string; titulo: string; site: string; data: string | null; autor?: string; texto: string };
+
+/** Página completa com metadados (para adicionar uma notícia à mão a partir do link). */
+export async function extractPage(url: string, timeoutMs = 20000): Promise<Page> {
+  const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "text/html" }, signal: AbortSignal.timeout(timeoutMs), redirect: "follow" });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const html = await r.text();
+  const { document } = parseHTML(html);
+  const meta = (sel: string) => document.querySelector(sel)?.getAttribute("content")?.trim() || "";
+  const host = new URL(r.url || url).hostname.replace(/^www\./, "");
+  const rawDate = meta('meta[property="article:published_time"]') || meta('meta[name="date"]') || meta('meta[itemprop="datePublished"]')
+    || document.querySelector("time[datetime]")?.getAttribute("datetime") || "";
+  const t = Date.parse(rawDate);
+  const titulo = decodeEntities(meta('meta[property="og:title"]') || document.querySelector("title")?.textContent?.trim() || "");
+  const site = decodeEntities(meta('meta[property="og:site_name"]')) || host;
+  const autor = meta('meta[name="author"]') || undefined;
+  const art = new Readability(document as unknown as Document).parse();
+  const texto = art?.content ? htmlToText(art.content) : htmlToText(html);
+  return { url: r.url || url, titulo: titulo || art?.title || host, site, data: isNaN(t) ? null : new Date(t).toISOString(), autor, texto };
+}

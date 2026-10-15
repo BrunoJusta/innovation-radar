@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { approve, backToTriage, reject, restore, saveEdit, Snapshot, toggleStar } from "@/lib/bo-actions";
+import { approve, backToTriage, EditFields, reject, restore, saveEdit, Snapshot, toggleStar } from "@/lib/bo-actions";
+import { DraftFields } from "./DraftFields";
 import { Area, Category, REJECT_REASONS, Signal, Status } from "@/lib/types";
 import { fdCurto, fdLongo, monogram, relLevel } from "@/lib/util";
 import { useSession } from "./AuthGate";
@@ -203,13 +204,15 @@ function Card({ s, area, cat, picked, rejecting, onOpen, onPick, onApprove, onRe
 function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onStar, onBack, onSave }: {
   s: Signal; list: Signal[]; areas: Area[]; cats: Category[]; onClose: () => void; onNav: (id: string) => void;
   onApprove: () => void; onReason: (m: string) => void; onStar: () => void; onBack: () => void;
-  onSave: (f: Pick<Signal, "titulo" | "resumo" | "area" | "categoria">) => Promise<void>;
+  onSave: (f: EditFields) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
-  const [f, setF] = useState({ titulo: s.titulo, resumo: s.resumo, area: s.area, categoria: s.categoria });
-  useEffect(() => { setEditing(false); setRejecting(false); setF({ titulo: s.titulo, resumo: s.resumo, area: s.area, categoria: s.categoria }); }, [s.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pick = (x: Signal): EditFields => ({ titulo: x.titulo, resumo: x.resumo, porque: x.porque || "", entidades: x.entidades || [], area: x.area, categoria: x.categoria, relevancia: x.relevancia, dataPublicacao: x.dataPublicacao });
+  const [f, setF] = useState<EditFields>(pick(s));
+  useEffect(() => { setEditing(false); setRejecting(false); setF(pick(s)); }, [s.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const startEdit = () => { setF(pick(s)); setEditing(true); };
   useEffect(() => {
     const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { if (editing) setEditing(false); else if (rejecting) setRejecting(false); else onClose(); } };
@@ -234,10 +237,17 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onS
         <div className="dmeta">
           <span className="tg ar" style={{ ["--c" as string]: area?.cor || "var(--ink-tertiary)" }}>{area?.nome}</span><span className="tg">{cat && <Icon name={cat.icone} />}{cat?.nome}</span>
           {s.status === "approved" && <span className="badge ok"><Icon name="check" />Aprovada</span>}
+          {s.manual && <span className="badge"><Icon name="pencil-simple" />Adicionada à mão</span>}
           {s.status === "rejected" && <span className="badge no"><Icon name="x" />{s.motivoRejeicao}</span>}
           <span>{fdCurto(s.dataPublicacao)}</span><span>{merged ? `${s.fontes.length} fontes` : "1 fonte"}</span>
         </div>
-        {editing ? <input className="tedit" value={f.titulo} onChange={(e) => setF({ ...f, titulo: e.target.value })} aria-label="Título" /> : <h2>{s.titulo}</h2>}
+        {editing ? (
+          <div className="blk"><div className="bh"><h4>Editar notícia</h4>
+            <span style={{ display: "flex", gap: 6 }}><button className="txtbtn" onClick={() => setEditing(false)}>Cancelar</button><button className="txtbtn" onClick={save}><Icon name="check" />Guardar alterações</button></span></div>
+            <DraftFields value={f} onChange={(p) => setF({ ...f, ...p })} areas={areas} cats={cats} />
+          </div>
+        ) : (<>
+        <h2>{s.titulo}</h2>
         <div className="relbox"><Gauge v={s.relevancia} lg /><div>
           <b>Relevância <span className={`lv-${lv}`}>{({ alta: "alta", media: "média", baixa: "baixa" })[lv]}</span>, {s.relevancia} em 100</b>
           <details className="whyd" open={whyOpen} onToggle={(e) => setWhyOpen((e.target as HTMLDetailsElement).open)}>
@@ -250,20 +260,14 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onS
           <div className="notice"><Icon name="stack" /><span>Entrou uma fonte nova e o resumo foi refeito.{s.noRadar ? " O radar continua a mostrar a versão aprovada anterior até voltares a aprovar." : ""}</span></div>
         )}
         <div className="blk"><div className="bh"><h4>Classificação</h4></div><div className="classif">
-          {editing ? (<>
-            <label className="f"><span>Área</span><select value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })}>{areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}</select></label>
-            <label className="f"><span>Categoria</span><select value={f.categoria} onChange={(e) => setF({ ...f, categoria: e.target.value })}>{cats.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></label>
-          </>) : (<>
-            <div className="f"><span>Área</span><b>{area?.nome}</b></div><div className="f"><span>Categoria</span><b>{cat?.nome}</b></div>
-          </>)}
+          <div className="f"><span>Área</span><b>{area?.nome}</b></div><div className="f"><span>Categoria</span><b>{cat?.nome}</b></div>
         </div></div>
         <div className="blk"><div className="bh"><h4>{merged ? "Resumo combinado" : "Resumo"}</h4>
-          {s.status !== "rejected" && (editing
-            ? <span style={{ display: "flex", gap: 6 }}><button className="txtbtn" onClick={() => setEditing(false)}>Cancelar</button><button className="txtbtn" onClick={save}><Icon name="check" />Guardar alterações</button></span>
-            : <button className="txtbtn" onClick={() => setEditing(true)}><Icon name="pencil-simple" />Editar</button>)}
+          {s.status !== "rejected" && <button className="txtbtn" onClick={startEdit}><Icon name="pencil-simple" />Editar</button>}
         </div>
-          {editing ? <textarea className="edit" value={f.resumo} onChange={(e) => setF({ ...f, resumo: e.target.value })} aria-label="Resumo" /> : <div className="summary">{s.resumo.split(/\n\s*\n/).map((t, i) => <p key={i}>{t}</p>)}</div>}
+          <div className="summary">{s.resumo.split(/\n\s*\n/).map((t, i) => <p key={i}>{t}</p>)}</div>
         </div>
+        </>)}
         <div className="blk"><div className="bh"><h4>Fontes</h4></div><div className="sources">
           {s.fontes.map((x) => (
             <a key={x.urlHash} className="s" href={x.url} target="_blank" rel="noopener noreferrer">
@@ -283,7 +287,7 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onS
           <button className="btn primary lg" onClick={onApprove}><Icon name="check" />Aprovar</button>
           <button className="btn lg" onClick={() => setRejecting(true)}><Icon name="x" />Rejeitar</button><span className="sp" />
           <button className="btn lg icon" aria-pressed={!!s.destaque} title="Destacar no radar" onClick={onStar}><Icon name={s.destaque ? "star-fill" : "star"} /></button>
-          <button className="btn lg icon" title="Editar" onClick={() => setEditing(true)}><Icon name="pencil-simple" /></button>
+          <button className="btn lg icon" title="Editar" onClick={startEdit}><Icon name="pencil-simple" /></button>
         </>)) : (
           <button className="btn lg" onClick={onBack}><Icon name="arrow-u-up-left" />Voltar à triagem</button>
         )}

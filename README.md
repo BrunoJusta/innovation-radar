@@ -66,7 +66,19 @@ Nunca coloques estas chaves no código nem em ficheiros `.env` versionados.
 
 ### 4. Vercel (no fim)
 
-Importa o repositório na Vercel e copia as variáveis `NEXT_PUBLIC_*` de `.env.example`. São configuração pública do Firebase, não são segredos. Depois junta o domínio aos domínios autorizados do Firebase (passo 1.3).
+Importa o repositório na Vercel. A configuração pública do Firebase já está no código; as variáveis `NEXT_PUBLIC_*` de `.env.example` são opcionais.
+
+Para **adicionar notícias por link** no backoffice, define na Vercel (Settings › Environment Variables) a variável `GEMINI_API_KEY`, com a mesma chave do GitHub. É usada só no servidor, na rota `/api/preparar`, e nunca chega ao browser.
+
+Depois junta o domínio aos domínios autorizados do Firebase (passo 1.3).
+
+## Adicionar uma notícia à mão
+
+No backoffice, **Adicionar** › cola o link › **Preparar notícia**. A rota `/api/preparar` confirma o login e o acesso, lê a página e pede à Gemini o mesmo título, resumo e classificação da recolha diária. Não grava nada.
+
+Revês e editas tudo (título, área, categoria, data, relevância, resumo, porque importa, entidades e dados da fonte) e escolhes **Guardar na triagem** ou **Aprovar e publicar**. A notícia fica marcada como adicionada à mão, o link é registado como já visto (a recolha não o volta a trazer) e entra no mecanismo de junção com notícias iguais de outros sites.
+
+Se o site for pago ou bloquear a leitura, usa **Colar o texto do artigo**.
 
 ## Desenvolvimento local
 

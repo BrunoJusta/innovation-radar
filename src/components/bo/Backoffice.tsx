@@ -6,6 +6,8 @@ import { Area, Category, Signal, Status } from "@/lib/types";
 import { logout, useSession } from "./AuthGate";
 import { SignalsView } from "./SignalsView";
 import { SettingsHub } from "./admin/SettingsHub";
+import { useFlash } from "./admin/common";
+import { AddByLink } from "./AddByLink";
 import { Icon } from "@/components/Icon";
 
 type View = Status | "settings";
@@ -22,6 +24,8 @@ export function Backoffice() {
   const [cats, setCats] = useState<Category[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [query_, setQuery] = useState("");
+  const [adding, setAdding] = useState(false);
+  const { flash, el: flashEl } = useFlash();
 
   useEffect(() => {
     const u1 = onSnapshot(query(collection(db, "signals"), orderBy("criadoEm", "desc"), limit(500)), (s) => {
@@ -61,6 +65,7 @@ export function Backoffice() {
               <input type="search" placeholder="Pesquisar" aria-label="Pesquisar" value={query_} onChange={(e) => setQuery(e.target.value)} />
             </label>
           )}
+          <button className="btn primary addbtn" onClick={() => setAdding(true)}><Icon name="plus" /><span>Adicionar</span></button>
           <div className="who-me" title={email}>
             <span>{profile.nome || email.split("@")[0]}</span><small>{profile.role === "admin" ? "Admin" : "Editor"}</small>
           </div>
@@ -71,6 +76,9 @@ export function Backoffice() {
         {isSignals && <SignalsView status={view as Status} signals={signals} areas={areas} cats={cats} loaded={loaded} search={query_} />}
         {view === "settings" && isAdmin && <SettingsHub areas={areas} cats={cats} />}
       </main>
+      {adding && <AddByLink areas={areas} cats={cats} signals={signals} onClose={() => setAdding(false)}
+        onDone={(msg, aprovada) => { setAdding(false); setView(aprovada ? "approved" : "pending"); flash(msg); }} />}
+      {flashEl}
     </div>
   );
 }
