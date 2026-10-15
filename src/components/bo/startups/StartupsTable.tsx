@@ -12,9 +12,9 @@ type Col = "nome" | "setor" | "fase" | "pais" | "fundacao" | "relevancia" | "cri
 const FASE_ORD: Record<string, number> = { ideia: 0, seed: 1, "serie-a": 2, crescimento: 3 };
 
 /** Vista em lista: colunas ordenáveis, seleção múltipla e ações por linha. */
-export function StartupsTable({ list, sectors, onOpen, onApprove, onReject, onStar, onBack, onBulk }: {
-  list: Startup[]; sectors: Sector[]; onOpen: (id: string) => void;
-  onApprove: (s: Startup) => void; onReject: (s: Startup, motivo: string) => void; onStar: (s: Startup) => void; onBack: (s: Startup) => void;
+export function StartupsTable({ list, sectors, onOpen, onAnalise, onApprove, onReject, onBack, onBulk }: {
+  list: Startup[]; sectors: Sector[]; onOpen: (id: string) => void; onAnalise: (s: Startup) => void;
+  onApprove: (s: Startup) => void; onReject: (s: Startup, motivo: string) => void; onBack: (s: Startup) => void;
   onBulk: (ids: string[], acao: "approve" | "reject" | "back", motivo?: string) => Promise<void>;
 }) {
   const [sort, setSort] = useState<{ col: Col; dir: 1 | -1 }>({ col: "relevancia", dir: -1 });
@@ -69,14 +69,15 @@ export function StartupsTable({ list, sectors, onOpen, onApprove, onReject, onSt
             <tr className={picked.has(s.id) ? "on" : ""} onClick={() => onOpen(s.id)} style={{ ["--c" as string]: c?.cor || "var(--ink-tertiary)" }}>
               <td className="ck" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Selecionar ${s.nome}`} checked={picked.has(s.id)} onChange={() => toggle(s.id)} /></td>
               <td><div className="tname"><span className="slogo">{s.nome.slice(0, 1).toUpperCase()}</span>
-                <div><b>{s.nome}{s.destaque && <Icon name="star-fill" className="tstar" />}</b><a href={s.site} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>{s.dominio}</a></div></div></td>
+                <div><b>{s.nome}</b><a href={s.site} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>{s.dominio}</a></div></div></td>
               <td><span className="tg ar">{c?.nome || "Sem setor"}</span></td>
               <td>{f?.nome}</td>
               <td>{s.pais || <span className="mut">Sem dados</span>}</td>
               <td className="n">{s.fundacao || <span className="mut">-</span>}</td>
               <td className="fin">{s.financiamento || <span className="mut">Sem dados</span>}</td>
-              <td>{running.has(`startups/${s.id}`) ? <AnaliseLoading path={`startups/${s.id}`} /> : s.analiseResumo ? <span className={`anchip ${s.analiseResumo.decisao}`} title={`${s.analiseResumo.positivos} de 11 critérios positivos`}>
-                {s.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}{s.analiseResumo.ticket ? ` · ${nomeTicket(s.analiseResumo.ticket)}` : ""}</span> : <span className="mut">-</span>}</td>
+              <td>{running.has(`startups/${s.id}`) ? <AnaliseLoading path={`startups/${s.id}`} /> : <button type="button" className={`anchip btn-an ${s.analiseResumo ? s.analiseResumo.decisao : "none"}`} onClick={(e) => { e.stopPropagation(); onAnalise(s); }}
+                title={s.analiseResumo ? `Ver a análise (${s.analiseResumo.positivos} de 11 critérios positivos)` : "Fazer a análise de investimento"}>
+                <Icon name="scales" />{s.analiseResumo ? <>{s.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}{s.analiseResumo.ticket ? ` · ${nomeTicket(s.analiseResumo.ticket)}` : ""}</> : "Analisar"}</button>}</td>
               <td className="n"><span className={`trel lv-${relLevel(s.relevancia)}`}><Gauge v={s.relevancia} />{s.relevancia}</span></td>
               <td className="n mut">{fdCurto(s.criadoEm)}</td>
               <td className="acts" onClick={(e) => e.stopPropagation()}>
@@ -86,7 +87,6 @@ export function StartupsTable({ list, sectors, onOpen, onApprove, onReject, onSt
                 </>) : (
                   <button className="btn icon" title="Voltar à triagem" aria-label={`Voltar à triagem ${s.nome}`} onClick={() => onBack(s)}><Icon name="arrow-u-up-left" /></button>
                 )}
-                {s.status !== "rejected" && <button className="btn icon" aria-pressed={!!s.destaque} title="Destacar" aria-label={`Destacar ${s.nome}`} onClick={() => onStar(s)}><Icon name={s.destaque ? "star-fill" : "star"} /></button>}
               </td>
             </tr>
             {rejectRow === s.id && (

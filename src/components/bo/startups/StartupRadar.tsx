@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { layout, RadarChart } from "@/components/radar/RadarChart";
-import { approveStartup, rejectStartup, startupBackToTriage, toggleStartupStar } from "@/lib/startup-actions";
+import { approveStartup, rejectStartup, startupBackToTriage } from "@/lib/startup-actions";
 import { FASES, Sector, Startup } from "@/lib/types";
 import { useSession } from "../AuthGate";
 import { StartupDrawer } from "./StartupDrawer";
@@ -17,7 +17,7 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
   const approved = useMemo(() => startups.filter((s) => s.status === "approved"), [startups]);
   const items = useMemo(() => layout(rings, approved.map((s) => {
     const sec = sectors.find((x) => x.id === s.setor), fase = FASES.find((f) => f.id === s.fase);
-    return { id: s.id, ring: s.setor, group: s.fase, color: sec?.cor || "#94A3B8", titulo: s.nome, sub: `${sec?.nome || ""}, ${fase?.nome || ""}`, relevancia: s.relevancia + (s.destaque ? 100 : 0) };
+    return { id: s.id, ring: s.setor, group: s.fase, color: sec?.cor || "#94A3B8", titulo: s.nome, sub: `${sec?.nome || ""}, ${fase?.nome || ""}`, relevancia: s.relevancia };
   })), [approved, sectors, rings]);
   const counts = (rid: string) => items.filter((x) => x.ring === rid && (fFase === "all" || x.group === fFase)).length;
   const open = openId ? startups.find((s) => s.id === openId) || null : null;
@@ -54,8 +54,7 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
     {open && (
       <StartupDrawer s={open} list={list} sectors={sectors} onClose={() => setOpenId(null)} onNav={setOpenId} notify={flash}
         onApprove={() => approveStartup(open, email).then(() => flash("Aprovada"))}
-        onReason={(m) => rejectStartup(open, m).then(() => { setOpenId(null); flash("Rejeitada"); })}
-        onStar={() => toggleStartupStar(open)} onBack={() => startupBackToTriage(open).then(() => { setOpenId(null); flash(`«${open.nome}» voltou à triagem`); })} />
+        onReason={(m) => rejectStartup(open, m).then(() => { setOpenId(null); flash("Rejeitada"); })} onBack={() => startupBackToTriage(open).then(() => { setOpenId(null); flash(`«${open.nome}» voltou à triagem`); })} />
     )}
     {msg && <div className="toast" role="status"><span>{msg}</span></div>}
   </>);

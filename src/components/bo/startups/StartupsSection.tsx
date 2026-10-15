@@ -12,14 +12,15 @@ import { PipelineSection } from "../pipeline/PipelineSection";
 import { useSession } from "../AuthGate";
 
 /** Secção Startups do backoffice: Triagem, Aprovadas, Rejeitadas, Radar e (admins) Pipeline. */
-export function StartupsSection() {
-  return <DealsLookup><Section /></DealsLookup>;
+type Page = Status | "radar" | "pipeline";
+export function StartupsSection({ initial = "pending" }: { initial?: Page }) {
+  return <DealsLookup><Section initial={initial} /></DealsLookup>;
 }
 
-function Section() {
+function Section({ initial }: { initial: Page }) {
   const { deals } = useDeals();
   const { canPipeline } = useSession();
-  const [page, setPage] = useState<Status | "radar" | "pipeline">("pending");
+  const [page, setPage] = useState<Page>(initial === "pipeline" && !canPipeline ? "approved" : initial);
   const [startups, setStartups] = useState<Startup[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loaded, setLoaded] = useState(false);

@@ -225,7 +225,7 @@ export interface Analise {
   encaixe: string; proximosPassos: string[];
   fontes: AnaliseFonte[];
 }
-export interface AnaliseResumo { decisao: Analise["decisao"]; ticket: Ticket | null; desafio: string; positivos: number; feitaEm: string }
+export interface AnaliseResumo { decisao: Analise["decisao"]; ticket: Ticket | null; desafio: string; positivos: number; feitaEm: string; negativos?: CriterioId[]; incertos?: CriterioId[] }
 
 /* ---------- Pipeline (dealflow da Sogrape Ventures) ---------- */
 

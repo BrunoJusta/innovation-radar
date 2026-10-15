@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { approve, backToTriage, EditFields, reject, restore, saveEdit, Snapshot, toggleStar } from "@/lib/bo-actions";
+import { approve, backToTriage, EditFields, reject, restore, saveEdit, Snapshot } from "@/lib/bo-actions";
 import { DraftFields } from "./DraftFields";
 import { SignalsTable } from "./SignalsTable";
 
@@ -14,7 +14,7 @@ import { Empty, Gauge } from "./ui";
 
 const TITLES: Record<Status, [string, string]> = {
   pending: ["Triagem", "Notícias novas à espera de decisão. Abre um cartão para ler o resumo completo e as fontes."],
-  approved: ["Aprovadas", "Estas notícias estão visíveis no radar. Os destaques aparecem primeiro."],
+  approved: ["Aprovadas", "Estas notícias estão visíveis no radar."],
   rejected: ["Rejeitadas", "Ficam guardadas com o motivo, para afinar a classificação."],
 };
 
@@ -66,7 +66,6 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
     try { const p = await reject(s, motivo); setRejectCard(null); notify(`Rejeitada: ${motivo}`, [p]); if (fromDrawer) setOpenId(nextAfter(s.id)); } catch (e) { fail(e); }
   };
   const doBack = async (s: Signal) => { try { const p = await backToTriage(s); notify("Voltou à triagem", [p]); } catch (e) { fail(e); } };
-  const doStar = async (s: Signal) => { try { await toggleStar(s); notify(s.destaque ? "Destaque removido" : "Marcada como destaque"); } catch (e) { fail(e); } };
   const doBulk = async (to: "approved" | "rejected") => {
     const items = list.filter((s) => picked.has(s.id));
     try {
@@ -83,8 +82,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
 
   const groups: [string, Signal[], string?][] =
     sort !== "score" || status === "rejected" ? [["", list]]
-      : status === "approved" ? [["Em destaque", list.filter((s) => s.destaque)], ["Restantes", list.filter((s) => !s.destaque)]]
-        : [["Relevância alta", list.filter((s) => s.relevancia >= 85), "var(--g-ok)"], ["Relevância média", list.filter((s) => s.relevancia >= 65 && s.relevancia < 85), "var(--g-mid)"], ["Relevância baixa", list.filter((s) => s.relevancia < 65), "var(--g-low)"]];
+              : [["Relevância alta", list.filter((s) => s.relevancia >= 85), "var(--g-ok)"], ["Relevância média", list.filter((s) => s.relevancia >= 65 && s.relevancia < 85), "var(--g-mid)"], ["Relevância baixa", list.filter((s) => s.relevancia < 65), "var(--g-low)"]];
 
   const open = signals.find((s) => s.id === openId) || null;
 
@@ -102,11 +100,11 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
           <button aria-pressed={fCat === "all"} onClick={() => setFCat("all")}>Todas</button>
           {cats.map((c) => <button key={c.id} aria-pressed={fCat === c.id} onClick={() => setFCat(c.id)}><Icon name={c.icone} />{c.nome}</button>)}
         </div>
+        <span className="sp" />
         {view === "cards" && <div className="seg" role="group" aria-label="Ordenar">
           <button aria-pressed={sort === "score"} onClick={() => setSort("score")}>Relevância</button>
           <button aria-pressed={sort === "date"} onClick={() => setSort("date")}>Recentes</button>
         </div>}
-        <span className="sp" />
         {view === "cards" && status === "pending" && list.length > 0 && (
           <button className="txtbtn" onClick={() => setPicked(picked.size ? new Set() : new Set(list.map((s) => s.id)))}>{picked.size ? "Limpar seleção" : "Selecionar todas"}</button>
         )}
@@ -124,7 +122,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
             : <Empty icon={<Icon name="magnifying-glass" size={22} />} title="Sem resultados" text="Nenhuma notícia corresponde a este filtro." />
       ) : view === "list" ? (
         <SignalsTable list={list} areas={areas} cats={cats} onOpen={setOpenId}
-          onApprove={(s) => doApprove(s)} onReject={(s, m) => doReject(s, m)} onStar={(s) => doStar(s)} onBack={(s) => doBack(s)}
+          onApprove={(s) => doApprove(s)} onReject={(s, m) => doReject(s, m)} onBack={(s) => doBack(s)}
           onBulk={async (ids, acao, motivo) => {
             const items = list.filter((s) => ids.includes(s.id));
             try {
@@ -139,8 +137,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
             {l.map((s) => (
               <Card key={s.id} s={s} area={area(s.area)} cat={cat(s.categoria)} picked={picked.has(s.id)} rejecting={rejectCard === s.id}
                 onOpen={() => setOpenId(s.id)} onPick={() => togglePick(s.id)} onApprove={() => doApprove(s)}
-                onReject={() => setRejectCard(s.id)} onReason={(m) => doReject(s, m)} onCancel={() => setRejectCard(null)}
-                onStar={() => doStar(s)} onBack={() => doBack(s)} />
+                onReject={() => setRejectCard(s.id)} onReason={(m) => doReject(s, m)} onCancel={() => setRejectCard(null)} onBack={() => doBack(s)} />
             ))}
           </div>
         </section>
@@ -156,7 +153,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
 
       {open && (
         <Drawer s={open} list={list} areas={areas} cats={cats} onClose={() => setOpenId(null)} onNav={setOpenId}
-          onApprove={() => doApprove(open, true)} onReason={(m) => doReject(open, m, true)} onStar={() => doStar(open)} onBack={() => doBack(open)}
+          onApprove={() => doApprove(open, true)} onReason={(m) => doReject(open, m, true)} onBack={() => doBack(open)}
           onSave={async (f) => { try { await saveEdit(open, f); notify("Alterações guardadas"); } catch (e) { fail(e); } }} />
       )}
 
@@ -169,20 +166,20 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
   );
 }
 
-function Card({ s, area, cat, picked, rejecting, onOpen, onPick, onApprove, onReject, onReason, onCancel, onStar, onBack }: {
+function Card({ s, area, cat, picked, rejecting, onOpen, onPick, onApprove, onReject, onReason, onCancel, onBack }: {
   s: Signal; area?: Area; cat?: Category; picked: boolean; rejecting: boolean; onOpen: () => void; onPick: () => void; onApprove: () => void;
-  onReject: () => void; onReason: (m: string) => void; onCancel: () => void; onStar: () => void; onBack: () => void;
+  onReject: () => void; onReason: (m: string) => void; onCancel: () => void; onBack: () => void;
 }) {
   const src = [...new Set(s.fontes.map((f) => f.site))];
   return (
-    <article className={`card${s.destaque ? " star" : ""}${picked ? " picked" : ""}`} style={{ ["--c" as string]: area?.cor || "var(--ink-tertiary)" }}>
+    <article className={`card${picked ? " picked" : ""}`} style={{ ["--c" as string]: area?.cor || "var(--ink-tertiary)" }}>
       <div className="cbody" role="button" tabIndex={0} aria-label={`Abrir ${s.titulo}`} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}>
         <div className="ctopg">
           <div className="tags">
             <span className="tg ar">{area?.nome || "Sem área"}</span>
             <span className="tg">{cat && <Icon name={cat.icone} />}{cat?.nome || "Sem categoria"}</span>
             {s.flagNovaFonte && s.status === "pending" && <span className="tg new">Nova fonte</span>}
-            {s.destaque && <span className="tg star"><Icon name="star-fill" />Destaque</span>}
+            
             {s.status === "rejected" && <span className="tg no">{s.motivoRejeicao}</span>}
           </div>
           <Gauge v={s.relevancia} />
@@ -202,21 +199,19 @@ function Card({ s, area, cat, picked, rejecting, onOpen, onPick, onApprove, onRe
           <button className="chk" role="checkbox" aria-checked={picked} aria-label="Selecionar" onClick={onPick}><Icon name="check" /></button>
           <button className="btn primary" onClick={onApprove}><Icon name="check" />Aprovar</button>
           <button className="btn" onClick={onReject}><Icon name="x" />Rejeitar</button><span className="sp" />
-          <button className="btn icon" aria-pressed={!!s.destaque} title="Destacar no radar" onClick={onStar}><Icon name={s.destaque ? "star-fill" : "star"} /></button>
         </div>
       )) : (
         <div className="cact">
           <button className="btn" onClick={onBack}><Icon name="arrow-u-up-left" />Voltar à triagem</button><span className="sp" />
-          {s.status === "approved" && <button className="btn icon" aria-pressed={!!s.destaque} title="Destacar no radar" onClick={onStar}><Icon name={s.destaque ? "star-fill" : "star"} /></button>}
         </div>
       )}
     </article>
   );
 }
 
-function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onStar, onBack, onSave }: {
+function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onBack, onSave }: {
   s: Signal; list: Signal[]; areas: Area[]; cats: Category[]; onClose: () => void; onNav: (id: string) => void;
-  onApprove: () => void; onReason: (m: string) => void; onStar: () => void; onBack: () => void;
+  onApprove: () => void; onReason: (m: string) => void; onBack: () => void;
   onSave: (f: EditFields) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -299,7 +294,6 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onS
         ) : (<>
           <button className="btn primary lg" onClick={onApprove}><Icon name="check" />Aprovar</button>
           <button className="btn lg" onClick={() => setRejecting(true)}><Icon name="x" />Rejeitar</button><span className="sp" />
-          <button className="btn lg icon" aria-pressed={!!s.destaque} title="Destacar no radar" onClick={onStar}><Icon name={s.destaque ? "star-fill" : "star"} /></button>
           <button className="btn lg icon" title="Editar" onClick={startEdit}><Icon name="pencil-simple" /></button>
         </>)) : (
           <button className="btn lg" onClick={onBack}><Icon name="arrow-u-up-left" />Voltar à triagem</button>

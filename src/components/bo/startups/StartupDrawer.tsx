@@ -17,9 +17,9 @@ const ORIGEM: Record<string, string> = { pesquisa: "Pesquisa online", noticia: "
 export const pickEdit = (s: Startup): StartupEdit => ({ nome: s.nome, site: s.site, pais: s.pais || "", cidade: s.cidade || "", fundacao: s.fundacao ?? null, fase: s.fase, setor: s.setor,
   descricao: s.descricao || "", porque: s.porque || "", relevancia: s.relevancia, financiamento: s.financiamento || "", investidores: s.investidores || [] });
 
-export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onReason, onStar, onBack, notify }: {
+export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onReason, onBack, notify }: {
   s: Startup; list: Startup[]; sectors: Sector[]; onClose: () => void; onNav: (id: string) => void;
-  onApprove: () => void; onReason: (m: string) => void; onStar: () => void; onBack: () => void; notify: (m: string) => void;
+  onApprove: () => void; onReason: (m: string) => void; onBack: () => void; notify: (m: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -140,11 +140,9 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
         ) : (<>
           <button className="btn primary lg" onClick={onApprove}><Icon name="check" />Aprovar</button>
           <button className="btn lg" onClick={() => setRejecting(true)}><Icon name="x" />Rejeitar</button><span className="sp" />
-          <button className="btn lg icon" aria-pressed={!!s.destaque} title="Destacar" onClick={onStar}><Icon name={s.destaque ? "star-fill" : "star"} /></button>
           <button className="btn lg icon" title="Editar" onClick={() => setEditing(true)}><Icon name="pencil-simple" /></button>
         </>)) : (<>
           <button className="btn lg" onClick={onBack}><Icon name="arrow-u-up-left" />Voltar à triagem</button><span className="sp" />
-          {s.status === "approved" && <button className="btn lg icon" aria-pressed={!!s.destaque} title="Destacar" onClick={onStar}><Icon name={s.destaque ? "star-fill" : "star"} /></button>}
         </>)}
       </div>
     </aside>

@@ -17,6 +17,8 @@ const MSG504 = "A Gemini demorou demasiado e o pedido foi interrompido. Tenta ou
 export const resumoDe = (a: Analise): AnaliseResumo => ({
   decisao: a.decisao, ticket: a.ticket, desafio: a.desafio, feitaEm: a.feitaEm,
   positivos: a.criterios.filter((c) => c.veredicto === "positivo").length,
+  negativos: a.criterios.filter((c) => c.veredicto === "negativo").map((c) => c.id),
+  incertos: a.criterios.filter((c) => c.veredicto === "incerto").map((c) => c.id),
 });
 
 /** Guarda uma análise nova (as anteriores ficam no histórico) e o resumo no documento. */

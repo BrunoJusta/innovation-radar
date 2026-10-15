@@ -50,9 +50,6 @@ export function DraftFields({ value: v, onChange, areas, cats, withSource = fals
           <a className="srcl" href={v.fonte.url} target="_blank" rel="noopener noreferrer">{v.fonte.url}</a>
         </fieldset>
       )}
-      {"destaque" in v && (
-        <label className="chkrow"><input type="checkbox" checked={!!v.destaque} onChange={(e) => onChange({ destaque: e.target.checked })} />Destacar no radar</label>
-      )}
     </div>
   );
 }

@@ -15,7 +15,7 @@ import type { RunSource, Sector, Settings, Signal, Source, Startup, StartupOrige
 import { DEFAULT_SETTINGS, STARTUP_SITES } from "../src/lib/types";
 
 const DRY = process.env.DRY_RUN === "1";
-const MAX_NEW = Number(process.env.MAX_NEW_STARTUPS || 40);
+const MAX_NEW = Number(process.env.MAX_NEW_STARTUPS || 100);
 /** Análises em paralelo (cada uma faz 3 pedidos à Gemini). */
 const ANALISES_PARALELO = Number(process.env.ANALISES_PARALELO || 3);
 const now = () => new Date().toISOString();
@@ -174,7 +174,8 @@ async function main() {
         try {
           const a = await analisar(x, guidelines);
           const doc = { ...a, feitaEm: now(), por: "recolha", modelo: process.env.GEMINI_MODEL || "gemini-2.5-flash" };
-          const resumo = { decisao: a.decisao, ticket: a.ticket, desafio: a.desafio, feitaEm: doc.feitaEm, positivos: a.criterios.filter((c) => c.veredicto === "positivo").length };
+          const resumo = { decisao: a.decisao, ticket: a.ticket, desafio: a.desafio, feitaEm: doc.feitaEm, positivos: a.criterios.filter((c) => c.veredicto === "positivo").length,
+            negativos: a.criterios.filter((c) => c.veredicto === "negativo").map((c) => c.id), incertos: a.criterios.filter((c) => c.veredicto === "incerto").map((c) => c.id) };
           if (!DRY) {
             await db.collection(`startups/${x.id}/analises`).add(JSON.parse(JSON.stringify(doc)));
             await db.doc(`startups/${x.id}`).update({ analiseResumo: resumo });

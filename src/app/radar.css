@@ -218,4 +218,3 @@
 .rp .periodo select{height:34px;line-height:1;padding-top:0;padding-bottom:0;font-size:14px}
 /* Mensagem de radar vazio legível por cima dos anéis */
 .rp .rempty b,.rp .rempty span{background:rgba(255,255,255,.94);padding:4px 12px;border-radius:10px;box-shadow:0 0 0 6px rgba(255,255,255,.94)}
-.rp.embed .hero{min-height:100dvh;padding-block:32px}

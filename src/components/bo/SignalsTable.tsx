@@ -8,9 +8,9 @@ import { Gauge } from "./ui";
 type Col = "titulo" | "area" | "categoria" | "dataPublicacao" | "relevancia" | "criadoEm";
 
 /** Vista em lista das notícias: colunas ordenáveis, seleção múltipla e ações por linha. */
-export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, onStar, onBack, onBulk }: {
+export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, onBack, onBulk }: {
   list: Signal[]; areas: Area[]; cats: Category[]; onOpen: (id: string) => void;
-  onApprove: (s: Signal) => void; onReject: (s: Signal, motivo: string) => void; onStar: (s: Signal) => void; onBack: (s: Signal) => void;
+  onApprove: (s: Signal) => void; onReject: (s: Signal, motivo: string) => void; onBack: (s: Signal) => void;
   onBulk: (ids: string[], acao: "approve" | "reject" | "back", motivo?: string) => Promise<void>;
 }) {
   const [sort, setSort] = useState<{ col: Col; dir: 1 | -1 }>({ col: "relevancia", dir: -1 });
@@ -62,7 +62,7 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
           return (<Fragment key={s.id}>
             <tr className={picked.has(s.id) ? "on" : ""} onClick={() => onOpen(s.id)} style={{ ["--c" as string]: a?.cor || "var(--ink-tertiary)" }}>
               <td className="ck" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Selecionar ${s.titulo}`} checked={picked.has(s.id)} onChange={() => toggle(s.id)} /></td>
-              <td className="ttl"><b>{s.titulo}{s.destaque && <Icon name="star-fill" className="tstar" />}</b>
+              <td className="ttl"><b>{s.titulo}</b>
                 <span className="tsub">{sites.length > 1 ? `${sites[0]} e mais ${sites.length - 1}` : sites[0]}
                   {s.flagNovaFonte && s.status === "pending" && <em className="tnew">Nova fonte</em>}{s.manual && <em className="tman">À mão</em>}</span></td>
               <td><span className="tg ar">{a?.nome || "Sem área"}</span></td>
@@ -77,7 +77,6 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
                 </>) : (
                   <button className="btn icon" title="Voltar à triagem" aria-label="Voltar à triagem" onClick={() => onBack(s)}><Icon name="arrow-u-up-left" /></button>
                 )}
-                {s.status !== "rejected" && <button className="btn icon" aria-pressed={!!s.destaque} title="Destacar no radar" aria-label="Destacar no radar" onClick={() => onStar(s)}><Icon name={s.destaque ? "star-fill" : "star"} /></button>}
               </td>
             </tr>
             {rejectRow === s.id && (

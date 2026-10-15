@@ -11,16 +11,20 @@ import { AddByLink } from "./AddByLink";
 import { StartupsSection } from "./startups/StartupsSection";
 import { SearchField } from "./ui";
 import { AnaliseQueueProvider } from "./AnaliseQueue";
+import RadarApp from "@/components/radar/RadarApp";
+import { Dashboard, DashGo } from "./dashboard/Dashboard";
 import { Icon } from "@/components/Icon";
 
-type View = "news" | "startups" | "settings";
+type View = "dashboard" | "news" | "startups" | "settings";
 const NEWS: { id: Status; label: string; icon: string }[] = [
   { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Rejeitadas", icon: "prohibit" },
 ];
 
 export function Backoffice() {
   const { isAdmin, profile, email } = useSession();
-  const [view, setView] = useState<View>("news");
+  const [view, setView] = useState<View>("dashboard");
+  const [sPage, setSPage] = useState<{ p: "pending" | "approved" | "rejected" | "radar" | "pipeline"; k: number }>({ p: "pending", k: 0 });
+  const go = (g: DashGo) => { if (g.view === "news") { setSt(g.st); setView("news"); } else { setSPage({ p: g.page, k: Date.now() }); setView("startups"); } window.scrollTo(0, 0); };
   const [st, setSt] = useState<Status | "radar">("pending");
   const [signals, setSignals] = useState<Signal[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
@@ -54,6 +58,7 @@ export function Backoffice() {
         <div className="wrap topin">
           <a className="brand" href="/" title="Abrir o radar"><b>Radar de Inovação</b></a>
           <nav className="tabs" aria-label="Secções">
+            <button aria-current={view === "dashboard"} onClick={() => setView("dashboard")}><span className="l">Dashboard</span></button>
             <button aria-current={view === "news"} onClick={() => setView("news")}><span className="l">Notícias</span>{counts.pending > 0 && <span className="c">{counts.pending}</span>}</button>
             <button aria-current={view === "startups"} onClick={() => setView("startups")}><span className="l">Startups</span></button>
             {isAdmin && <button aria-current={view === "settings"} onClick={() => setView("settings")}><span className="l">Definições</span></button>}
@@ -81,9 +86,10 @@ export function Backoffice() {
             </div>}
           </div>
         )}
-        {isSignals && st === "radar" && <iframe className="radar-frame" src="/?embed=1" title="Radar de Inovação (como o público o vê)" />}
+        {isSignals && st === "radar" && <RadarApp inBo />}
         {isSignals && st !== "radar" && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} search={search} />}
-        {view === "startups" && <StartupsSection />}
+        {view === "dashboard" && <Dashboard signals={signals} areas={areas} cats={cats} go={go} />}
+        {view === "startups" && <StartupsSection key={sPage.k} initial={sPage.p} />}
         {view === "settings" && isAdmin && <SettingsHub areas={areas} cats={cats} />}
       </main>
       {adding && <AddByLink areas={areas} cats={cats} signals={signals} onClose={() => setAdding(false)}
