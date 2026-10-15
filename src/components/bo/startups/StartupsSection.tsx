@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Sector, Startup } from "@/lib/types";
+import { Sector, Startup, Status } from "@/lib/types";
 import { Icon } from "@/components/Icon";
 import { StartupsTriage } from "./StartupsTriage";
 import { StartupRadar } from "./StartupRadar";
@@ -10,7 +10,7 @@ import { SearchField } from "../ui";
 
 /** Secção Startups do backoffice: duas páginas, Triagem e Radar. */
 export function StartupsSection() {
-  const [page, setPage] = useState<"triage" | "radar">("triage");
+  const [page, setPage] = useState<Status | "radar">("pending");
   const [startups, setStartups] = useState<Startup[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -22,20 +22,26 @@ export function StartupsSection() {
     const u2 = onSnapshot(query(collection(db, "sectors"), orderBy("ordem")), (s) => setSectors(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Sector)));
     return () => { u1(); u2(); };
   }, []);
-  const pend = startups.filter((s) => s.status === "pending").length;
+  const cnt = (st: Status) => startups.filter((s) => s.status === st).length;
+  const TABS: { id: Status; label: string; icon: string }[] = [
+    { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Rejeitadas", icon: "prohibit" },
+  ];
   return (<>
     <div className="pagebar">
       <nav className="subnav" aria-label="Startups">
-        <button aria-current={page === "triage"} onClick={() => setPage("triage")}><Icon name="tray" />Triagem{pend > 0 && <span className="c">{pend}</span>}</button>
+        {TABS.map((t) => (
+          <button key={t.id} aria-current={page === t.id} onClick={() => setPage(t.id)}><Icon name={t.icon} />{t.label}
+            {cnt(t.id) > 0 && <span className={t.id === "pending" ? "c" : "c soft"}>{cnt(t.id)}</span>}</button>
+        ))}
         <button aria-current={page === "radar"} onClick={() => setPage("radar")}><Icon name="globe" />Radar</button>
       </nav>
-      {page === "triage" && (
+      {page !== "radar" && (
         <div className="pageact">
           <SearchField value={search} onChange={setSearch} placeholder="Pesquisar startups" />
           <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" />Adicionar startups</button>
         </div>
       )}
     </div>
-    {page === "triage" ? <StartupsTriage startups={startups} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
+    {page !== "radar" ? <StartupsTriage status={page} onStatus={setPage} startups={startups} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
   </>);
 }

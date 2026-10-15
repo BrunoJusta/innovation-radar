@@ -575,3 +575,14 @@
 .bo .stbl tr.rrow td>*{margin-right:6px;vertical-align:middle}
 .bo .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .bo .bulk .btn{height:32px}
+/* Lista de notícias */
+.bo .ntbl table{min-width:900px}
+.bo .ntbl .ttl{min-width:320px;max-width:520px}
+.bo .ntbl .ttl b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:var(--f-display);font-weight:600;line-height:1.35}
+.bo .ntbl .ttl b .tstar{display:inline;vertical-align:-2px;margin-left:6px}
+.bo .ntbl .tsub{display:flex;gap:8px;align-items:center;margin-top:3px;font-size:12px;color:var(--ink-tertiary)}
+.bo .ntbl .tsub em{font-style:normal;font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px}
+.bo .ntbl .tnew{border:1px dashed color-mix(in srgb,var(--ink) 35%,transparent);color:var(--ink)}
+.bo .ntbl .tman{background:var(--surface-2);color:var(--ink-muted)}
+.bo .ntbl .tcat{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.bo .ntbl .tcat svg.i{width:14px;height:14px;color:var(--ink-subtle)}

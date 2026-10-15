@@ -13,13 +13,16 @@ import { StartupsTable } from "./StartupsTable";
 const VIEW_KEY = "radar.startups.vista";
 const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; } };
 
-const ST: { id: Status; label: string }[] = [{ id: "pending", label: "Por decidir" }, { id: "approved", label: "Aprovadas" }, { id: "rejected", label: "Rejeitadas" }];
+const TITLES: Record<Status, [string, string]> = {
+  pending: ["Triagem", "Startups encontradas na pesquisa semanal, nas notícias e à mão, à espera de decisão."],
+  approved: ["Aprovadas", "Estas startups estão no radar de startups. Os destaques aparecem primeiro."],
+  rejected: ["Rejeitadas", "Ficam guardadas com o motivo e não voltam a ser propostas pela recolha."],
+};
 
-export function StartupsTriage({ startups, sectors, loaded, search, adding, setAdding }: {
-  startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
+export function StartupsTriage({ status, onStatus, startups, sectors, loaded, search, adding, setAdding }: {
+  status: Status; onStatus: (s: Status) => void; startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
 }) {
   const { email } = useSession();
-  const [status, setStatus] = useState<Status>("pending");
   const [fSec, setFSec] = useState("all");
   const [fFase, setFFase] = useState("all");
   const [sort, setSort] = useState<"score" | "date">("score");
@@ -34,7 +37,6 @@ export function StartupsTriage({ startups, sectors, loaded, search, adding, setA
   useEffect(() => { setOpenId(null); setRejectCard(null); }, [status]);
 
   const sec = (id: string) => sectors.find((x) => x.id === id);
-  const counts = useMemo(() => Object.fromEntries(ST.map((x) => [x.id, startups.filter((s) => s.status === x.id).length])) as Record<Status, number>, [startups]);
   const list = useMemo(() => {
     let l = startups.filter((s) => s.status === status);
     if (fSec !== "all") l = l.filter((s) => s.setor === fSec);
@@ -52,12 +54,9 @@ export function StartupsTriage({ startups, sectors, loaded, search, adding, setA
 
   return (<>
     <div className="head">
-      <div><h1>Startups</h1><p>Startups encontradas na pesquisa semanal, nas notícias e à mão. As aprovadas entram no radar de startups.</p></div>
+      <div><h1>{TITLES[status][0]}</h1><p>{TITLES[status][1]}</p></div>
     </div>
     <div className="toolbar">
-      <div className="seg" role="group" aria-label="Estado">
-        {ST.map((x) => <button key={x.id} aria-pressed={status === x.id} onClick={() => setStatus(x.id)}>{x.label}<span className="segc">{counts[x.id]}</span></button>)}
-      </div>
       <div className="seg" role="group" aria-label="Setor">
         <button aria-pressed={fSec === "all"} onClick={() => setFSec("all")}>Todos os setores</button>
         {sectors.map((s) => <button key={s.id} aria-pressed={fSec === s.id} onClick={() => setFSec(s.id)}><Icon name={s.icone} />{s.nome}</button>)}
@@ -144,7 +143,7 @@ export function StartupsTriage({ startups, sectors, loaded, search, adding, setA
         onStar={() => toggleStartupStar(open)} onBack={() => act(startupBackToTriage(open), `«${open.nome}» voltou à triagem`, true)} />
     )}
     {adding && <FindStartups mode="search" sectors={sectors} startups={startups} onClose={() => setAdding(false)}
-      onDone={(msg) => { setAdding(false); setStatus("pending"); notify(msg); }} />}
+      onDone={(msg) => { setAdding(false); onStatus("pending"); notify(msg); }} />}
     {toast && (
       <div className="toast" role="status"><span>{toast.msg}</span>
         {toast.undo && <button className="btn" onClick={() => { restoreStartup(toast.undo!).then(() => notify("Anulado")); }}><Icon name="arrow-counter-clockwise" />Anular</button>}

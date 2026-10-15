@@ -3,6 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { approve, backToTriage, EditFields, reject, restore, saveEdit, Snapshot, toggleStar } from "@/lib/bo-actions";
 import { DraftFields } from "./DraftFields";
+import { SignalsTable } from "./SignalsTable";
+
+const VIEW_KEY = "radar.noticias.vista";
+const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; } };
 import { Area, Category, REJECT_REASONS, Signal, Status } from "@/lib/types";
 import { fdCurto, fdLongo, monogram, relLevel } from "@/lib/util";
 import { useSession } from "./AuthGate";
@@ -21,6 +25,9 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
   const [fArea, setFArea] = useState("all");
   const [fCat, setFCat] = useState("all");
   const [sort, setSort] = useState<"score" | "date">("score");
+  const [view, setViewS] = useState<"cards" | "list">("cards");
+  useEffect(() => setViewS(readView()), []);
+  const setView = (v: "cards" | "list") => { setViewS(v); setPicked(new Set()); try { localStorage.setItem(VIEW_KEY, v); } catch { /* sem armazenamento */ } };
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [rejectCard, setRejectCard] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -103,14 +110,18 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
           <button aria-pressed={fCat === "all"} onClick={() => setFCat("all")}>Todas</button>
           {cats.map((c) => <button key={c.id} aria-pressed={fCat === c.id} onClick={() => setFCat(c.id)}><Icon name={c.icone} />{c.nome}</button>)}
         </div>
-        <div className="seg" role="group" aria-label="Ordenar">
+        {view === "cards" && <div className="seg" role="group" aria-label="Ordenar">
           <button aria-pressed={sort === "score"} onClick={() => setSort("score")}>Relevância</button>
           <button aria-pressed={sort === "date"} onClick={() => setSort("date")}>Recentes</button>
-        </div>
-        {status === "pending" && list.length > 0 && (<>
-          <span className="sp" />
+        </div>}
+        <span className="sp" />
+        {view === "cards" && status === "pending" && list.length > 0 && (
           <button className="txtbtn" onClick={() => setPicked(picked.size ? new Set() : new Set(list.map((s) => s.id)))}>{picked.size ? "Limpar seleção" : "Selecionar todas"}</button>
-        </>)}
+        )}
+        <div className="seg" role="group" aria-label="Vista">
+          <button aria-pressed={view === "cards"} onClick={() => setView("cards")} title="Cartões"><Icon name="squares-four" />Cartões</button>
+          <button aria-pressed={view === "list"} onClick={() => setView("list")} title="Lista"><Icon name="list-bullets" />Lista</button>
+        </div>
       </div>
 
       {!loaded ? <div className="loading">A carregar…</div> : list.length === 0 ? (
@@ -119,6 +130,16 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
           : status === "pending" && allCount === 0
             ? <Empty icon={<Icon name="tray" size={22} />} title="Ainda sem notícias" text="Assim que o pipeline diário correr, as notícias novas aparecem aqui para decidires." />
             : <Empty icon={<Icon name="magnifying-glass" size={22} />} title="Sem resultados" text="Nenhuma notícia corresponde a este filtro." />
+      ) : view === "list" ? (
+        <SignalsTable list={list} areas={areas} cats={cats} onOpen={setOpenId}
+          onApprove={(s) => doApprove(s)} onReject={(s, m) => doReject(s, m)} onStar={(s) => doStar(s)} onBack={(s) => doBack(s)}
+          onBulk={async (ids, acao, motivo) => {
+            const items = list.filter((s) => ids.includes(s.id));
+            try {
+              const snaps = await Promise.all(items.map((s) => acao === "approve" ? approve(s, email) : acao === "reject" ? reject(s, motivo || "Pouco relevante") : backToTriage(s)));
+              notify(`${items.length} ${acao === "approve" ? "aprovadas" : acao === "reject" ? `rejeitadas: ${motivo}` : "de volta à triagem"}`, snaps);
+            } catch (e) { fail(e); }
+          }} />
       ) : groups.filter((g) => g[1].length).map(([t, l, c]) => (
         <section className="group" key={t || "all"}>
           {t && <div className="gh">{c && <i style={{ background: c }} />}<h2>{t}</h2><span>{l.length}</span></div>}
@@ -133,7 +154,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
         </section>
       ))}
 
-      {picked.size > 0 && status === "pending" && (
+      {view === "cards" && picked.size > 0 && status === "pending" && (
         <div className="bulk"><span>{picked.size} selecionada{picked.size > 1 ? "s" : ""}</span>
           <button className="btn primary" onClick={() => doBulk("approved")}><Icon name="check" />Aprovar</button>
           <button className="btn" onClick={() => doBulk("rejected")}><Icon name="x" />Rejeitar</button>
