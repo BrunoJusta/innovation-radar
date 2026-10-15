@@ -542,3 +542,4 @@
 .bo .pageact{display:flex;align-items:center;gap:10px;margin-left:auto}
 .bo .pagebar+.head{padding-top:20px}
 @media (max-width:760px){.bo .pageact{margin-left:0;width:100%}.bo .pageact .fsearch{flex:1;width:auto}}
+.bo .rp .cats{margin-top:20px;padding-bottom:0}

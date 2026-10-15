@@ -7,22 +7,59 @@ export const prefersReduced = () => typeof window !== "undefined" && matchMedia(
 const ang = (p: { x: number; y: number }) => ((Math.atan2(p.x, -p.y) * 180) / Math.PI + 360) % 360;
 
 export interface Ring { id: string; nome: string; cor: string }
-export interface ChartItem { id: string; n: number; ring: string; color: string; group: string; x: number; y: number; titulo: string; sub: string }
+export interface ChartItem {
+  id: string; n: number; ring: string; color: string; group: string; x: number; y: number; titulo: string; sub: string;
+  /** Escala do ponto (1 = normal); fica menor quando o anel tem muitos itens. */
+  s?: number;
+}
 
-export const ringRadii = (n: number) => Array.from({ length: n }, (_, i) => (RMAX * (i + 1)) / Math.max(n, 1));
+/** Raio exterior de cada anel. O expoente < 1 dá mais largura aos anéis de dentro, que têm menos perímetro. */
+export const ringRadii = (n: number) => Array.from({ length: n }, (_, i) => RMAX * Math.pow((i + 1) / Math.max(n, 1), 0.7));
 
-/** Posições: cada anel distribui os seus itens à volta, os mais relevantes primeiro. */
-export function layout<T extends { ring: string; relevancia: number }>(rings: Ring[], list: T[]): (T & { x: number; y: number; n: number })[] {
+const BASE_R = 13; // raio normal do ponto
+const MIN_S = 0.5; // escala mínima
+export const SHOW_NUM = 0.8; // abaixo desta escala o número deixa de caber e não é mostrado
+
+/**
+ * Posições: cada anel distribui os seus itens à volta, os mais relevantes primeiro.
+ * Se não couberem numa fila, usa 2 ou 3 faixas (cada faixa recebe itens na proporção do seu perímetro)
+ * e, se ainda for preciso, encolhe os pontos.
+ */
+export function layout<T extends { ring: string; relevancia: number }>(rings: Ring[], list: T[]): (T & { x: number; y: number; n: number; s: number })[] {
   const R = ringRadii(rings.length);
-  const out: (T & { x: number; y: number; n: number })[] = [];
+  const out: (T & { x: number; y: number; n: number; s: number })[] = [];
+  const SPAN = 304, START = 28;                    // arco usado em graus (o topo fica livre para o nome do anel)
+  const slot = 2 * BASE_R * 1.2;                     // espaço que um ponto normal ocupa ao longo do arco
+  const arcAt = (r: number) => (2 * Math.PI * r * SPAN) / 360;
   let n = 0;
   rings.forEach((r, ri) => {
     const l = list.filter((x) => x.ring === r.id).sort((a, b) => b.relevancia - a.relevancia);
-    const inner = ri ? R[ri - 1] : 0, outer = R[ri];
-    l.forEach((x, k) => {
-      const t = ((28 + (304 * (k + 0.5)) / l.length + (ri ? 17 : 0)) * Math.PI) / 180;
-      const rr = ri === 0 ? outer * (k % 2 ? 0.42 : 0.7) : inner + (outer - inner) * (k % 2 ? 0.36 : 0.64);
-      out.push({ ...x, x: rr * Math.sin(t), y: -rr * Math.cos(t), n: ++n });
+    if (!l.length) return;
+    const outer = R[ri], inner = ri ? R[ri - 1] : 0;
+    const lo = ri ? inner + 0.24 * (outer - inner) : outer * 0.42;
+    const hi = ri ? outer - 0.24 * (outer - inner) : outer * 0.8;
+    const band = Math.max(0, hi - lo);
+    const maxLanes = Math.max(1, Math.min(3, Math.floor(band / (2 * BASE_R * 0.85)) + 1));
+    let lanes = 1, radii = [(lo + hi) / 2];
+    const cap = (rs: number[]) => rs.reduce((a, x) => a + arcAt(x) / slot, 0);
+    while (lanes < maxLanes && cap(radii) < l.length) {
+      lanes++;
+      radii = Array.from({ length: lanes }, (_, j) => lo + (band * j) / (lanes - 1));
+    }
+    // Quantos itens vão para cada faixa: proporcional ao perímetro
+    const tot = radii.reduce((a, x) => a + x, 0);
+    const counts = radii.map((x) => Math.floor((l.length * x) / tot));
+    for (let k = counts.reduce((a, x) => a + x, 0), j = lanes - 1; k < l.length; k++, j = (j - 1 + lanes) % lanes) counts[j]++;
+    const sc = Math.max(MIN_S, Math.min(1, ...radii.map((x, j) => (counts[j] ? arcAt(x) / counts[j] / slot : 1))));
+    // Distribuição alternada: o 1.º vai para a faixa com mais lugar livre, e assim sucessivamente
+    const used = radii.map(() => 0);
+    l.forEach((x) => {
+      let j = 0, best = -1;
+      radii.forEach((_, q) => { const free = counts[q] ? (counts[q] - used[q]) / counts[q] : -1; if (free > best) { best = free; j = q; } });
+      const k = used[j]++;
+      const off = lanes > 1 ? (j / lanes) * (SPAN / counts[j]) : 0;
+      const t = ((START + off + (SPAN * (k + 0.5)) / counts[j] + (ri ? 17 : 0)) * Math.PI) / 180;
+      out.push({ ...x, x: radii[j] * Math.sin(t), y: -radii[j] * Math.cos(t), n: ++n, s: sc });
     });
   });
   return out;
@@ -62,9 +99,11 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
   const linksRef = useRef<SVGGElement>(null);
   const links = useMemo(() => {
     if (fGroup === "all") return [];
+    // Em cadeia: cada item liga ao vizinho seguinte à volta do radar (leve e legível com 5 ou com 50)
     const pts = items.filter(match).sort((a, b) => ang(a) - ang(b));
     const pairs: [ChartItem, ChartItem][] = [];
-    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) pairs.push([pts[i], pts[j]]);
+    for (let i = 0; i + 1 < pts.length; i++) pairs.push([pts[i], pts[i + 1]]);
+    if (pts.length > 2) pairs.push([pts[pts.length - 1], pts[0]]);
     return pairs;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, fGroup, fRing]);
@@ -168,16 +207,19 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
         </g>
         {items.map((x, k) => {
           const c = x.color, off = !!fRing && x.ring !== fRing, on = match(x);
+          // Ao filtrar um anel, os pontos voltam ao tamanho normal (há espaço para isso)
+          const sc = fRing && x.ring === fRing ? Math.min(1, (x.s ?? 1) * K) : x.s ?? 1;
+          const stagger = (k * Math.min(1, 14 / Math.max(items.length, 1))).toFixed(2); // a entrada demora sempre menos de 1 s
           return (
             <g key={x.id} className={`bw${off ? " off" : ""}${!on ? " dim" : ""}`} style={{ transform: `translate(${(x.x * K).toFixed(1)}px, ${(x.y * K).toFixed(1)}px)` }}>
-              <circle className="rip" r={14} fill="none" stroke={c} strokeWidth={2} data-rip={x.id} />
-              <g className={`blip${fGroup !== "all" && on ? " link" : ""}`} tabIndex={0} role="button" style={{ ["--i" as string]: k }}
+              <circle className="rip" r={14 * sc} fill="none" stroke={c} strokeWidth={2} data-rip={x.id} />
+              <g className={`blip${fGroup !== "all" && on ? " link" : ""}`} tabIndex={0} role="button" style={{ ["--i" as string]: stagger }}
                 aria-label={`${x.n}. ${x.titulo}`}
                 onMouseEnter={(e) => showTip(e, x)} onMouseLeave={() => setTip(null)} onFocus={(e) => showTip(e, x)} onBlur={() => setTip(null)}
                 onClick={() => onOpen(x.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(x.id); } }}>
-                <circle className="halo" r={20} fill={c} opacity={0.18} />
-                <circle className="dot" r={13} fill={c} filter={`url(#${P}glow)`} />
-                <text textAnchor="middle" y={4} fill="#fff">{x.n}</text>
+                <circle className="halo" r={20 * sc} fill={c} opacity={0.18} />
+                <circle className="dot" r={BASE_R * sc} fill={c} filter={`url(#${P}glow)`} />
+                {sc >= SHOW_NUM && <text textAnchor="middle" y={4} fill="#fff">{x.n}</text>}
               </g>
             </g>
           );
