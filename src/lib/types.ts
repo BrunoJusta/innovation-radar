@@ -56,6 +56,8 @@ export interface Category {
 }
 export interface Source {
   id: string; nome: string; tipo: "rss" | "wp-api"; url: string; lingua: "pt" | "en"; ativo: boolean;
+  /** Preenchido pela recolha quando o site bloqueia robôs; a fonte é desligada automaticamente. */
+  bloqueado?: { em: string; por: "cloudflare"; http: number; url: string } | null;
 }
 export interface Settings { corteRelevancia: number; janelaDias: number; }
 export interface AppUser { email: string; nome?: string; role: Role; adicionadoEm?: string; adicionadoPor?: string; }

@@ -6,7 +6,7 @@
  */
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./lib/admin";
-import { fetchRss, fetchWp, FeedItem } from "./lib/feeds";
+import { fetchRss, fetchWp, FeedItem, FetchError } from "./lib/feeds";
 import { extractArticle, htmlToText, matchKeywords } from "./lib/text";
 import { normalizeUrl, urlHash } from "./lib/url";
 import { classify, confirmAndMerge, embed } from "./lib/gemini";
@@ -61,7 +61,16 @@ async function main() {
       run.fontes.push(st);
       let items: FeedItem[] = [];
       try { items = src.tipo === "wp-api" ? await fetchWp(src.url) : await fetchRss(src.url); }
-      catch (e) { st.erros.push(`Feed: ${(e as Error).message}`); log(src.nome, "erro no feed", e); continue; }
+      catch (e) {
+        st.erros.push(`Feed: ${(e as Error).message}`); log(src.nome, "erro no feed", (e as Error).message);
+        // Bloqueio anti-robôs: desliga a fonte e marca-a como bloqueada no backoffice
+        if (e instanceof FetchError && e.bloqueio && !DRY) {
+          await db.doc(`sources/${src.id}`).update({ ativo: false, bloqueado: { em: now(), por: e.bloqueio, http: e.status, url: src.url } });
+          st.erros.push("Fonte desligada automaticamente: o site bloqueia a recolha (Cloudflare).");
+          log(src.nome, "bloqueada pela Cloudflare: fonte desligada");
+        }
+        continue;
+      }
       items = items.filter((i) => Date.parse(i.date) >= windowStart).slice(0, MAX_PER_SOURCE);
       st.lidos = items.length;
       log(`${src.nome}: ${items.length} artigos no feed`);

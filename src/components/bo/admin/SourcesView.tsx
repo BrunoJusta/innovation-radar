@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, deleteDoc, doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, deleteField, doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Source } from "@/lib/types";
-import { slug } from "@/lib/util";
+import { fdLongo, slug } from "@/lib/util";
 import { Icon } from "@/components/Icon";
 import { AdmHead, DangerBtn, Toggle, errMsg, useFlash } from "./common";
 
@@ -22,7 +22,8 @@ export function SourcesView() {
     if (!data.nome.trim() || !/^https?:\/\//.test(data.url)) { flash("Indica um nome e um URL que comece por http."); return; }
     try {
       const key = isNew ? slug(data.nome) : id;
-      await setDoc(doc(db, "sources", key), data, { merge: true });
+      const urlMudou = !isNew && edit.bloqueado && edit.bloqueado.url !== data.url;
+      await setDoc(doc(db, "sources", key), urlMudou ? { ...data, bloqueado: deleteField() } : data, { merge: true });
       setEdit(null); flash(isNew ? "Fonte adicionada" : "Fonte atualizada");
     } catch (e) { flash(errMsg(e)); }
   };
@@ -34,8 +35,10 @@ export function SourcesView() {
     <div className="rows">
       {list.map((s) => (
         <div className="row" key={s.id}>
-          <Toggle on={s.ativo} label={`Ativar ${s.nome}`} onChange={(v) => updateDoc(doc(db, "sources", s.id), { ativo: v }).catch((e) => flash(errMsg(e)))} />
-          <div className="rmain"><b>{s.nome}</b><span className="mtxt">{s.url}</span></div>
+          <Toggle on={s.ativo} label={`Ativar ${s.nome}`} onChange={(v) => updateDoc(doc(db, "sources", s.id), v ? { ativo: true, bloqueado: deleteField() } : { ativo: false }).then(() => v && s.bloqueado && flash("Fonte ligada. Se o site continuar a bloquear, volta a ser desligada na próxima recolha.")).catch((e) => flash(errMsg(e)))} />
+          <div className="rmain"><b>{s.nome}</b><span className="mtxt">{s.url}</span>
+            {s.bloqueado && <span className="blk-why">O site bloqueia a recolha (Cloudflare, HTTP {s.bloqueado.http}) desde {fdLongo(s.bloqueado.em)}. Foi desligada automaticamente. Para notícias deste site usa Adicionar › Colar o texto do artigo.</span>}</div>
+          {s.bloqueado && <span className="tg no" title={`Bloqueada pela Cloudflare em ${fdLongo(s.bloqueado.em)}`}><Icon name="prohibit" />Bloqueado</span>}
           <span className="tg">{s.tipo === "rss" ? "RSS" : "WordPress API"}</span>
           <span className="tg">{s.lingua.toUpperCase()}</span>
           <button className="btn icon" title="Editar" aria-label="Editar" onClick={() => { setIsNew(false); setEdit(s); }}><Icon name="pencil-simple" /></button>

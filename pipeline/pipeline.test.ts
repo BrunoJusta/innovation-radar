@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { normalizeUrl, urlHash } from "./lib/url";
 import { matchKeywords, htmlToText } from "./lib/text";
-import { parseFeed } from "./lib/feeds";
+import { parseFeed, cloudflareBlock } from "./lib/feeds";
 import { cosine, lisbon } from "./lib/math";
 
 test("normalizeUrl remove tracking, www, barra final e fragmento", () => {
@@ -44,4 +44,14 @@ test("cosine e hora de Lisboa", () => {
   assert.equal(cosine([1, 0], [0, 1]), 0);
   assert.deepEqual(lisbon(new Date("2026-07-01T05:30:00Z")), { hour: 6, day: "2026-07-01" });
   assert.deepEqual(lisbon(new Date("2026-12-01T05:30:00Z")), { hour: 5, day: "2026-12-01" });
+});
+
+test("cloudflareBlock distingue bloqueio anti-robôs de site em baixo", () => {
+  const H = (o: Record<string, string>) => ({ get: (k: string) => o[k] ?? null });
+  assert.equal(cloudflareBlock(403, H({ server: "cloudflare", "cf-ray": "a4ae-SEA" })), true);
+  assert.equal(cloudflareBlock(403, H({ server: "nginx" })), false);
+  assert.equal(cloudflareBlock(503, H({ server: "cloudflare" }), "<title>Just a moment...</title>"), true);
+  assert.equal(cloudflareBlock(503, H({ server: "cloudflare" }), "Service unavailable"), false);
+  assert.equal(cloudflareBlock(429, H({ server: "cloudflare", "cf-mitigated": "challenge" })), true);
+  assert.equal(cloudflareBlock(500, H({ server: "cloudflare" })), false);
 });

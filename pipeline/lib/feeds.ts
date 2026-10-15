@@ -40,13 +40,27 @@ export function parseFeed(xml: string): FeedItem[] {
   return [];
 }
 
+/** Erro de pedido HTTP; `bloqueio` diz quem recusou quando é uma proteção anti-robôs. */
+export class FetchError extends Error {
+  constructor(message: string, public status: number, public bloqueio: "cloudflare" | null) { super(message); }
+}
+
+/** A Cloudflare recusou por ser um robô (e não por o site estar em baixo)? */
+export function cloudflareBlock(status: number, headers: { get(k: string): string | null }, body = ""): boolean {
+  const cf = /cloudflare/i.test(headers.get("server") || "") || !!headers.get("cf-ray");
+  if (!cf) return false;
+  if (headers.get("cf-mitigated")) return true;  // desafio anti-robôs explícito
+  return status === 403 || (status === 503 && /just a moment|attention required|cf-chl|challenge-platform/i.test(body));
+}
+
 async function get(url: string) {
   const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/rss+xml, application/xml, application/json, text/xml, */*" }, signal: AbortSignal.timeout(25000) });
   if (!r.ok) {
     // Pistas para perceber quem bloqueou (Cloudflare, WAF do alojamento, etc.)
     const h = ["server", "cf-ray", "cf-mitigated", "x-sucuri-id", "x-served-by"].map((k) => r.headers.get(k) ? `${k}=${r.headers.get(k)}` : "").filter(Boolean).join(" ");
-    const body = (await r.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 120);
-    throw new Error(`HTTP ${r.status} em ${url}${h ? ` [${h}]` : ""}${body ? ` «${body}»` : ""}`);
+    const raw = await r.text().catch(() => "");
+    const body = raw.replace(/\s+/g, " ").slice(0, 120);
+    throw new FetchError(`HTTP ${r.status} em ${url}${h ? ` [${h}]` : ""}${body ? ` «${body}»` : ""}`, r.status, cloudflareBlock(r.status, r.headers, raw) ? "cloudflare" : null);
   }
   return r.text();
 }
