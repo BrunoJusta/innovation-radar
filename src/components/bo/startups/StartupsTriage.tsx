@@ -5,14 +5,15 @@ import { approveStartup, rejectStartup, restoreStartup, SSnapshot, startupBackTo
 import { FASES, Sector, Startup, Status } from "@/lib/types";
 import { fdCurto, relLevel } from "@/lib/util";
 import { useSession } from "../AuthGate";
-import { Empty, Gauge, SearchField } from "../ui";
+import { Empty, Gauge } from "../ui";
 import { SREJECT, StartupDrawer } from "./StartupDrawer";
 import { FindStartups } from "./FindStartups";
 
 const ST: { id: Status; label: string }[] = [{ id: "pending", label: "Por decidir" }, { id: "approved", label: "Aprovadas" }, { id: "rejected", label: "Rejeitadas" }];
 
-export function StartupsTriage({ startups, sectors, loaded }: { startups: Startup[]; sectors: Sector[]; loaded: boolean }) {
-  const [search, setSearch] = useState("");
+export function StartupsTriage({ startups, sectors, loaded, search, adding, setAdding }: {
+  startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
+}) {
   const { email } = useSession();
   const [status, setStatus] = useState<Status>("pending");
   const [fSec, setFSec] = useState("all");
@@ -20,7 +21,6 @@ export function StartupsTriage({ startups, sectors, loaded }: { startups: Startu
   const [sort, setSort] = useState<"score" | "date">("score");
   const [openId, setOpenId] = useState<string | null>(null);
   const [rejectCard, setRejectCard] = useState<string | null>(null);
-  const [finding, setFinding] = useState<null | "search" | "site">(null);
   const [toast, setToast] = useState<{ msg: string; undo?: SSnapshot } | null>(null);
   const toastT = useRef<ReturnType<typeof setTimeout>>(undefined);
   const notify = (msg: string, undo?: SSnapshot) => { setToast({ msg, undo }); clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(null), 5000); };
@@ -46,12 +46,8 @@ export function StartupsTriage({ startups, sectors, loaded }: { startups: Startu
   return (<>
     <div className="head">
       <div><h1>Startups</h1><p>Startups encontradas na pesquisa semanal, nas notícias e à mão. As aprovadas entram no radar de startups.</p></div>
-      <div className="adm-act">
-        <button className="btn primary" onClick={() => setFinding("search")}><Icon name="plus" />Adicionar startups</button>
-      </div>
     </div>
     <div className="toolbar">
-      <SearchField value={search} onChange={setSearch} placeholder="Pesquisar startups" />
       <div className="seg" role="group" aria-label="Estado">
         {ST.map((x) => <button key={x.id} aria-pressed={status === x.id} onClick={() => setStatus(x.id)}>{x.label}<span className="segc">{counts[x.id]}</span></button>)}
       </div>
@@ -123,8 +119,8 @@ export function StartupsTriage({ startups, sectors, loaded }: { startups: Startu
         onReason={(m) => act(rejectStartup(open, m), `«${open.nome}» rejeitada`, true)}
         onStar={() => toggleStartupStar(open)} onBack={() => act(startupBackToTriage(open), `«${open.nome}» voltou à triagem`, true)} />
     )}
-    {finding && <FindStartups mode={finding} sectors={sectors} startups={startups} onClose={() => setFinding(null)}
-      onDone={(msg) => { setFinding(null); setStatus("pending"); notify(msg); }} />}
+    {adding && <FindStartups mode="search" sectors={sectors} startups={startups} onClose={() => setAdding(false)}
+      onDone={(msg) => { setAdding(false); setStatus("pending"); notify(msg); }} />}
     {toast && (
       <div className="toast" role="status"><span>{toast.msg}</span>
         {toast.undo && <button className="btn" onClick={() => { restoreStartup(toast.undo!).then(() => notify("Anulado")); }}><Icon name="arrow-counter-clockwise" />Anular</button>}

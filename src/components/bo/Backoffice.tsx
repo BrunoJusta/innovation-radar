@@ -9,6 +9,7 @@ import { SettingsHub } from "./admin/SettingsHub";
 import { useFlash } from "./admin/common";
 import { AddByLink } from "./AddByLink";
 import { StartupsSection } from "./startups/StartupsSection";
+import { SearchField } from "./ui";
 import { Icon } from "@/components/Icon";
 
 type View = "news" | "startups" | "settings";
@@ -25,6 +26,7 @@ export function Backoffice() {
   const [cats, setCats] = useState<Category[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [search, setSearch] = useState("");
   const { flash, el: flashEl } = useFlash();
 
   useEffect(() => {
@@ -63,14 +65,20 @@ export function Backoffice() {
       </header>
       <main className="wrap" id="main">
         {isSignals && (
-          <nav className="subnav" aria-label="Notícias">
-            {NEWS.map((v) => (
-              <button key={v.id} aria-current={st === v.id} onClick={() => setSt(v.id)}><Icon name={v.icon} />{v.label}
-                {counts[v.id] > 0 && <span className={v.id === "pending" ? "c" : "c soft"}>{counts[v.id]}</span>}</button>
-            ))}
-          </nav>
+          <div className="pagebar">
+            <nav className="subnav" aria-label="Notícias">
+              {NEWS.map((v) => (
+                <button key={v.id} aria-current={st === v.id} onClick={() => setSt(v.id)}><Icon name={v.icon} />{v.label}
+                  {counts[v.id] > 0 && <span className={v.id === "pending" ? "c" : "c soft"}>{counts[v.id]}</span>}</button>
+              ))}
+            </nav>
+            <div className="pageact">
+              <SearchField value={search} onChange={setSearch} placeholder="Pesquisar notícias" />
+              <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" />Adicionar por link</button>
+            </div>
+          </div>
         )}
-        {isSignals && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} onAdd={() => setAdding(true)} />}
+        {isSignals && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} search={search} />}
         {view === "startups" && <StartupsSection />}
         {view === "settings" && isAdmin && <SettingsHub areas={areas} cats={cats} />}
       </main>
