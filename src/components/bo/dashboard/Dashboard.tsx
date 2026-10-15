@@ -75,7 +75,7 @@ export function DashboardView({ signals, areas, go, startups, deals, runs, isAdm
             return <li key={d.id}><span className={`pz ${pz === "atrasado" ? "late" : pz === "breve" ? "soon" : ""}`}>{fdCurto(d.prazo!)}</span>
               <div><b>{d.nome}</b><span>{d.proximaAcao || "Sem próximo passo definido"}</span></div>
               <span className="d2-m">{vez && <span className={`vez v-${vez.id}`}>{vez.curto}</span>}<em>{nomeEtapa(d.etapa)}</em></span></li>;
-          })}</ul> : <p className="d2-empty">Nada com prazo nos próximos 7 dias.</p>}
+          })}</ul> : <div className="d2-empty"><Icon name="calendar-blank" /><b>Nada com prazo nos próximos 7 dias</b><span>Quando uma startup do pipeline tiver um próximo passo com prazo, aparece aqui.</span></div>}
         </section>
       ) : (
         <section className="d2-p">
@@ -83,7 +83,7 @@ export function DashboardView({ signals, areas, go, startups, deals, runs, isAdm
           {recentes.length ? <ul className="d2-list">{recentes.map((s) => {
             const a = areas.find((x) => x.id === s.area);
             return <li key={s.id}><span className="d2-dot" style={{ background: a?.cor }} aria-hidden="true" /><div><b>{s.titulo}</b><span>{a?.nome}</span></div></li>;
-          })}</ul> : <p className="d2-empty">Ainda não há notícias aprovadas.</p>}
+          })}</ul> : <div className="d2-empty"><Icon name="globe" /><b>Ainda não há notícias aprovadas</b></div>}
         </section>
       )}
 
