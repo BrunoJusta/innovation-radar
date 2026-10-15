@@ -1,0 +1,31 @@
+name: Recolha diária
+on:
+  schedule:
+    # 6h30 em Lisboa: 05:30 UTC no verão, 06:30 UTC no inverno. O script só corre uma vez por dia.
+    - cron: "30 5 * * *"
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Simular sem gravar nada"
+        type: boolean
+        default: false
+concurrency: { group: recolha, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm test
+      - name: Recolher, resumir e guardar
+        run: npm run pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          SCHEDULED: ${{ github.event_name == 'schedule' && '1' || '0' }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}

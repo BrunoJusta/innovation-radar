@@ -1,0 +1,33 @@
+rules_version = '2';
+// Regras da base de dados innovationradar-prod.
+// Publicar em: Firebase Console > Firestore > (base innovationradar-prod) > Rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null && request.auth.token.email != null; }
+    function me() { return request.auth.token.email.lower(); }
+    function profile() { return /databases/$(database)/documents/users/$(me()); }
+    function member() { return signedIn() && exists(profile()); }
+    function admin() { return member() && get(profile()).data.role == 'admin'; }
+
+    // Notícias: o radar público só lê as que estão publicadas no radar
+    match /signals/{id} {
+      allow read: if resource.data.noRadar == true || member();
+      allow update: if member();
+      allow create, delete: if admin();
+    }
+    // Estrutura do radar: pública para leitura
+    match /areas/{id}      { allow read: if true; allow write: if admin(); }
+    match /categories/{id} { allow read: if true; allow write: if admin(); }
+    match /settings/{id}   { allow read: if true; allow write: if admin(); }
+    // Só para quem tem acesso ao BO
+    match /sources/{id}    { allow read: if member(); allow write: if admin(); }
+    match /runs/{id}       { allow read: if admin(); allow write: if false; }
+    match /users/{id} {
+      allow read: if signedIn() && (id == me() || admin());
+      allow write: if admin() && !(id == me() && request.resource.data.role != 'admin');
+    }
+    // Uso exclusivo do pipeline (conta de serviço ignora as regras)
+    match /seen/{id}       { allow read, write: if false; }
+    match /embeddings/{id} { allow read, write: if false; }
+  }
+}

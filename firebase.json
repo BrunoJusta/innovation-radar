@@ -1,0 +1,3 @@
+{
+  "firestore": [{ "database": "innovationradar-prod", "rules": "firestore.rules" }]
+}
