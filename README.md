@@ -106,7 +106,7 @@ Para correr a recolha localmente, exporta `GEMINI_API_KEY` e `FIREBASE_SERVICE_A
 Secção **Startups** com duas páginas:
 
 - **Triagem:** cartões por decidir, aprovadas e rejeitadas, com filtros por setor e fase, detalhe com edição total, **Procurar online** (a Gemini pesquisa na web e escolhes quais entram) e **Adicionar por site** (a ficha é preparada a partir do site).
-- **Radar:** só as startups aprovadas. Os anéis são a fase (Crescimento ao centro, depois Série A, Seed e Ideia) e a cor é o setor.
+- **Radar:** só as startups aprovadas. Os anéis são os setores (pela ordem definida em Definições) e a fase é um filtro.
 
 **Recolha semanal** (`.github/workflows/startups.yml`, segunda às 7h30 em Lisboa, ou manualmente com "Simular sem gravar nada"):
 
@@ -115,6 +115,6 @@ Secção **Startups** com duas páginas:
 3. só aceita startups com site próprio a responder; a chave é o domínio do site, por isso a mesma startup nunca aparece duas vezes (só ganha mais origens);
 4. abaixo do corte de relevância das startups (Definições › Startups › Regras da recolha) é descartada e não volta a ser proposta.
 
-**Configurar:** setores e pesquisas em Definições › Startups › Setores e pesquisas. O seed cria os 4 setores iniciais (Wine Tech, Viticultura e AgTech, IA aplicada, No/Low e bebidas) com 4 pesquisas cada. As execuções aparecem em Definições › Execuções, com a coluna Recolha a dizer "Startups".
+**Configurar:** setores e pesquisas em Definições › Startups › Setores e pesquisas. O seed cria os 4 setores iniciais (Vinha e adega, Embalagem e rótulos, Consumidor e vendas, Dados e operações) com 4 pesquisas cada e substitui os setores da primeira versão, passando as startups que os usavam para o setor mais próximo. As execuções aparecem em Definições › Execuções, com a coluna Recolha a dizer "Startups".
 
 **Custos:** cada pesquisa online usa uma pesquisa Google da Gemini. Com 16 pesquisas por semana mais as fichas das startups citadas nas notícias, fica dentro da parte gratuita da Gemini 2.5 Flash.

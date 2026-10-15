@@ -31,24 +31,37 @@ const DATA: Record<string, Record<string, object>> = {
   },
   settings: { geral: { corteRelevancia: 50, janelaDias: 90, corteStartups: 50 } },
   sectors: {
-    "wine-tech": { nome: "Wine Tech", cor: "#7C3AED", icone: "wine", ordem: 1,
-      descricao: "Software e hardware para adegas e para o negócio do vinho: produção, rastreabilidade, vendas, distribuição, enoturismo e experiência do consumidor.",
-      pesquisas: ["wine tech startup raises funding", "winetech startup seed round", "startup tecnologia vinho Portugal", "wine industry software startup launch"] },
-    "viticultura-agtech": { nome: "Viticultura e AgTech", cor: "#16A34A", icone: "leaf", ordem: 2,
-      descricao: "Viticultura de precisão e agricultura: sensores, drones, robótica, imagem de satélite, gestão de água, solo, clima e doenças da vinha.",
-      pesquisas: ["vineyard precision agriculture startup", "viticulture robotics startup funding", "startup agricultura de precisão vinha", "vineyard disease detection AI startup"] },
-    "ia-aplicada": { nome: "IA aplicada", cor: "#0EA5DE", icone: "sparkle", ordem: 3,
-      descricao: "Inteligência artificial aplicada a bebidas, vinho, retalho e consumo: previsão de procura, qualidade, marketing, recomendação, operações e agentes.",
-      pesquisas: ["AI startup beverage industry", "AI wine recommendation startup", "generative AI startup food and beverage brands", "AI demand forecasting startup drinks"] },
-    "no-low-bebidas": { nome: "No/Low e bebidas", cor: "#E7A912", icone: "flask", ordem: 4,
-      descricao: "Bebidas sem álcool ou com baixo teor, tecnologia de desalcoolização, novas categorias de bebidas, embalagem e sustentabilidade.",
-      pesquisas: ["non-alcoholic wine startup funding", "dealcoholisation technology startup", "alcohol-free drinks startup raises", "sustainable wine packaging startup"] },
+    "vinha-adega": { nome: "Vinha e adega", cor: "#16A34A", icone: "leaf", ordem: 1,
+      descricao: "Tecnologia para a vinha e para a adega: viticultura de precisão, sensores, drones, robótica, clima, água, solo, doenças, controlo de fermentação, qualidade e desalcoolização.",
+      pesquisas: ["vineyard precision agriculture startup", "viticulture robotics startup funding", "startup controlo de fermentação vinho", "dealcoholisation technology startup"] },
+    "embalagem-rotulos": { nome: "Embalagem e rótulos", cor: "#E7A912", icone: "cube", ordem: 2,
+      descricao: "Rótulos inteligentes (NFC, QR, realidade aumentada), anticontrafação, rastreabilidade da garrafa, garrafas leves, embalagem sustentável e novos formatos.",
+      pesquisas: ["smart wine label NFC startup", "startups de rótulos inteligentes para vinhos", "anti-counterfeiting wine bottle startup", "sustainable wine packaging startup"] },
+    "consumidor-vendas": { nome: "Consumidor e vendas", cor: "#7C3AED", icone: "users", ordem: 3,
+      descricao: "Venda e relação com o consumidor: e-commerce e venda direta, marketplaces, recomendação personalizada, enoturismo, fidelização, marcas no/low e experiências digitais.",
+      pesquisas: ["wine e-commerce startup funding", "wine recommendation app startup", "wine tourism platform startup", "non-alcoholic wine brand startup raises"] },
+    "dados-operacoes": { nome: "Dados e operações", cor: "#0EA5DE", icone: "chart-line", ordem: 4,
+      descricao: "Dados e IA para a operação: previsão de procura, planeamento, cadeia de abastecimento, logística, preços, gestão de stock e automação.",
+      pesquisas: ["AI demand forecasting startup beverage", "supply chain startup wine distribution", "pricing analytics startup drinks", "AI startup food and beverage operations"] },
   },
   users: { [ADMIN]: { role: "admin", nome: "Bruno Justa", adicionadoEm: new Date().toISOString(), adicionadoPor: "seed" } },
 };
 
+/** Setores da primeira versão, substituídos pelos atuais. As startups que os usavam passam para o setor mais próximo. */
+const OLD_SECTORS: Record<string, string> = {
+  "wine-tech": "consumidor-vendas", "viticultura-agtech": "vinha-adega", "ia-aplicada": "dados-operacoes", "no-low-bebidas": "vinha-adega",
+};
+
 async function main() {
   const db = adminDb();
+  for (const [old, novo] of Object.entries(OLD_SECTORS)) {
+    const ref = db.collection("sectors").doc(old);
+    if (!(await ref.get()).exists) continue;
+    const st = await db.collection("startups").where("setor", "==", old).get();
+    for (const d of st.docs) await d.ref.update({ setor: novo });
+    await ref.delete();
+    console.log(`setor antigo ${old} removido (${st.size} startups passaram para ${novo})`);
+  }
   for (const [col, docs] of Object.entries(DATA)) for (const [id, data] of Object.entries(docs)) {
     try { await db.collection(col).doc(id).create(data); console.log(`criado   ${col}/${id}`); }
     catch (e) { if ((e as { code?: number }).code === 6) console.log(`já existe ${col}/${id}`); else throw e; }

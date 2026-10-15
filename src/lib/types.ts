@@ -75,7 +75,7 @@ export const AREA_COLORS = ["#7C3AED", "#0EA5DE", "#16C784", "#E7A912", "#E5487D
 /* ---------- Startups ---------- */
 
 export type Fase = "crescimento" | "serie-a" | "seed" | "ideia";
-/** Anéis do radar de startups, do centro para fora: quanto mais perto do centro, mais madura. */
+/** Fases das startups (filtro no radar de startups e campo da ficha), da mais madura para a mais jovem. */
 export const FASES: { id: Fase; nome: string; cor: string; descricao: string }[] = [
   { id: "crescimento", nome: "Crescimento", cor: "#24375E", descricao: "Série B ou mais, ou receita e clientes estabelecidos." },
   { id: "serie-a", nome: "Série A", cor: "#3E5C8A", descricao: "Produto no mercado e primeira ronda institucional." },
