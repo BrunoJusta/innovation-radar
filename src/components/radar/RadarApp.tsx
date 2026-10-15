@@ -20,6 +20,8 @@ const ang = (p: { x: number; y: number }) => ((Math.atan2(p.x, -p.y) * 180) / Ma
 export default function RadarApp() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
+  const [still, setStill] = useState(false); // movimento reduzido: anéis parados
+  useEffect(() => setStill(prefersReduced()), []);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [signals, setSignals] = useState<Signal[]>([]);
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
@@ -186,6 +188,18 @@ export default function RadarApp() {
             <svg ref={svgRef} className={`radar${noanim ? " noanim" : ""}`} viewBox="-310 -310 620 620" role="img" aria-label="Radar com os sinais do período">
               <defs>
                 <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                {/* Brilho que dá a volta aos anéis devagar: movimento contínuo, sem pulsar */}
+                {areas.map((a, i) => (
+                  <linearGradient key={a.id} id={`rg${i}`} x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" style={{ stopColor: a.cor }} />
+                    <stop offset="0.38" style={{ stopColor: a.cor }} />
+                    <stop offset="0.5" style={{ stopColor: `color-mix(in srgb, ${a.cor} 45%, #ffffff)` }} />
+                    <stop offset="0.62" style={{ stopColor: a.cor }} />
+                    <stop offset="1" style={{ stopColor: a.cor }} />
+                    {!still && <animateTransform attributeName="gradientTransform" type="rotate"
+                      from={i % 2 ? "360 .5 .5" : "0 .5 .5"} to={i % 2 ? "0 .5 .5" : "360 .5 .5"} dur={`${46 + i * 14}s`} repeatCount="indefinite" />}
+                  </linearGradient>
+                ))}
                 {links.map(([p, q], n) => (
                   <linearGradient key={n} id={`lg${n}`} gradientUnits="userSpaceOnUse" x1={p.x * K} y1={p.y * K} x2={q.x * K} y2={q.y * K}>
                     <stop offset="0" stopColor={area(p.area)?.cor} /><stop offset="1" stopColor={area(q.area)?.cor} />
@@ -196,7 +210,7 @@ export default function RadarApp() {
               {[...areas].map((a, i) => ({ a, i })).reverse().map(({ a, i }) => (
                 <g key={a.id} className={`ringg${fRing && a.id !== fRing ? " off" : ""}`}>
                   <circle style={{ r: R[i] * K }} r={R[i]} fill={`color-mix(in srgb, ${a.cor} 3%, transparent)`} />
-                  <circle style={{ r: R[i] * K }} r={R[i]} fill="none" stroke={a.cor} strokeWidth={3} filter="url(#glow)" />
+                  <circle style={{ r: R[i] * K }} r={R[i]} fill="none" stroke={`url(#rg${i})`} strokeWidth={3} filter="url(#glow)" />
                 </g>
               ))}
               {areas.map((a, i) => {

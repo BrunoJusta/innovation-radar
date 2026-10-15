@@ -471,3 +471,10 @@
 @media (max-width:760px){.bo .addbtn span{display:none}.bo .addbtn{width:34px;padding:0}.bo .dform .fgrid,.bo .srcf .fgrid{grid-template-columns:1fr}.bo .mdl-f{flex-wrap:wrap}}
 .bo .rmain .blk-why{white-space:normal;color:var(--danger);font-size:12.5px;line-height:1.45;margin-top:2px}
 .bo .row .tg.no svg.i{width:13px;height:13px}
+
+/* Tipografia de títulos, etiquetas e botões (Outfit); texto corrido continua em Geist */
+.bo h1,.bo h2,.bo h3,.bo h4,.bo .brand b,.bo .tabs button,.bo .seg button,.bo .btn,.bo .txtbtn,.bo .tg,.bo .badge,.bo .pill,.bo .chipf,.bo .hubnav button,.bo .gh h2,.bo .rmain b,.bo .gbrand,.bo .fld>span,.bo .bulk span,.bo .rgrid button,.bo .relbox b,.bo .classif .f b{font-family:var(--f-display)}
+.bo .card h3{letter-spacing:-.015em;font-weight:600}
+.bo .head h1,.bo .hubnav h1{letter-spacing:-.03em}
+.bo .tg,.bo .badge{line-height:1}
+.bo .btn,.bo .tabs button,.bo .seg button{line-height:1}
