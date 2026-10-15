@@ -5,8 +5,9 @@ import { FASES, Sector, Startup } from "@/lib/types";
 import { fdCurto, relLevel } from "@/lib/util";
 import { Gauge } from "../ui";
 import { SREJECT } from "./StartupDrawer";
+import { nomeTicket } from "@/lib/analise-util";
 
-type Col = "nome" | "setor" | "fase" | "pais" | "fundacao" | "relevancia" | "criadoEm";
+type Col = "nome" | "setor" | "fase" | "pais" | "fundacao" | "relevancia" | "criadoEm" | "analise";
 const FASE_ORD: Record<string, number> = { ideia: 0, seed: 1, "serie-a": 2, crescimento: 3 };
 
 /** Vista em lista: colunas ordenáveis, seleção múltipla e ações por linha. */
@@ -31,6 +32,7 @@ export function StartupsTable({ list, sectors, onOpen, onApprove, onReject, onSt
         case "fundacao": return s.fundacao ?? 0;
         case "relevancia": return s.relevancia;
         case "criadoEm": return s.criadoEm;
+        case "analise": return s.analiseResumo ? (s.analiseResumo.decisao === "investir" ? 100 : 0) + s.analiseResumo.positivos : -1;
       }
     };
     return [...list].sort((a, b) => { const x = v(a), y = v(b); return (x < y ? -1 : x > y ? 1 : 0) * sort.dir || b.relevancia - a.relevancia; });
@@ -44,7 +46,7 @@ export function StartupsTable({ list, sectors, onOpen, onApprove, onReject, onSt
   const toggle = (id: string) => { const n = new Set(picked); if (n.has(id)) n.delete(id); else n.add(id); setPicked(n); };
   const Th = ({ col, children, cls = "" }: { col: Col; children: React.ReactNode; cls?: string }) => (
     <th className={cls} aria-sort={sort.col === col ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
-      <button className="thb" onClick={() => setSort(sort.col === col ? { col, dir: sort.dir === 1 ? -1 : 1 } : { col, dir: col === "relevancia" || col === "criadoEm" || col === "fundacao" ? -1 : 1 })}>
+      <button className="thb" onClick={() => setSort(sort.col === col ? { col, dir: sort.dir === 1 ? -1 : 1 } : { col, dir: col === "relevancia" || col === "criadoEm" || col === "fundacao" || col === "analise" ? -1 : 1 })}>
         {children}<Icon name={sort.col === col ? (sort.dir === 1 ? "caret-up" : "caret-down") : "caret-up-down"} /></button>
     </th>
   );
@@ -56,7 +58,7 @@ export function StartupsTable({ list, sectors, onOpen, onApprove, onReject, onSt
         <thead><tr>
           <th className="ck"><input type="checkbox" aria-label="Selecionar todas" checked={all} onChange={() => setPicked(all ? new Set() : new Set(rows.map((r) => r.id)))} /></th>
           <Th col="nome">Startup</Th><Th col="setor">Setor</Th><Th col="fase">Fase</Th><Th col="pais">País</Th>
-          <Th col="fundacao" cls="n">Fundação</Th><th>Financiamento</th><Th col="relevancia" cls="n">Relevância</Th><Th col="criadoEm" cls="n">Entrou</Th>
+          <Th col="fundacao" cls="n">Fundação</Th><th>Financiamento</th><Th col="analise">Análise</Th><Th col="relevancia" cls="n">Relevância</Th><Th col="criadoEm" cls="n">Entrou</Th>
           <th className="acts"><span className="sr">Ações</span></th>
         </tr></thead>
         <tbody>{rows.map((s) => {
@@ -71,6 +73,8 @@ export function StartupsTable({ list, sectors, onOpen, onApprove, onReject, onSt
               <td>{s.pais || <span className="mut">Sem dados</span>}</td>
               <td className="n">{s.fundacao || <span className="mut">-</span>}</td>
               <td className="fin">{s.financiamento || <span className="mut">Sem dados</span>}</td>
+              <td>{s.analiseResumo ? <span className={`anchip ${s.analiseResumo.decisao}`} title={`${s.analiseResumo.positivos} de 11 critérios positivos`}>
+                {s.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}{s.analiseResumo.ticket ? ` · ${nomeTicket(s.analiseResumo.ticket)}` : ""}</span> : <span className="mut">-</span>}</td>
               <td className="n"><span className={`trel lv-${relLevel(s.relevancia)}`}><Gauge v={s.relevancia} />{s.relevancia}</span></td>
               <td className="n mut">{fdCurto(s.criadoEm)}</td>
               <td className="acts" onClick={(e) => e.stopPropagation()}>
@@ -84,7 +88,7 @@ export function StartupsTable({ list, sectors, onOpen, onApprove, onReject, onSt
               </td>
             </tr>
             {rejectRow === s.id && (
-              <tr className="rrow"><td colSpan={10}>
+              <tr className="rrow"><td colSpan={11}>
                 <span>Porque rejeitas «{s.nome}»?</span>
                 {SREJECT.map((m) => <button key={m} className="chipf" onClick={() => { setRejectRow(null); onReject(s, m); }}>{m}</button>)}
                 <button className="txtbtn" onClick={() => setRejectRow(null)}>Cancelar</button>

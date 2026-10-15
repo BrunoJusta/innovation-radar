@@ -14,3 +14,15 @@ export async function memberFromRequest(req: Request): Promise<string | null> {
     return r.ok ? email : null;
   } catch { return null; }
 }
+
+/** Lê um campo de texto de um documento com as permissões de quem fez o pedido (as regras do Firestore aplicam-se). */
+export async function readTextField(req: Request, path: string, field: string): Promise<string> {
+  const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  try {
+    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/${DB}/documents/${path}`,
+      { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    if (!r.ok) return "";
+    const j = await r.json();
+    return j?.fields?.[field]?.stringValue || "";
+  } catch { return ""; }
+}

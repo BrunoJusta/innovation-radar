@@ -8,8 +8,9 @@ import { TaxonomyView } from "./TaxonomyView";
 import { UsersView } from "./UsersView";
 import { RunsView } from "./RunsView";
 import { SectorsView } from "./SectorsView";
+import { InvestmentView } from "./InvestmentView";
 
-type Sec = "sources" | "taxonomy" | "newsRules" | "sectors" | "startupSources" | "startupRules" | "users" | "runs";
+type Sec = "sources" | "taxonomy" | "newsRules" | "sectors" | "startupSources" | "investment" | "startupRules" | "users" | "runs";
 const GROUPS: { titulo: string; itens: { id: Sec; label: string; icon: string }[] }[] = [
   { titulo: "Notícias", itens: [
     { id: "sources", label: "Fontes", icon: "rss" },
@@ -19,6 +20,7 @@ const GROUPS: { titulo: string; itens: { id: Sec; label: string; icon: string }[
   { titulo: "Startups", itens: [
     { id: "sectors", label: "Setores e pesquisas", icon: "lightbulb" },
     { id: "startupSources", label: "Fontes", icon: "rss" },
+    { id: "investment", label: "Critérios de investimento", icon: "scales" },
     { id: "startupRules", label: "Regras da recolha", icon: "funnel" },
   ] },
   { titulo: "Plataforma", itens: [
@@ -49,6 +51,7 @@ export function SettingsHub({ areas, cats }: { areas: Area[]; cats: Category[] }
         {sec === "taxonomy" && <TaxonomyView areas={areas} cats={cats} />}
         {sec === "newsRules" && <SettingsView scope="news" />}
         {sec === "sectors" && <SectorsView />}
+        {sec === "investment" && <InvestmentView />}
         {sec === "startupRules" && <SettingsView scope="startups" />}
         {sec === "users" && <UsersView />}
         {sec === "runs" && <RunsView />}

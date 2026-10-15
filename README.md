@@ -111,9 +111,12 @@ Secção **Startups** com duas páginas:
 **Recolha semanal** (`.github/workflows/startups.yml`, segunda às 7h30 em Lisboa, ou manualmente com "Simular sem gravar nada"):
 
 1. corre as pesquisas online de cada setor (Gemini com Pesquisa Google) e estrutura as startups encontradas;
-2. procura startups citadas nas notícias dos últimos 8 dias e prepara a ficha delas;
+2. lê os feeds de startups (Definições › Startups › Fontes) e as notícias dos últimos 8 dias, encontra as startups citadas e prepara a ficha delas;
 3. só aceita startups com site próprio a responder; a chave é o domínio do site, por isso a mesma startup nunca aparece duas vezes (só ganha mais origens);
-4. abaixo do corte de relevância das startups (Definições › Startups › Regras da recolha) é descartada e não volta a ser proposta.
+4. abaixo do corte de relevância das startups (Definições › Startups › Regras da recolha) é descartada e não volta a ser proposta;
+5. às novas com relevância igual ou acima do corte da análise (75 por defeito, no máximo 8 por semana) faz a análise de investimento.
+
+**Análise de investimento:** no painel de cada startup, "Fazer análise" avalia-a com os critérios da Sogrape Ventures: perfil (empresa, produto, tração, equipa, financiamento), os 11 critérios em 3 grupos com veredicto e fontes, a matriz por ticket (como nas guidelines), decisão, ticket, follow-on e próximos passos. São três pedidos curtos à Gemini (dois com pesquisa web em paralelo e a avaliação) e cada análise fica guardada em `startups/{id}/analises`, com histórico. "Copiar relatório" copia tudo em Markdown. As guidelines ficam em Definições › Startups › Critérios de investimento (documento `config/investimento`, que só o backoffice lê); depois de mudar as regras, publica de novo o `firestore.rules`.
 
 **Configurar:** setores e pesquisas em Definições › Startups › Setores e pesquisas. O seed cria os 4 setores iniciais (Vinha e adega, Embalagem e rótulos, Consumidor e vendas, Dados e operações) com 4 pesquisas cada e substitui os setores da primeira versão, passando as startups que os usavam para o setor mais próximo. As execuções aparecem em Definições › Execuções, com a coluna Recolha a dizer "Startups".
 

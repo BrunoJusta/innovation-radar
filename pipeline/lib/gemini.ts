@@ -5,7 +5,7 @@ const KEY = () => { const k = process.env.GEMINI_API_KEY; if (!k) throw new Erro
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Opções para pedidos interativos (backoffice): menos tentativas e limite de tempo curto, para caber nos limites da Vercel. */
-export type Speed = { fast?: boolean };
+export type Speed = { fast?: boolean; timeoutMs?: number; think?: number; maxTokens?: number };
 
 async function call(path: string, body: unknown, tries = 4, timeoutMs = 90000): Promise<any> { // eslint-disable-line @typescript-eslint/no-explicit-any
   for (let i = 0; ; i++) {
@@ -24,8 +24,9 @@ export async function json<T>(system: string, user: string, schema: object, sp: 
   const res = await call(`${MODEL()}:generateContent`, {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
-    generationConfig: { temperature: 0.2, responseMimeType: "application/json", responseSchema: schema, thinkingConfig: { thinkingBudget: 0 } },
-  }, sp.fast ? 1 : 4, sp.fast ? 15000 : 90000);
+    generationConfig: { temperature: 0.2, responseMimeType: "application/json", responseSchema: schema, thinkingConfig: { thinkingBudget: sp.think ?? 0 },
+      ...(sp.maxTokens ? { maxOutputTokens: sp.maxTokens } : {}) },
+  }, sp.fast ? 1 : 4, sp.timeoutMs ?? (sp.fast ? 15000 : 90000));
   const text = res?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "";
   if (!text) throw new Error("Gemini sem resposta" + (res?.promptFeedback?.blockReason ? ` (${res.promptFeedback.blockReason})` : ""));
   return JSON.parse(text) as T;
@@ -38,8 +39,8 @@ export async function searchWeb(system: string, user: string, sp: Speed = {}): P
     contents: [{ role: "user", parts: [{ text: user }] }],
     tools: [{ google_search: {} }],
     // Pensamento limitado: chega para decidir as pesquisas sem atrasar a resposta
-    generationConfig: { temperature: 0.2, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: sp.fast ? 512 : 2048 } },
-  }, sp.fast ? 1 : 4, sp.fast ? 42000 : 120000);
+    generationConfig: { temperature: 0.2, maxOutputTokens: sp.maxTokens ?? 8192, thinkingConfig: { thinkingBudget: sp.think ?? (sp.fast ? 512 : 2048) } },
+  }, sp.fast ? 1 : 4, sp.timeoutMs ?? (sp.fast ? 42000 : 120000));
   const c = res?.candidates?.[0];
   const texto = c?.content?.parts?.map((p: { text?: string; thought?: boolean }) => (p.thought ? "" : p.text || "")).join("") || "";
   const fontes = (c?.groundingMetadata?.groundingChunks || [])

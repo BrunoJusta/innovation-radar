@@ -20,47 +20,64 @@ const BASE_R = 13; // raio normal do ponto
 const MIN_S = 0.5; // escala mínima
 export const SHOW_NUM = 0.8; // abaixo desta escala o número deixa de caber e não é mostrado
 
+/** Número pseudoaleatório estável a partir de um texto: o radar fica igual sempre que se abre. */
+function seeded(txt: string) {
+  let h = 2166136261;
+  for (let i = 0; i < txt.length; i++) h = Math.imul(h ^ txt.charCodeAt(i), 16777619);
+  return () => { h += 0x6D2B79F5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
 /**
- * Posições: cada anel distribui os seus itens à volta, os mais relevantes primeiro.
- * Se não couberem numa fila, usa 2 ou 3 faixas (cada faixa recebe itens na proporção do seu perímetro)
- * e, se ainda for preciso, encolhe os pontos.
+ * Posições: cada anel espalha os seus itens de forma irregular (ângulo e distância ao centro com
+ * variação estável por item) e depois afasta os que se tocam. Se forem muitos, os pontos encolhem.
  */
-export function layout<T extends { ring: string; relevancia: number }>(rings: Ring[], list: T[]): (T & { x: number; y: number; n: number; s: number })[] {
+export function layout<T extends { id: string; ring: string; relevancia: number }>(rings: Ring[], list: T[]): (T & { x: number; y: number; n: number; s: number })[] {
   const R = ringRadii(rings.length);
   const out: (T & { x: number; y: number; n: number; s: number })[] = [];
   const SPAN = 304, START = 28;                    // arco usado em graus (o topo fica livre para o nome do anel)
-  const slot = 2 * BASE_R * 1.2;                     // espaço que um ponto normal ocupa ao longo do arco
-  const arcAt = (r: number) => (2 * Math.PI * r * SPAN) / 360;
+  const slot = 2 * BASE_R * 1.2;                     // espaço que um ponto normal ocupa
   let n = 0;
   rings.forEach((r, ri) => {
     const l = list.filter((x) => x.ring === r.id).sort((a, b) => b.relevancia - a.relevancia);
     if (!l.length) return;
     const outer = R[ri], inner = ri ? R[ri - 1] : 0;
-    const lo = ri ? inner + 0.24 * (outer - inner) : outer * 0.42;
-    const hi = ri ? outer - 0.24 * (outer - inner) : outer * 0.8;
+    const lo = ri ? inner + 0.2 * (outer - inner) : outer * 0.36;
+    const hi = ri ? outer - 0.2 * (outer - inner) : outer * 0.8;
     const band = Math.max(0, hi - lo);
-    const maxLanes = Math.max(1, Math.min(3, Math.floor(band / (2 * BASE_R * 0.85)) + 1));
-    let lanes = 1, radii = [(lo + hi) / 2];
-    const cap = (rs: number[]) => rs.reduce((a, x) => a + arcAt(x) / slot, 0);
-    while (lanes < maxLanes && cap(radii) < l.length) {
-      lanes++;
-      radii = Array.from({ length: lanes }, (_, j) => lo + (band * j) / (lanes - 1));
-    }
-    // Quantos itens vão para cada faixa: proporcional ao perímetro
-    const tot = radii.reduce((a, x) => a + x, 0);
-    const counts = radii.map((x) => Math.floor((l.length * x) / tot));
-    for (let k = counts.reduce((a, x) => a + x, 0), j = lanes - 1; k < l.length; k++, j = (j - 1 + lanes) % lanes) counts[j]++;
-    const sc = Math.max(MIN_S, Math.min(1, ...radii.map((x, j) => (counts[j] ? arcAt(x) / counts[j] / slot : 1))));
-    // Distribuição alternada: o 1.º vai para a faixa com mais lugar livre, e assim sucessivamente
-    const used = radii.map(() => 0);
-    l.forEach((x) => {
-      let j = 0, best = -1;
-      radii.forEach((_, q) => { const free = counts[q] ? (counts[q] - used[q]) / counts[q] : -1; if (free > best) { best = free; j = q; } });
-      const k = used[j]++;
-      const off = lanes > 1 ? (j / lanes) * (SPAN / counts[j]) : 0;
-      const t = ((START + off + (SPAN * (k + 0.5)) / counts[j] + (ri ? 17 : 0)) * Math.PI) / 180;
-      out.push({ ...x, x: radii[j] * Math.sin(t), y: -radii[j] * Math.cos(t), n: ++n, s: sc });
+    // Escala: área útil do anel a dividir pelos pontos
+    const area = (Math.PI * (hi * hi - lo * lo) * SPAN) / 360 + (band < slot ? 2 * Math.PI * ((lo + hi) / 2) * slot * SPAN / 360 : 0);
+    const sc = Math.max(MIN_S, Math.min(1, Math.sqrt(area / (l.length * slot * slot * 1.5))));
+    const rnd = seeded(`${r.id}:${l.map((x) => x.id).join(",")}`);
+    // Ângulos: uma fatia por item, por ordem baralhada, com variação dentro da fatia
+    const order = l.map((_, k) => k);
+    for (let k = order.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [order[k], order[j]] = [order[j], order[k]]; }
+    const a0 = START + (ri ? 17 : 0), a1 = a0 + SPAN;
+    const pts = l.map((_, k) => {
+      const deg = a0 + (SPAN * (order[k] + 0.5 + (rnd() - 0.5) * 0.8)) / l.length;
+      const rad = lo + band * (0.08 + 0.84 * rnd());
+      const t = (deg * Math.PI) / 180;
+      return { x: rad * Math.sin(t), y: -rad * Math.cos(t) };
     });
+    // Afasta os pontos que se tocam, mantendo-os dentro do anel e do arco
+    const dmin = 2 * BASE_R * sc * 1.15;
+    for (let it = 0; it < 80; it++) {
+      let moved = false;
+      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+        const dx = pts[j].x - pts[i].x, dy = pts[j].y - pts[i].y, d = Math.hypot(dx, dy) || 0.01;
+        if (d >= dmin) continue;
+        const push = (dmin - d) / 2, ux = dx / d, uy = dy / d;
+        pts[i].x -= ux * push; pts[i].y -= uy * push; pts[j].x += ux * push; pts[j].y += uy * push; moved = true;
+      }
+      for (const p of pts) {
+        const rad = Math.min(hi, Math.max(lo, Math.hypot(p.x, p.y)));
+        const raw = ((Math.atan2(p.x, -p.y) * 180) / Math.PI + 360) % 360;
+        const deg = raw < a0 ? a0 : raw > a1 ? a1 : raw;
+        const t = (deg * Math.PI) / 180;
+        p.x = rad * Math.sin(t); p.y = -rad * Math.cos(t);
+      }
+      if (!moved) break;
+    }
+    l.forEach((x, k) => out.push({ ...x, x: pts[k].x, y: pts[k].y, n: ++n, s: sc }));
   });
   return out;
 }
@@ -141,8 +158,10 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
   // Raios pontilhados por item
   const rays = useMemo(() => {
     const out: { cx: number; cy: number; c: string; o: number }[] = [];
+    // Só com um anel escolhido: com todos juntos as linhas confundem mais do que ajudam
+    if (!fRing) return out;
     items.forEach((x) => {
-      if (fRing && x.ring !== fRing) return;
+      if (x.ring !== fRing) return;
       const L = Math.hypot(x.x, x.y) * Kfinal, t = Math.atan2(x.x, -x.y), on = match(x);
       for (let r = 46; r < L - 16; r += 13) out.push({ cx: Math.sin(t) * r, cy: -Math.cos(t) * r, c: x.color, o: on ? 0.25 + (0.6 * r) / L : 0.08 });
     });

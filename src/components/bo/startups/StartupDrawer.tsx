@@ -6,6 +6,8 @@ import { FASES, Sector, Startup } from "@/lib/types";
 import { fdLongo, relLevel } from "@/lib/util";
 import { Gauge } from "../ui";
 import { StartupFields } from "./StartupFields";
+import { AnaliseView } from "./AnaliseView";
+import { nomeTicket } from "@/lib/analise-util";
 
 const ORIGEM: Record<string, string> = { pesquisa: "Pesquisa online", noticia: "Notícia", manual: "Adicionada à mão" };
 export const pickEdit = (s: Startup): StartupEdit => ({ nome: s.nome, site: s.site, pais: s.pais || "", cidade: s.cidade || "", fundacao: s.fundacao ?? null, fase: s.fase, setor: s.setor,
@@ -18,13 +20,14 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
   const [editing, setEditing] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [f, setF] = useState<StartupEdit>(pickEdit(s));
-  useEffect(() => { setEditing(false); setRejecting(false); setF(pickEdit(s)); }, [s.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [analise, setAnalise] = useState(false);
+  useEffect(() => { setEditing(false); setRejecting(false); setAnalise(false); setF(pickEdit(s)); }, [s.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { if (editing) setEditing(false); else if (rejecting) setRejecting(false); else onClose(); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !analise) { if (editing) setEditing(false); else if (rejecting) setRejecting(false); else onClose(); } };
     document.addEventListener("keydown", onKey);
     return () => { document.body.style.overflow = prev; document.removeEventListener("keydown", onKey); };
-  }, [editing, rejecting, onClose]);
+  }, [editing, rejecting, analise, onClose]);
 
   const i = list.findIndex((x) => x.id === s.id);
   const sec = sectors.find((x) => x.id === s.setor), fase = FASES.find((x) => x.id === s.fase);
@@ -61,6 +64,21 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
             <b>Relevância <span className={`lv-${lv}`}>{({ alta: "alta", media: "média", baixa: "baixa" })[lv]}</span>, {s.relevancia} em 100</b>
             <p className="relnote">{s.porque || "Sem nota sobre o interesse para a Sogrape."}</p>
           </div></div>
+          <div className="blk"><div className="bh"><h4>Análise de investimento</h4></div>
+            {s.analiseResumo ? (
+              <button className={`anbox ${s.analiseResumo.decisao}`} onClick={() => setAnalise(true)}>
+                <span className="d">{s.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}</span>
+                <span className="m">{nomeTicket(s.analiseResumo.ticket)} · {s.analiseResumo.positivos} de 11 critérios positivos{s.analiseResumo.desafio ? ` · ${s.analiseResumo.desafio}` : ""}</span>
+                <span className="m">{fdLongo(s.analiseResumo.feitaEm)}</span>
+                <span className="go">Ver análise<Icon name="arrow-up-right" /></span>
+              </button>
+            ) : (
+              <button className="anbox vazio" onClick={() => setAnalise(true)}>
+                <Icon name="scales" size={20} /><span className="m">Avalia esta startup com os critérios de investimento da Sogrape Ventures: perfil, 11 critérios, matriz por ticket e decisão.</span>
+                <span className="go">Fazer análise<Icon name="sparkle" /></span>
+              </button>
+            )}
+          </div>
           <div className="blk"><div className="bh"><h4>Ficha</h4>{s.status !== "rejected" && <button className="txtbtn" onClick={() => setEditing(true)}><Icon name="pencil-simple" />Editar</button>}</div>
             <dl className="facts">
               <div><dt>País</dt><dd>{[s.cidade, s.pais].filter(Boolean).join(", ") || "Sem dados"}</dd></div>
@@ -97,6 +115,7 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
         </>)}
       </div>
     </aside>
+    {analise && <AnaliseView s={s} sector={sec} onClose={() => setAnalise(false)} notify={notify} />}
   </>);
 }
 

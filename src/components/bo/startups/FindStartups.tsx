@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { post as postApi } from "@/lib/api";
 import { createStartup, StartupEdit } from "@/lib/startup-actions";
 import { FASES, Sector, Startup, STARTUP_SITES } from "@/lib/types";
 import { nowIso } from "@/lib/util";
@@ -11,15 +12,8 @@ import { StartupFields } from "./StartupFields";
 
 type Cand = StartupEdit & { id: string; dominio: string; fonte: { titulo: string; url: string }; siteOk?: boolean };
 
-async function post<T>(path: string, body: unknown): Promise<T> {
-  const token = await auth.currentUser?.getIdToken();
-  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
-  const j = await r.json().catch(() => ({ erro: r.status === 504
-    ? "A pesquisa demorou demasiado e foi interrompida. Tenta outra vez ou usa uma pesquisa mais concreta (tema + tipo de empresa)."
-    : `Erro ${r.status}` }));
-  if (!r.ok) throw new Error(j.erro || `Erro ${r.status}`);
-  return j as T;
-}
+const post = <T,>(path: string, body: unknown) => postApi<T>(path, body,
+  "A pesquisa demorou demasiado e foi interrompida. Tenta outra vez ou usa uma pesquisa mais concreta (tema + tipo de empresa).");
 const toEdit = (c: Cand): StartupEdit => ({ nome: c.nome, site: c.site, pais: c.pais, cidade: c.cidade || "", fundacao: c.fundacao, fase: c.fase, setor: c.setor,
   descricao: c.descricao, porque: c.porque, relevancia: c.relevancia, financiamento: c.financiamento, investidores: c.investidores });
 

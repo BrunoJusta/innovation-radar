@@ -10,11 +10,13 @@ import { checkSite, Candidate, discover, domainOf, fromNews, profile, startupId 
 import { lisbon } from "./lib/math";
 import { fetchRss, fetchWp, FetchError } from "./lib/feeds";
 import { htmlToText } from "./lib/text";
+import { analisar } from "./lib/analise";
 import type { RunSource, Sector, Settings, Signal, Source, Startup, StartupOrigem } from "../src/lib/types";
 import { DEFAULT_SETTINGS, STARTUP_SITES } from "../src/lib/types";
 
 const DRY = process.env.DRY_RUN === "1";
 const MAX_NEW = Number(process.env.MAX_NEW_STARTUPS || 40);
+const MAX_ANALISES = Number(process.env.MAX_ANALISES || 8);
 const now = () => new Date().toISOString();
 const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
@@ -55,6 +57,8 @@ async function main() {
   const run = { tipo: "startups", inicio: now(), dia: lisbon().day, semana, estado: "a correr", fontes: [] as RunSource[], dryRun: DRY || undefined };
   if (!DRY) await runRef.set(run);
   let novos = 0;
+  const paraAnalise: { id: string; nome: string; site: string; setor: string; descricao: string; relevancia: number }[] = [];
+  const corteAnalise = settings.corteAnalise ?? 75;
 
   /** Trata um candidato: junta a uma ficha existente, descarta ou cria na triagem. */
   async function handle(c: Candidate, origem: StartupOrigem, st: RunSource) {
@@ -82,6 +86,7 @@ async function main() {
     };
     if (!DRY) await db.doc(`startups/${id}`).create(Object.fromEntries(Object.entries(doc).filter(([, v]) => v !== undefined)));
     existing.set(id, new Set([origem.url])); novos++; st.novos++;
+    if (corteAnalise > 0 && c.relevancia >= corteAnalise) paraAnalise.push({ id, nome: c.nome, site: c.site, setor: sectors.find((x) => x.id === c.setor)?.nome || "", descricao: c.descricao, relevancia: c.relevancia });
     log(`  + ${c.relevancia} ${c.nome} (${c.dominio})`);
   }
 
@@ -148,6 +153,28 @@ async function main() {
       log(`Notícias: ${news.length} lidas, ${named.length} startups citadas`);
       for (const n of named) await fromNamed(n, st);
     } catch (e) { st.erros.push(`Notícias: ${(e as Error).message.slice(0, 160)}`); }
+
+    // 4) Análise de investimento às novas mais relevantes
+    if (paraAnalise.length) {
+      const sa: RunSource = { sourceId: "analise", nome: "Análise de investimento", lidos: 0, jaVistos: 0, filtro: 0, relevantes: 0, novos: 0, fundidos: 0, erros: [] };
+      run.fontes.push(sa);
+      const guidelines = ((await db.doc("config/investimento").get()).data()?.texto as string) || "";
+      if (!guidelines) sa.erros.push("Sem guidelines em Definições › Startups › Critérios de investimento: a análise usou só os critérios base.");
+      for (const x of paraAnalise.sort((a, b) => b.relevancia - a.relevancia).slice(0, MAX_ANALISES)) {
+        sa.lidos++;
+        try {
+          const a = await analisar(x, guidelines);
+          const doc = { ...a, feitaEm: now(), por: "recolha", modelo: process.env.GEMINI_MODEL || "gemini-2.5-flash" };
+          const resumo = { decisao: a.decisao, ticket: a.ticket, desafio: a.desafio, feitaEm: doc.feitaEm, positivos: a.criterios.filter((c) => c.veredicto === "positivo").length };
+          if (!DRY) {
+            await db.collection(`startups/${x.id}/analises`).add(JSON.parse(JSON.stringify(doc)));
+            await db.doc(`startups/${x.id}`).update({ analiseResumo: resumo });
+          }
+          sa.novos++; if (a.decisao === "investir") sa.relevantes++;
+          log(`  $ ${x.nome}: ${a.decisao}, ${resumo.positivos}/11`);
+        } catch (e) { sa.erros.push(`${x.nome}: ${(e as Error).message.slice(0, 160)}`); log("  ! análise", x.nome, (e as Error).message); }
+      }
+    }
 
     if (!DRY) await runRef.update({ estado: "ok", fim: now(), fontes: run.fontes });
     log("Concluída.", JSON.stringify(run.fontes.map(({ nome, lidos, novos, fundidos, erros }) => ({ nome, lidos, novos, fundidos, erros: erros.length }))));

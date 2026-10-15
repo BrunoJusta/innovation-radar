@@ -105,6 +105,7 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
                     <span className="tg">{fase?.nome}</span>
                     {s.destaque && <span className="tg star"><Icon name="star-fill" />Destaque</span>}
                     {s.status === "rejected" && <span className="tg no">{s.motivoRejeicao}</span>}
+                    {s.analiseResumo && <span className={`anchip ${s.analiseResumo.decisao}`} title={`Análise de investimento: ${s.analiseResumo.positivos} de 11 critérios positivos`}><Icon name="scales" />{s.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}</span>}
                   </div>
                   <Gauge v={s.relevancia} />
                 </div>

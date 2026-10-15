@@ -67,6 +67,8 @@ export interface Settings {
   corteRelevancia: number; janelaDias: number; corteStartups?: number;
   /** Sites especializados a que a pesquisa de startups dá prioridade (domínios). */
   sitesStartups?: string[];
+  /** A recolha semanal faz a análise de investimento às startups novas com relevância igual ou acima deste valor (0 desliga). */
+  corteAnalise?: number;
 }
 /** Sites de referência para a pesquisa de startups, usados enquanto não forem editados nas Definições. */
 export const STARTUP_SITES = [
@@ -86,7 +88,7 @@ export interface RunSource {
 }
 export interface Run { id: string; tipo?: "startups"; inicio: string; fim?: string; estado: "ok" | "erro" | "a correr"; fontes: RunSource[]; erroGeral?: string; }
 
-export const DEFAULT_SETTINGS: Settings = { corteRelevancia: 50, janelaDias: 90, corteStartups: 50, sitesStartups: STARTUP_SITES };
+export const DEFAULT_SETTINGS: Settings = { corteRelevancia: 50, janelaDias: 90, corteStartups: 50, sitesStartups: STARTUP_SITES, corteAnalise: 75 };
 export const REJECT_REASONS = ["Fora de tema", "Pouco relevante", "Duplicada", "Fonte pouco fiável"];
 export const AREA_COLORS = ["#7C3AED", "#0EA5DE", "#16C784", "#E7A912", "#E5487D", "#3D4170"];
 
@@ -130,4 +132,95 @@ export interface Startup {
   motivoRejeicao?: string; aprovadoEm?: string; aprovadoPor?: string;
   manual?: boolean; criadoPor?: string;
   flagNovaInfo?: boolean;
+  /** Resumo da última análise de investimento (a análise completa fica em startups/{id}/analises). */
+  analiseResumo?: AnaliseResumo;
 }
+
+/* ---------- Análise de investimento (Sogrape Ventures) ---------- */
+
+export type Veredicto = "positivo" | "negativo" | "incerto";
+export const VEREDICTOS: Record<Veredicto, { nome: string; icon: string }> = {
+  positivo: { nome: "Positivo", icon: "check" }, negativo: { nome: "Negativo", icon: "x" }, incerto: { nome: "Incerto", icon: "question" },
+};
+
+export type Vertical = "viticultura" | "enologia" | "producao" | "marketing" | "vendas-distribuicao" | "adjacencias";
+export const VERTICAIS: { id: Vertical; nome: string }[] = [
+  { id: "viticultura", nome: "Viticultura" }, { id: "enologia", nome: "Enologia" }, { id: "producao", nome: "Produção" },
+  { id: "marketing", nome: "Marketing" }, { id: "vendas-distribuicao", nome: "Vendas e distribuição" }, { id: "adjacencias", nome: "Adjacências" },
+];
+
+export type Ciclo = "mvp" | "pre-seed" | "seed" | "pre-serie-a" | "serie-a" | "serie-b" | "serie-c" | "na";
+export const CICLOS: { id: Ciclo; nome: string; desc: string }[] = [
+  { id: "mvp", nome: "MVP", desc: "Sem receita, menos de 1 ano" }, { id: "pre-seed", nome: "Pre-Seed", desc: "Até 100 mil €" },
+  { id: "seed", nome: "Seed", desc: "100 mil € a 1 M€" }, { id: "pre-serie-a", nome: "Pre-Série A", desc: "Entre seed e série A" },
+  { id: "serie-a", nome: "Série A", desc: "1 M€ a 10 M€" }, { id: "serie-b", nome: "Série B", desc: "10 M€ a 25 M€" },
+  { id: "serie-c", nome: "Série C ou mais", desc: "Mais de 25 M€" }, { id: "na", nome: "Não aplicável", desc: "" },
+];
+
+export type Ticket = "ate-100k" | "100-200k" | "mais-200k";
+export const TICKETS: { id: Ticket; nome: string }[] = [
+  { id: "ate-100k", nome: "Até 100 mil €" }, { id: "100-200k", nome: "100 a 200 mil €" }, { id: "mais-200k", nome: "Mais de 200 mil €" },
+];
+
+export type CriterioId = "ambito" | "aplicabilidade" | "problema" | "casoUso" | "transferencia" | "equipa" | "marca" | "plano" | "tracao" | "ronda" | "geografia";
+export type GrupoCriterio = "encaixe" | "empresa" | "investimento";
+export const GRUPOS_CRITERIOS: { id: GrupoCriterio; nome: string; desc: string }[] = [
+  { id: "encaixe", nome: "Encaixe estratégico", desc: "Ligação ao vinho e utilidade para a Sogrape" },
+  { id: "empresa", nome: "Equipa e negócio", desc: "Quem são e se o modelo se aguenta" },
+  { id: "investimento", nome: "Tração e investimento", desc: "Provas de mercado, ronda e geografia" },
+];
+/** Os 11 critérios das guidelines de investimento, arrumados em 3 grupos. */
+export const CRITERIOS: { id: CriterioId; grupo: GrupoCriterio; nome: string; pergunta: string }[] = [
+  { id: "ambito", grupo: "encaixe", nome: "Âmbito estratégico", pergunta: "Está ligada à cadeia de valor do vinho (viticultura, enologia, produção, cadeia de abastecimento, vendas e marketing) ou é uma adjacência com transferência credível?" },
+  { id: "aplicabilidade", grupo: "encaixe", nome: "Aplicabilidade ao vinho", pergunta: "Resolve um problema concreto do setor do vinho? Soluções genéricas (por exemplo RH) são negativas; soluções transversais de supply chain, DTC ou marketing só contam com caso de uso ou pipeline no vinho." },
+  { id: "problema", grupo: "encaixe", nome: "Relevância do problema", pergunta: "O problema é importante para a Sogrape ou para a cadeia de valor do vinho?" },
+  { id: "casoUso", grupo: "encaixe", nome: "Caso de uso para a Sogrape", pergunta: "Há um caso de uso claro, detalhado e acionável na Sogrape?" },
+  { id: "transferencia", grupo: "encaixe", nome: "Plano de transferência para o vinho", pergunta: "Se não nasceu no vinho, há um plano credível para chegar à vinha ou à adega em 6 a 12 meses, com marcos técnicos? Se já é do vinho, é positivo." },
+  { id: "equipa", grupo: "empresa", nome: "Equipa e fundadores", pergunta: "Conhecimento do domínio, capacidade de aprender e adaptar-se, credibilidade e abertura a coaching." },
+  { id: "marca", grupo: "empresa", nome: "Risco de marca", pergunta: "É uma startup de marca pura, que exige capital pesado e recorrente? Se sim, é negativo, salvo tecnologia inovadora alinhada com a estratégia (ex.: no/low com tecnologia própria)." },
+  { id: "plano", grupo: "empresa", nome: "Plano de negócio", pergunta: "Go-to-market claro, lógica financeira, marcos definidos e escalabilidade." },
+  { id: "tracao", grupo: "investimento", nome: "Tração", pergunta: "Receita, clientes pagantes e pilotos (idealmente no vinho e em vários locais)." },
+  { id: "ronda", grupo: "investimento", nome: "Ronda e coinvestidores", pergunta: "A valorização e o tamanho da ronda permitem à Sogrape ser um minoritário relevante? Há coinvestidores credíveis?" },
+  { id: "geografia", grupo: "investimento", nome: "Geografia", pergunta: "Presença na UE (prioridade a Portugal, França, Itália, Alemanha, Espanha e Reino Unido) ou ligação forte à Europa (equipa, clientes, pilotos, plano de entrada)." },
+];
+/**
+ * Matriz das guidelines: que critérios contam em cada ticket.
+ * 0 = não conta, 1 = conta ("must meet most"), 2 = obrigatório ("must meet").
+ */
+export const MATRIZ: { nome: string; criterio: CriterioId; peso: [0 | 1 | 2, 0 | 1 | 2, 0 | 1 | 2] }[] = [
+  { nome: "Equipa e fundadores", criterio: "equipa", peso: [1, 1, 2] },
+  { nome: "Relevância do problema", criterio: "problema", peso: [1, 1, 2] },
+  { nome: "Plano de transferência para o vinho", criterio: "transferencia", peso: [1, 1, 2] },
+  { nome: "Tração e receita", criterio: "tracao", peso: [0, 1, 2] },
+  { nome: "Valorização e tamanho da ronda", criterio: "ronda", peso: [0, 1, 2] },
+  { nome: "Caso de uso detalhado", criterio: "casoUso", peso: [0, 1, 2] },
+  { nome: "Plano de negócio robusto", criterio: "plano", peso: [0, 1, 2] },
+  { nome: "Geografia (global, foco em Portugal e UE)", criterio: "geografia", peso: [1, 1, 1] },
+];
+
+export interface AnaliseFonte { titulo: string; url: string }
+export interface AnalisePerfil {
+  resumo: string; vertical: Vertical; ciclo: Ciclo; fundacao: string;
+  produto: string; clientesAlvo: string; modeloNegocio: string; tecnologia: string; cadeiaValor: string;
+  sede: string; mercados: string;
+  tracao: { receita: string; clientes: string; pilotos: string };
+  equipa: { nome: string; cargo: string; percurso: string }[];
+  financiamento: { totalEur: number | null; procura: "sim" | "nao" | "desconhecido"; rondaAtualEur: number | null; rondas: string[]; investidores: string[] };
+  emFalta: string[];
+}
+export interface AnaliseCriterio { id: CriterioId; veredicto: Veredicto; justificacao: string; fontes: string[] }
+export interface Analise {
+  id?: string;
+  feitaEm: string; por: string; modelo: string;
+  perfil: AnalisePerfil;
+  criterios: AnaliseCriterio[];
+  /** Desafio de 2026 das guidelines a que a startup responde, ou "". */
+  desafio: string;
+  forcas: string[]; riscos: string[]; emFalta: string[];
+  decisao: "investir" | "nao-investir"; condicoes: string; racional: string;
+  ticket: Ticket | null; ticketRacional: string;
+  followOn: boolean; followOnRacional: string;
+  encaixe: string; proximosPassos: string[];
+  fontes: AnaliseFonte[];
+}
+export interface AnaliseResumo { decisao: Analise["decisao"]; ticket: Ticket | null; desafio: string; positivos: number; feitaEm: string }

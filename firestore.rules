@@ -37,6 +37,13 @@ service cloud.firestore {
                     && request.resource.data.status in ['pending', 'approved'];
       allow delete: if admin();
     }
+    // Análises de investimento: histórico por startup (o BO cria; só admin apaga)
+    match /startups/{id}/analises/{a} {
+      allow read, create: if member();
+      allow update, delete: if admin();
+    }
+    // Configuração privada (guidelines de investimento): só para o BO
+    match /config/{id}   { allow read: if member(); allow write: if admin(); }
     match /startupSeen/{id} { allow read, write: if false; }
     // Uso do pipeline (a conta de serviço ignora as regras); o BO só cria registos das notícias manuais
     match /seen/{id}       { allow read, update, delete: if false; allow create: if member(); }
