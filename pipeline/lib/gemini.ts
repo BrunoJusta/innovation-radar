@@ -25,7 +25,7 @@ export async function json<T>(system: string, user: string, schema: object, sp: 
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
     generationConfig: { temperature: 0.2, responseMimeType: "application/json", responseSchema: schema, thinkingConfig: { thinkingBudget: 0 } },
-  }, sp.fast ? 2 : 4, sp.fast ? 20000 : 90000);
+  }, sp.fast ? 1 : 4, sp.fast ? 15000 : 90000);
   const text = res?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "";
   if (!text) throw new Error("Gemini sem resposta" + (res?.promptFeedback?.blockReason ? ` (${res.promptFeedback.blockReason})` : ""));
   return JSON.parse(text) as T;
@@ -37,16 +37,32 @@ export async function searchWeb(system: string, user: string, sp: Speed = {}): P
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
     tools: [{ google_search: {} }],
-    // Sem "pensamento" a resposta chega muito mais depressa; a pesquisa em si continua a ser feita
-    generationConfig: { temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } },
-  }, sp.fast ? 1 : 4, sp.fast ? 38000 : 90000);
+    // Pensamento limitado: chega para decidir as pesquisas sem atrasar a resposta
+    generationConfig: { temperature: 0.2, maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: sp.fast ? 512 : 2048 } },
+  }, sp.fast ? 1 : 4, sp.fast ? 42000 : 120000);
   const c = res?.candidates?.[0];
-  const texto = c?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "";
+  const texto = c?.content?.parts?.map((p: { text?: string; thought?: boolean }) => (p.thought ? "" : p.text || "")).join("") || "";
   const fontes = (c?.groundingMetadata?.groundingChunks || [])
     .map((g: { web?: { title?: string; uri?: string } }) => ({ titulo: g.web?.title || "", uri: g.web?.uri || "" }))
     .filter((f: { uri: string }) => f.uri);
-  if (!texto) throw new Error("Gemini sem resposta à pesquisa" + (res?.promptFeedback?.blockReason ? ` (${res.promptFeedback.blockReason})` : ""));
+  if (!texto) {
+    const why = res?.promptFeedback?.blockReason || c?.finishReason || (res?.candidates ? "resposta vazia" : "sem candidatos");
+    throw new Error(`Gemini sem resposta à pesquisa (${why})`);
+  }
   return { texto, fontes };
+}
+
+/** Lê o JSON de uma resposta em texto (bloco ```json ou o primeiro objeto/lista). */
+export function extractJson<T>(texto: string): T | null {
+  const bloco = texto.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
+  const obj = texto.slice(texto.indexOf("{"), texto.lastIndexOf("}") + 1), arr = texto.slice(texto.indexOf("["), texto.lastIndexOf("]") + 1);
+  const arrFirst = texto.indexOf("[") >= 0 && (texto.indexOf("{") < 0 || texto.indexOf("[") < texto.indexOf("{"));
+  const cands = [bloco, ...(arrFirst ? [arr, obj] : [obj, arr])];
+  for (const c of cands) {
+    if (!c || c.length < 2) continue;
+    try { return JSON.parse(c) as T; } catch { /* tenta o seguinte */ }
+  }
+  return null;
 }
 
 export async function embed(text: string): Promise<number[]> {

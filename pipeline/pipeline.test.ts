@@ -68,3 +68,11 @@ test("startups: domínio, id e sites que não são próprios", () => {
   assert.equal(isOwnSite("crunchbase.com"), false);
   assert.equal(isOwnSite(""), false);
 });
+
+import { extractJson } from "./lib/gemini";
+test("extractJson lê o JSON de respostas em texto", () => {
+  assert.deepEqual(extractJson('Aqui está:\n```json\n{"startups":[{"nome":"A"}]}\n```'), { startups: [{ nome: "A" }] });
+  assert.deepEqual(extractJson('{"startups":[]} fim'), { startups: [] });
+  assert.deepEqual(extractJson('lista: [{"nome":"B"}]'), [{ nome: "B" }]);
+  assert.equal(extractJson("sem json nenhum"), null);
+});

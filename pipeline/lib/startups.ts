@@ -2,7 +2,7 @@
  * Descoberta e fichas de startups (usado pela recolha semanal e pelas rotas do backoffice).
  * Dois passos por pesquisa: a Gemini pesquisa na web (Pesquisa Google) e depois estrutura o que encontrou.
  */
-import { json, searchWeb, Speed } from "./gemini";
+import { extractJson, json, searchWeb, Speed } from "./gemini";
 import { UA } from "./text";
 import type { Fase, Sector } from "../../src/lib/types";
 
@@ -84,17 +84,29 @@ function clean(r: Raw, sectors: Sector[]): Candidate | null {
   };
 }
 
+const JSON_FMT = `No fim, responde APENAS com um bloco \`\`\`json com este formato (sem texto antes nem depois):
+{"startups":[{"nome":"","site":"https://","pais":"","cidade":"","fundacao":0,"fase":"seed","setor":"<id>","descricao":"","porque":"","relevancia":0,"financiamento":"","investidores":[],"fonte_url":"https://","fonte_titulo":""}]}`;
+
+/**
+ * Pesquisa na web e devolve fichas. Um só pedido à Gemini (pesquisa + JSON no texto);
+ * se o JSON não vier bem, há um segundo passo que estrutura o texto.
+ */
+async function searchStartups(pedido: string, sectors: Sector[], sp: Speed): Promise<Raw[]> {
+  const web = await searchWeb(`${STRUCT_SYS(sectors)}\n\nPesquisa na web antes de responder: usa a Pesquisa Google para encontrar startups reais e confirmar o site oficial de cada uma.`,
+    `${pedido}\n\n${JSON_FMT}`, sp);
+  const direto = extractJson<{ startups?: Raw[] } | Raw[]>(web.texto);
+  const lista = Array.isArray(direto) ? direto : direto?.startups;
+  if (Array.isArray(lista)) return lista;
+  const out = await json<{ startups: Raw[] }>(STRUCT_SYS(sectors), `<resultado_da_pesquisa>\n${web.texto.slice(0, 16000)}\n</resultado_da_pesquisa>`,
+    { type: "OBJECT", properties: { startups: { type: "ARRAY", items: ITEM } }, required: ["startups"] }, sp.fast ? { fast: true } : {});
+  return out.startups || [];
+}
+
 /** Descobre startups com uma pesquisa online. */
 export async function discover(query: string, sectors: Sector[], max = 8, sp: Speed = {}): Promise<Candidate[]> {
-  const web = await searchWeb(
-    `És analista de inovação da Sogrape, empresa portuguesa de vinhos. Procuras startups reais na web. ${GUARD}`,
-    `Pesquisa na web: «${query}».
-Encontra até ${max} startups (empresas jovens e independentes) relevantes para estes setores:
-${sectorList(sectors)}
-Para cada uma indica: nome, site oficial (URL completo), país e cidade, ano de fundação, fase de investimento, o que faz, financiamento conhecido, investidores e o URL da página onde encontraste a informação. Prefere notícias e anúncios dos últimos 2 anos. Não incluas empresas sem site próprio.`, sp);
-  const out = await json<{ startups: Raw[] }>(STRUCT_SYS(sectors), `Pesquisa: «${query}»\n\n<resultado_da_pesquisa>\n${web.texto.slice(0, 16000)}\n</resultado_da_pesquisa>`,
-    { type: "OBJECT", properties: { startups: { type: "ARRAY", items: ITEM } }, required: ["startups"] }, sp);
-  return (out.startups || []).map((r) => clean(r, sectors)).filter((x): x is Candidate => !!x).slice(0, max);
+  const raw = await searchStartups(`Pesquisa na web: «${query}».
+Encontra até ${max} startups (empresas jovens e independentes) relevantes para estes setores. Para cada uma: nome, site oficial, país e cidade, ano de fundação, fase de investimento, o que faz, financiamento conhecido, investidores e o URL da página onde encontraste a informação. Prefere notícias e anúncios dos últimos 2 anos. Não incluas empresas sem site próprio.`, sectors, sp);
+  return raw.map((r) => clean(r, sectors)).filter((x): x is Candidate => !!x).slice(0, max);
 }
 
 /** Ficha completa de uma startup a partir do site e/ou do nome. */
@@ -102,13 +114,9 @@ export async function profile(site: string, sectors: Sector[], nome = "", sp: Sp
   const d = domainOf(site);
   if (!d && !nome.trim()) return null;
   const quem = d ? `${nome ? `«${nome}» ` : ""}com o site ${d}` : `«${nome}»`;
-  const web = await searchWeb(
-    `És analista de inovação da Sogrape, empresa portuguesa de vinhos. ${GUARD}`,
-    `Pesquisa na web a startup ${quem}.
-Diz: nome, site oficial (URL completo), país e cidade, ano de fundação, fase de investimento, o que faz, financiamento conhecido, investidores, e o URL da página mais útil sobre ela (notícia ou página oficial).`, sp);
-  const out = await json<{ startups: Raw[] }>(STRUCT_SYS(sectors), `Startup: ${quem}\n\n<resultado_da_pesquisa>\n${web.texto.slice(0, 12000)}\n</resultado_da_pesquisa>\nDevolve no máximo uma startup: ${quem}. Se não encontrares o site oficial, devolve a lista vazia.`,
-    { type: "OBJECT", properties: { startups: { type: "ARRAY", items: ITEM } }, required: ["startups"] }, sp);
-  const r = out.startups?.[0];
+  const raw = await searchStartups(`Pesquisa na web a startup ${quem}.
+Devolve no máximo uma startup: ${quem}. Indica nome, site oficial, país e cidade, ano de fundação, fase de investimento, o que faz, financiamento conhecido, investidores e o URL da página mais útil sobre ela. Se não encontrares o site oficial, devolve a lista vazia.`, sectors, sp);
+  const r = raw[0];
   if (!r) return null;
   return clean(d ? { ...r, site: r.site && domainOf(r.site) === d ? r.site : `https://${d}` } : r, sectors);
 }
