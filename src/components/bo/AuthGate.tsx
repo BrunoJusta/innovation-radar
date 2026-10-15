@@ -41,22 +41,48 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (state === "in" && ctx) return <SessionCtx.Provider value={ctx}>{children}</SessionCtx.Provider>;
 
   return (
-    <div className="gate">
-      <div className="gatebox">
-        <div className="gbrand">Radar de Inovação</div>
-        {state === "loading" && <p className="gsub">A verificar a sessão…</p>}
-        {state === "out" && (<>
-          <h1>Backoffice</h1>
-          <p className="gsub">Entra com a tua conta Microsoft da Sogrape para aprovar e gerir as notícias do radar.</p>
-          <button className="btn primary lg" onClick={login}>Entrar com Microsoft</button>
-          {err && <p className="gerr">{err}</p>}
-        </>)}
-        {state === "denied" && (<>
-          <h1>Sem acesso</h1>
-          <p className="gsub">A tua conta ({auth.currentUser ? emailOf(auth.currentUser) : ""}) ainda não tem acesso ao backoffice. Pede a um administrador do radar para te adicionar.</p>
-          <button className="btn lg" onClick={() => signOut(auth)}>Sair e usar outra conta</button>
-        </>)}
-        <a className="gback" href="/">Voltar ao radar</a>
+    <div className="sg">
+      <GateRadar />
+      <main className="sg-in">
+        <img className="sg-logo" src="/brand/sogrape-logo-white.svg" alt="Sogrape" width={148} height={56} />
+        <div className="sg-body">
+          <span className="sg-eye">Backoffice</span>
+          <h1>Radar de Inovação</h1>
+          {state === "loading" && <p className="sg-sub" role="status"><span className="sg-spin" aria-hidden="true" />A verificar a sessão…</p>}
+          {state === "out" && (<>
+            <p className="sg-sub">As notícias e as startups que interessam à Sogrape, num só sítio. Entra para decidir o que segue para o radar.</p>
+            <button className="sg-btn" onClick={login}>
+              <img src="/brand/sogrape-icon.svg" alt="" width={18} height={24} aria-hidden="true" />Entrar com conta Sogrape</button>
+            {err && <p className="sg-err" role="alert">{err}</p>}
+          </>)}
+          {state === "denied" && (<>
+            <p className="sg-sub">A tua conta ({auth.currentUser ? emailOf(auth.currentUser) : ""}) ainda não tem acesso ao backoffice. Pede a um administrador do radar para te adicionar.</p>
+            <button className="sg-btn ghost" onClick={() => signOut(auth)}>Sair e usar outra conta</button>
+          </>)}
+        </div>
+        <a className="sg-back" href="/">Voltar ao radar público</a>
+      </main>
+    </div>
+  );
+}
+
+/** Fundo do ecrã de entrada: anéis do radar, pulsos, varrimento e sinais a acender. */
+function GateRadar() {
+  const pontos = [[-150, -60, 0], [90, -170, 1.1], [210, 40, 2.3], [-60, 160, 3.2], [40, 70, .6], [-250, 120, 1.8], [300, -130, 2.9], [-120, -260, 3.8], [160, 250, 4.4], [-330, -40, 5.1]];
+  return (
+    <div className="sg-bg" aria-hidden="true">
+      <div className="sg-radar">
+        <svg viewBox="-500 -500 1000 1000">
+          {[90, 180, 270, 360, 450].map((r) => <circle key={r} className="sg-ring" r={r} />)}
+          <circle className="sg-dash" r={225} />
+          <circle className="sg-dash rev" r={405} />
+          <line className="sg-axis" x1={-480} y1={0} x2={480} y2={0} /><line className="sg-axis" x1={0} y1={-480} x2={0} y2={480} />
+          {pontos.map(([x, y, d], k) => <g key={k} style={{ ["--d" as string]: `${d}s` }}>
+            <circle className="sg-ping" cx={x} cy={y} r={7} /><circle className={`sg-dot${k % 3 === 0 ? " c" : ""}`} cx={x} cy={y} r={k % 3 === 0 ? 7 : 5} /></g>)}
+          <circle className="sg-core" r={10} />
+        </svg>
+        <div className="sg-sweep" />
+        {[0, 1, 2].map((k) => <span key={k} className="sg-pulse" style={{ ["--k" as string]: k }} />)}
       </div>
     </div>
   );
