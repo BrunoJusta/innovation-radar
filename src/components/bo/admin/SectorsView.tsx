@@ -25,7 +25,7 @@ export function SectorsView() {
   };
 
   return (<>
-    <AdmHead title="Setores das startups" text="Os setores dão a cor no radar de startups. As pesquisas de cada setor correm todas as segundas na recolha semanal (cada pesquisa conta como uma pesquisa Google da Gemini).">
+    <AdmHead title="Setores e pesquisas" text="Os setores dão a cor no radar de startups. As pesquisas de cada setor correm todas as segundas na recolha semanal (cada pesquisa conta como uma pesquisa Google da Gemini).">
       <button className="btn primary" onClick={() => setE({ id: "", nome: "", cor: AREA_COLORS[list.length % AREA_COLORS.length], icone: "sparkle", descricao: "", ordem: list.length + 1, pq: "", _new: true })}><Icon name="plus" />Novo setor</button>
     </AdmHead>
     <div className="rows">{list.map((s) => (

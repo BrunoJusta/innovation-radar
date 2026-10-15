@@ -113,8 +113,8 @@ Secção **Startups** com duas páginas:
 1. corre as pesquisas online de cada setor (Gemini com Pesquisa Google) e estrutura as startups encontradas;
 2. procura startups citadas nas notícias dos últimos 8 dias e prepara a ficha delas;
 3. só aceita startups com site próprio a responder; a chave é o domínio do site, por isso a mesma startup nunca aparece duas vezes (só ganha mais origens);
-4. abaixo do corte de relevância das startups (Definições › Geral) é descartada e não volta a ser proposta.
+4. abaixo do corte de relevância das startups (Definições › Startups › Regras da recolha) é descartada e não volta a ser proposta.
 
-**Configurar:** setores e pesquisas em Definições › Setores das startups. O seed cria os 4 setores iniciais (Wine Tech, Viticultura e AgTech, IA aplicada, No/Low e bebidas) com 4 pesquisas cada. As execuções aparecem em Definições › Execuções, com a coluna Recolha a dizer "Startups".
+**Configurar:** setores e pesquisas em Definições › Startups › Setores e pesquisas. O seed cria os 4 setores iniciais (Wine Tech, Viticultura e AgTech, IA aplicada, No/Low e bebidas) com 4 pesquisas cada. As execuções aparecem em Definições › Execuções, com a coluna Recolha a dizer "Startups".
 
 **Custos:** cada pesquisa online usa uma pesquisa Google da Gemini. Com 16 pesquisas por semana mais as fichas das startups citadas nas notícias, fica dentro da parte gratuita da Gemini 2.5 Flash.
