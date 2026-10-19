@@ -443,3 +443,14 @@
 .rp .lg b{font-size:14px;font-weight:500}
 .rp .lg .n{font-size:12px}
 .rp .fline{margin-top:14px;gap:8px 14px}
+
+/* Pesquisa e Radar/Lista por baixo do título, à esquerda; o radar ocupa a coluna da direita desde o topo */
+@media (min-width:981px){
+  .rp .hero:not(.lmode){grid-template-columns:minmax(300px,360px) minmax(0,1fr);grid-template-areas:"txt radar" "tools radar" "leg radar";grid-template-rows:auto auto 1fr;row-gap:16px}
+  .rp .hero:not(.lmode) .tools{grid-area:tools;justify-self:stretch;width:100%;margin-top:4px;flex-wrap:nowrap;gap:8px}
+  .rp .hero:not(.lmode) .vtog{height:48px}
+  .rp .hero:not(.lmode) .vtog button{padding:0 14px;font-size:0;gap:0}
+  .rp .hero:not(.lmode) .vtog button svg.i{width:18px;height:18px}
+  .rp .hero:not(.lmode) .sbox{height:48px}
+  .rp .hero:not(.lmode) .rbox{grid-area:radar;align-self:start;margin-top:0;max-width:min(800px,calc(100dvh - 110px))}
+}
