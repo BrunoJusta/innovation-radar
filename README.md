@@ -9,6 +9,8 @@ Todos os dias, uma recolha automática lê as fontes, pede à Gemini um resumo e
 | `/` | O radar. Não pede login e está escondido dos motores de busca (`noindex`). |
 | `/backoffice` | Triagem e gestão. Pede login com a conta Microsoft da Sogrape e só deixa entrar quem estiver em **Utilizadores**. |
 
+No radar há uma **pesquisa** (atalho `/` ou `⌘K`) que procura em todas as notícias aprovadas, sem acentos nem maiúsculas: o radar apaga o resto e liga os resultados, e ao lado aparecem os resultados com as palavras marcadas. Há também uma **vista em lista** (Radar / Lista), agrupada por mês. A pesquisa e a vista ficam no endereço (`?q=…&vista=lista`), para se poder partilhar o link.
+
 ## Como funciona
 
 ```
