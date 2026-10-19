@@ -43,3 +43,6 @@
 /* Bolinha com a cor (cadeias de valor) */
 .cds .cdot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block;margin:0 3px}
 .cds.on .cdt .cdot{box-shadow:0 0 0 1.5px rgba(255,255,255,.85)}
+/* Radar dentro do backoffice: o filtro escolhido fica como nas outras páginas do backoffice (fundo escuro, texto claro) */
+.bo .rp .cds.on .cdt{background:var(--ink);color:var(--canvas);border-color:var(--ink);box-shadow:none}
+.bo .rp .cds.on .cdt .i{color:var(--canvas)}
