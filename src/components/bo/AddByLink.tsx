@@ -41,7 +41,7 @@ export function AddByLink({ areas, cats, signals, onClose, onDone }: {
         body: JSON.stringify({
           url: url.trim(), texto: colar ? texto : "",
           areas: areas.map(({ id, nome, descricao }) => ({ id, nome, descricao })),
-          cats: cats.map(({ id, nome, descricao }) => ({ id, nome, descricao })),
+          cats: cats.map(({ id, nome, descricao, tipo }) => ({ id, nome, descricao, tipo })),
         }),
       });
       const j = await r.json().catch(() => ({ erro: `Erro ${r.status}` }));

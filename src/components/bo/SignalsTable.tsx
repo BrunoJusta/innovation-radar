@@ -2,7 +2,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { Pager, usePaged } from "@/components/Pager";
 import { Icon } from "@/components/Icon";
-import { Area, Category, REJECT_REASONS, Signal } from "@/lib/types";
+import { Area, Category, REJECT_REASONS, Signal, tagsDe } from "@/lib/types";
 import { fdCurto, relLevel } from "@/lib/util";
 import { Gauge } from "./ui";
 
@@ -28,7 +28,7 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
       switch (sort.col) {
         case "titulo": return s.titulo.toLowerCase();
         case "area": return area(s.area)?.ordem ?? 99;
-        case "categoria": return cat(s.categoria)?.ordem ?? 99;
+        case "categoria": return cat(tagsDe(s)[0] || "")?.nome.toLowerCase() ?? "~";
         case "dataPublicacao": return s.dataPublicacao;
         case "relevancia": return s.relevancia;
         case "criadoEm": return s.criadoEm;
@@ -60,20 +60,20 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
       <table>
         <thead><tr>
           <th className="ck"><input type="checkbox" aria-label="Selecionar todas" checked={all} onChange={() => { const n = new Set(picked); pg.items.forEach((r) => (all ? n.delete(r.id) : n.add(r.id))); setPicked(n); }} /></th>
-          {Th({ col: "titulo", children: "Notícia" })}{Th({ col: "area", children: "Área" })}{Th({ col: "categoria", children: "Categoria" })}
+          {Th({ col: "titulo", children: "Notícia" })}{Th({ col: "area", children: "Cadeia de valor" })}{Th({ col: "categoria", children: "Tags" })}
           {Th({ col: "dataPublicacao", cls: "n", children: "Publicada" })}{Th({ col: "relevancia", cls: "n", children: "Relevância" })}{Th({ col: "criadoEm", cls: "n", children: "Entrou" })}
           <th className="acts"><span className="sr">Ações</span></th>
         </tr></thead>
         <tbody>{pg.items.map((s) => {
-          const a = area(s.area), c = cat(s.categoria), sites = [...new Set(s.fontes.map((f) => f.site))];
+          const a = area(s.area), tg = tagsDe(s).map(cat).filter((c): c is Category => !!c), sites = [...new Set(s.fontes.map((f) => f.site))];
           return (<Fragment key={s.id}>
             <tr className={picked.has(s.id) ? "on" : ""} tabIndex={0} onClick={() => onOpen(s.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) onOpen(s.id); }} style={{ ["--c" as string]: a?.cor || "var(--ink-tertiary)" }}>
               <td className="ck" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Selecionar ${s.titulo}`} checked={picked.has(s.id)} onChange={() => toggle(s.id)} /></td>
               <td className="ttl"><b>{s.titulo}</b>
                 <span className="tsub">{sites.length > 1 ? `${sites[0]} e mais ${sites.length - 1}` : sites[0]}
                   {s.flagNovaFonte && s.status === "pending" && <em className="tnew">Nova fonte</em>}{s.manual && <em className="tman">À mão</em>}</span></td>
-              <td><span className="tg ar">{a?.nome || "Sem área"}</span></td>
-              <td><span className="tcat">{c && <Icon name={c.icone} />}{c?.nome}</span></td>
+              <td><span className="tg ar">{a?.nome || "Sem cadeia de valor"}</span></td>
+              <td><span className="tcat" title={tg.map((c) => c.nome).join(", ")}>{tg[0] && <Icon name={tg[0].icone} />}{tg[0]?.nome || "Sem tags"}{tg.length > 1 && <em className="tmore">+{tg.length - 1}</em>}</span></td>
               <td className="n mut">{fdCurto(s.dataPublicacao)}</td>
               <td className="n"><span className={`trel lv-${relLevel(s.relevancia)}`}><Gauge v={s.relevancia} />{s.relevancia}</span></td>
               <td className="n mut">{fdCurto(s.criadoEm)}</td>

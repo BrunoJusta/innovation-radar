@@ -3,33 +3,33 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pager, usePaged } from "@/components/Pager";
 import { CatSelect } from "@/components/CatSelect";
 import { Icon } from "@/components/Icon";
-import { approve, backToTriage, EditFields, reject, restore, saveEdit, Snapshot } from "@/lib/bo-actions";
+import { approve, backToTriage, EditFields, purgeSignal, reject, restore, saveEdit, Snapshot } from "@/lib/bo-actions";
+import { agendarApagar, cancelarApagar } from "@/lib/purge";
 import { DraftFields } from "./DraftFields";
 import { SignalsTable } from "./SignalsTable";
 
 const VIEW_KEY = "radar.noticias.vista";
 const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; } };
-import { Area, Category, REJECT_REASONS, Signal, Status } from "@/lib/types";
+import { Area, Category, Fila, REJECT_REASONS, Signal, tagsDe, TIPOS_TAG, tipoDe } from "@/lib/types";
+import { temTematica } from "./TagPicker";
 import { fdCurto, fdLongo, monogram, relLevel } from "@/lib/util";
 import { useSession } from "./AuthGate";
 import { Empty, Gauge } from "./ui";
 
-const TITLES: Record<Status, [string, string]> = {
+const TITLES: Record<Fila, [string, string]> = {
   pending: ["Triagem", "Notícias novas à espera de decisão. Abre um cartão para ler o resumo completo e as fontes."],
   approved: ["Aprovadas", "Estas notícias estão visíveis no radar."],
-  rejected: ["Arquivo", "Notícias rejeitadas. Ficam guardadas com o motivo, para afinar a classificação."],
 };
 
 export function SignalsView({ status, signals, areas, cats, loaded, search }: {
-  status: Status; signals: Signal[]; areas: Area[]; cats: Category[]; loaded: boolean; search: string;
+  status: Fila; signals: Signal[]; areas: Area[]; cats: Category[]; loaded: boolean; search: string;
 }) {
   const { email } = useSession();
   const [fArea, setFArea] = useState("all");
   const [fCat, setFCat] = useState("all");
   const [sort, setSort] = useState<"score" | "date">("score");
   const [viewS, setViewS] = useState<"cards" | "list">("cards");
-  // No Arquivo (rejeitadas) é sempre lista, como nas startups
-  const view = status === "rejected" ? "list" : viewS;
+  const view = viewS;
   useEffect(() => setViewS(readView()), []);
   const setView = (v: "cards" | "list") => { setViewS(v); setPicked(new Set()); try { localStorage.setItem(VIEW_KEY, v); } catch { /* sem armazenamento */ } };
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -43,29 +43,24 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
   const area = (id: string) => areas.find((a) => a.id === id);
   const cat = (id: string) => cats.find((c) => c.id === id);
 
-  // Contagens do dropdown: notícias deste separador (e da área escolhida) em cada categoria
+  // Contagens do dropdown: notícias deste separador (e da cadeia de valor escolhida) com cada tag
   const catCounts = useMemo(() => {
     const m = new Map<string, number>();
-    signals.forEach((s) => { if (s.status === status && (fArea === "all" || s.area === fArea)) m.set(s.categoria, (m.get(s.categoria) || 0) + 1); });
+    signals.forEach((s) => { if (s.status === status && (fArea === "all" || s.area === fArea)) tagsDe(s).forEach((c) => m.set(c, (m.get(c) || 0) + 1)); });
     return m;
   }, [signals, status, fArea]);
   const catCount = (id: string) => catCounts.get(id) || 0;
-  // Ao trocar de área, a categoria escolhida sai se pertencer a outro anel
-  useEffect(() => {
-    const c = cats.find((x) => x.id === fCat);
-    if (c && fArea !== "all" && c.area && c.area !== fArea) setFCat("all");
-  }, [fArea, fCat, cats]);
 
   const list = useMemo(() => {
     let l = signals.filter((s) => s.status === status);
     if (fArea !== "all") l = l.filter((s) => s.area === fArea);
-    if (fCat !== "all") l = l.filter((s) => s.categoria === fCat);
+    if (fCat !== "all") l = l.filter((s) => tagsDe(s).includes(fCat));
     if (search) {
       const q = search.toLowerCase();
-      l = l.filter((s) => `${s.titulo} ${s.resumo} ${(s.entidades || []).join(" ")} ${s.fontes.map((f) => f.site).join(" ")}`.toLowerCase().includes(q));
+      l = l.filter((s) => `${s.titulo} ${s.resumo} ${(s.entidades || []).join(" ")} ${s.fontes.map((f) => f.site).join(" ")} ${tagsDe(s).map((c) => cats.find((x) => x.id === c)?.nome || "").join(" ")}`.toLowerCase().includes(q));
     }
     return l.sort((a, b) => (sort === "score" ? b.relevancia - a.relevancia : b.dataPublicacao.localeCompare(a.dataPublicacao)));
-  }, [signals, status, fArea, fCat, search, sort]);
+  }, [signals, status, fArea, fCat, search, sort, cats]);
 
   const notify = (msg: string, undo?: Snapshot[]) => {
     clearTimeout(toastT.current);
@@ -80,18 +75,19 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
     try { const p = await approve(s, email); notify("Aprovada para o radar", [p]); if (fromDrawer) setOpenId(nextAfter(s.id)); } catch (e) { fail(e); }
   };
   const doReject = async (s: Signal, motivo: string, fromDrawer = false) => {
-    try { const p = await reject(s, motivo); setRejectCard(null); notify(`Rejeitada: ${motivo}`, [p]); if (fromDrawer) setOpenId(nextAfter(s.id)); } catch (e) { fail(e); }
+    try { const p = await reject(s, motivo); agendarApagar(`n:${s.id}`, () => purgeSignal(s.id)); setRejectCard(null); notify(`Rejeitada e apagada: ${motivo}`, [p]); if (fromDrawer) setOpenId(nextAfter(s.id)); } catch (e) { fail(e); }
   };
   const doBack = async (s: Signal) => { try { const p = await backToTriage(s); notify("Voltou à triagem", [p]); } catch (e) { fail(e); } };
   const doBulk = async (to: "approved" | "rejected") => {
     const items = list.filter((s) => picked.has(s.id));
     try {
       const snaps = await Promise.all(items.map((s) => (to === "approved" ? approve(s, email) : reject(s, "Pouco relevante"))));
+      if (to === "rejected") items.forEach((s) => agendarApagar(`n:${s.id}`, () => purgeSignal(s.id)));
       setPicked(new Set());
-      notify(`${items.length} ${to === "approved" ? "aprovadas" : "rejeitadas"}`, snaps);
+      notify(`${items.length} ${to === "approved" ? "aprovadas" : "rejeitadas e apagadas"}`, snaps);
     } catch (e) { fail(e); }
   };
-  const doUndo = async (snaps: Snapshot[]) => { try { await Promise.all(snaps.map(restore)); notify("Anulado"); } catch (e) { fail(e); } };
+  const doUndo = async (snaps: Snapshot[]) => { snaps.forEach((p) => cancelarApagar(`n:${p.id}`)); try { await Promise.all(snaps.map(restore)); notify("Anulado"); } catch (e) { fail(e); } };
 
   const togglePick = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
@@ -102,7 +98,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
   const pg = usePaged(list, pageKey);
   const pl = pg.items;
   const groups: [string, Signal[], string?][] =
-    sort !== "score" || status === "rejected" ? [["", pl]]
+    sort !== "score" ? [["", pl]]
               : [["Relevância alta", pl.filter((s) => s.relevancia >= 85), "var(--g-ok)"], ["Relevância média", pl.filter((s) => s.relevancia >= 65 && s.relevancia < 85), "var(--g-mid)"], ["Relevância baixa", pl.filter((s) => s.relevancia < 65), "var(--g-low)"]];
   // Total de cada grupo em toda a lista (o cabeçalho mostra o total, não só o da página)
   const gTotal = (t: string) => t === "Relevância alta" ? list.filter((s) => s.relevancia >= 85).length : t === "Relevância média" ? list.filter((s) => s.relevancia >= 65 && s.relevancia < 85).length : list.filter((s) => s.relevancia < 65).length;
@@ -115,11 +111,13 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
         <div><h1>{TITLES[status][0]}</h1><p>{TITLES[status][1]}</p></div>
       </div>
       <div className="toolbar">
-        <div className="seg" role="group" aria-label="Área">
-          <button aria-pressed={fArea === "all"} onClick={() => setFArea("all")}>Todas as áreas</button>
-          {areas.map((a) => <button key={a.id} aria-pressed={fArea === a.id} onClick={() => setFArea(a.id)}>{a.nome}</button>)}
-        </div>
-        <CatSelect cats={cats} areas={areas} value={fCat} onChange={setFCat} area={fArea === "all" ? null : fArea} counts={catCount} />
+        <label className={`fsel${fArea !== "all" ? " on" : ""}`}>
+          {fArea !== "all" && <i className="dot" style={{ background: area(fArea)?.cor }} aria-hidden="true" />}
+          <select value={fArea} onChange={(e) => setFArea(e.target.value)} aria-label="Cadeia de valor">
+            <option value="all">Todas as cadeias de valor</option>
+            {areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+          </select><Icon name="caret-down" /></label>
+        <CatSelect cats={cats} areas={areas} value={fCat} onChange={setFCat} counts={catCount} allLabel="Todas as tags" />
         <span className="sp" />
         {view === "cards" && <div className="seg" role="group" aria-label="Ordenar">
           <button aria-pressed={sort === "score"} onClick={() => setSort("score")}>Relevância</button>
@@ -128,10 +126,10 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
         {view === "cards" && status === "pending" && list.length > 0 && (
           <button className="txtbtn" onClick={() => setPicked(picked.size ? new Set() : new Set(list.map((s) => s.id)))}>{picked.size ? "Limpar seleção" : "Selecionar todas"}</button>
         )}
-        {status !== "rejected" && <div className="seg" role="group" aria-label="Vista">
+        <div className="seg" role="group" aria-label="Vista">
           <button aria-pressed={view === "cards"} onClick={() => setView("cards")} title="Cartões"><Icon name="squares-four" />Cartões</button>
           <button aria-pressed={view === "list"} onClick={() => setView("list")} title="Lista"><Icon name="list-bullets" />Lista</button>
-        </div>}
+        </div>
       </div>
 
       {!loaded ? <div className="loading">A carregar…</div> : list.length === 0 ? (
@@ -147,7 +145,8 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
             const items = list.filter((s) => ids.includes(s.id));
             try {
               const snaps = await Promise.all(items.map((s) => acao === "approve" ? approve(s, email) : acao === "reject" ? reject(s, motivo || "Pouco relevante") : backToTriage(s)));
-              notify(`${items.length} ${acao === "approve" ? "aprovadas" : acao === "reject" ? `rejeitadas: ${motivo}` : "de volta à triagem"}`, snaps);
+              if (acao === "reject") items.forEach((s) => agendarApagar(`n:${s.id}`, () => purgeSignal(s.id)));
+              notify(`${items.length} ${acao === "approve" ? "aprovadas" : acao === "reject" ? `rejeitadas e apagadas: ${motivo}` : "de volta à triagem"}`, snaps);
             } catch (e) { fail(e); }
           }} />
       ) : (<>
@@ -157,7 +156,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
           {t && <div className="gh">{c && <i style={{ background: c }} />}<h2>{t}</h2><span>{gTotal(t)}</span></div>}
           <div className={`grid${picked.size ? " picking" : ""}`}>
             {l.map((s) => (
-              <Card key={s.id} s={s} area={area(s.area)} cat={cat(s.categoria)} picked={picked.has(s.id)} rejecting={rejectCard === s.id}
+              <Card key={s.id} s={s} area={area(s.area)} tags={tagsDe(s).map(cat).filter((c): c is Category => !!c)} picked={picked.has(s.id)} rejecting={rejectCard === s.id}
                 onOpen={() => setOpenId(s.id)} onPick={() => togglePick(s.id)} onApprove={() => doApprove(s)}
                 onReject={() => setRejectCard(s.id)} onReason={(m) => doReject(s, m)} onCancel={() => setRejectCard(null)} onBack={() => doBack(s)} />
             ))}
@@ -190,8 +189,8 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
   );
 }
 
-function Card({ s, area, cat, picked, rejecting, onOpen, onPick, onApprove, onReject, onReason, onCancel, onBack }: {
-  s: Signal; area?: Area; cat?: Category; picked: boolean; rejecting: boolean; onOpen: () => void; onPick: () => void; onApprove: () => void;
+function Card({ s, area, tags, picked, rejecting, onOpen, onPick, onApprove, onReject, onReason, onCancel, onBack }: {
+  s: Signal; area?: Area; tags: Category[]; picked: boolean; rejecting: boolean; onOpen: () => void; onPick: () => void; onApprove: () => void;
   onReject: () => void; onReason: (m: string) => void; onCancel: () => void; onBack: () => void;
 }) {
   const src = [...new Set(s.fontes.map((f) => f.site))];
@@ -200,8 +199,10 @@ function Card({ s, area, cat, picked, rejecting, onOpen, onPick, onApprove, onRe
       <div className="cbody" role="button" tabIndex={0} aria-label={`Abrir ${s.titulo}`} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}>
         <div className="ctopg">
           <div className="tags">
-            <span className="tg ar">{area?.nome || "Sem área"}</span>
-            <span className="tg">{cat && <Icon name={cat.icone} />}{cat?.nome || "Sem categoria"}</span>
+            <span className="tg ar">{area?.nome || "Sem cadeia de valor"}</span>
+            {tags.slice(0, 2).map((c) => <span key={c.id} className="tg"><Icon name={c.icone} />{c.nome}</span>)}
+            {tags.length > 2 && <span className="tg mut" title={tags.slice(2).map((c) => c.nome).join(", ")}>+{tags.length - 2}</span>}
+            {!tags.length && <span className="tg">Sem tags</span>}
             {s.flagNovaFonte && s.status === "pending" && <span className="tg new">Nova fonte</span>}
             
             {s.status === "rejected" && <span className="tg no">{s.motivoRejeicao}</span>}
@@ -241,7 +242,7 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onB
   const [editing, setEditing] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
-  const pick = (x: Signal): EditFields => ({ titulo: x.titulo, resumo: x.resumo, porque: x.porque || "", entidades: x.entidades || [], area: x.area, categoria: x.categoria, relevancia: x.relevancia, dataPublicacao: x.dataPublicacao });
+  const pick = (x: Signal): EditFields => ({ titulo: x.titulo, resumo: x.resumo, porque: x.porque || "", entidades: x.entidades || [], area: x.area, tags: tagsDe(x), relevancia: x.relevancia, dataPublicacao: x.dataPublicacao });
   const [f, setF] = useState<EditFields>(pick(s));
   useEffect(() => { setEditing(false); setRejecting(false); setF(pick(s)); }, [s.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const startEdit = () => { setF(pick(s)); setEditing(true); };
@@ -253,10 +254,12 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onB
   }, [editing, rejecting, onClose]);
 
   const i = list.findIndex((x) => x.id === s.id);
-  const area = areas.find((a) => a.id === s.area), cat = cats.find((c) => c.id === s.categoria);
+  const area = areas.find((a) => a.id === s.area);
+  const tags = tagsDe(s).map((id) => cats.find((c) => c.id === id)).filter((c): c is Category => !!c);
+  const podeGuardar = temTematica(f.tags, cats);
   const lv = relLevel(s.relevancia);
   const merged = s.fontes.length > 1;
-  const save = async () => { await onSave(f); setEditing(false); };
+  const save = async () => { if (!podeGuardar) return; await onSave(f); setEditing(false); };
 
   return (<>
     <div className="scrim" onClick={onClose} />
@@ -267,7 +270,7 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onB
         <button className="btn icon" title="Fechar" aria-label="Fechar" onClick={onClose}><Icon name="x" /></button></div>
       <div className="dscroll">
         <div className="dmeta">
-          <span className="tg ar" style={{ ["--c" as string]: area?.cor || "var(--ink-tertiary)" }}>{area?.nome}</span><span className="tg">{cat && <Icon name={cat.icone} />}{cat?.nome}</span>
+          <span className="tg ar" style={{ ["--c" as string]: area?.cor || "var(--ink-tertiary)" }}>{area?.nome || "Sem cadeia de valor"}</span>
           {s.status === "approved" && <span className="badge ok"><Icon name="check" />Aprovada</span>}
           {s.manual && <span className="badge"><Icon name="pencil-simple" />Adicionada à mão</span>}
           {s.status === "rejected" && <span className="badge no"><Icon name="x" />{s.motivoRejeicao}</span>}
@@ -275,7 +278,7 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onB
         </div>
         {editing ? (
           <div className="blk"><div className="bh"><h4>Editar notícia</h4>
-            <span style={{ display: "flex", gap: 6 }}><button className="txtbtn" onClick={() => setEditing(false)}>Cancelar</button><button className="txtbtn" onClick={save}><Icon name="check" />Guardar alterações</button></span></div>
+            <span style={{ display: "flex", gap: 6 }}><button className="txtbtn" onClick={() => setEditing(false)}>Cancelar</button><button className="txtbtn" onClick={save} disabled={!podeGuardar} title={podeGuardar ? undefined : "Escolhe pelo menos uma temática"}><Icon name="check" />Guardar alterações</button></span></div>
             <DraftFields value={f} onChange={(p) => setF({ ...f, ...p })} areas={areas} cats={cats} />
           </div>
         ) : (<>
@@ -292,7 +295,9 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onB
           <div className="notice"><Icon name="stack" /><span>Entrou uma fonte nova e o resumo foi refeito.{s.noRadar ? " O radar continua a mostrar a versão aprovada anterior até voltares a aprovar." : ""}</span></div>
         )}
         <div className="blk"><div className="bh"><h4>Classificação</h4></div><div className="classif">
-          <div className="f"><span>Área</span><b>{area?.nome}</b></div><div className="f"><span>Categoria</span><b>{cat?.nome}</b></div>
+          <div className="f"><span>Cadeia de valor</span><b>{area?.nome || "Por definir"}</b></div>
+          {TIPOS_TAG.map((tp) => { const l = tags.filter((c) => tipoDe(c) === tp.id); return (
+            <div className="f" key={tp.id}><span>{tp.plural}</span>{l.length ? <span className="ftags">{l.map((c) => <span key={c.id} className="tg"><Icon name={c.icone} />{c.nome}</span>)}</span> : <b className="mut">Nenhuma</b>}</div>); })}
         </div></div>
         <div className="blk"><div className="bh"><h4>{merged ? "Resumo combinado" : "Resumo"}</h4>
           {s.status !== "rejected" && <button className="txtbtn" onClick={startEdit}><Icon name="pencil-simple" />Editar</button>}

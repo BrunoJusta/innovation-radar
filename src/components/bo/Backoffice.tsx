@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Area, Category, Signal, Status } from "@/lib/types";
+import { Area, Category, Fila, Signal } from "@/lib/types";
 import { logout, useSession } from "./AuthGate";
 import { SignalsView } from "./SignalsView";
 import { SettingsHub } from "./admin/SettingsHub";
@@ -16,16 +16,16 @@ import { Dashboard, DashGo } from "./dashboard/Dashboard";
 import { Icon } from "@/components/Icon";
 
 type View = "dashboard" | "news" | "startups" | "settings";
-const NEWS: { id: Status; label: string; icon: string }[] = [
-  { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Arquivo", icon: "prohibit" },
+const NEWS: { id: Fila; label: string; icon: string }[] = [
+  { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" },
 ];
 
 export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
   const { isAdmin, profile, email } = useSession();
   const [view, setView] = useState<View>("dashboard");
-  const [sPage, setSPage] = useState<{ p: "pending" | "approved" | "rejected" | "radar" | "pipeline"; k: number }>({ p: "pending", k: 0 });
+  const [sPage, setSPage] = useState<{ p: Fila | "radar" | "pipeline"; k: number }>({ p: "pending", k: 0 });
   const go = (g: DashGo) => { if (g.view === "news") { setSt(g.st); setView("news"); } else { setSPage({ p: g.page, k: Date.now() }); setView("startups"); } window.scrollTo(0, 0); };
-  const [st, setSt] = useState<Status | "radar">("pending");
+  const [st, setSt] = useState<Fila | "radar">("pending");
   const [signals, setSignals] = useState<Signal[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
@@ -46,7 +46,6 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
   const counts = useMemo(() => ({
     pending: signals.filter((s) => s.status === "pending").length,
     approved: signals.filter((s) => s.status === "approved").length,
-    rejected: signals.filter((s) => s.status === "rejected").length,
   }), [signals]);
 
   const isSignals = view === "news";

@@ -4,6 +4,7 @@ import { Area, Category, Fonte } from "@/lib/types";
 import { EditFields } from "@/lib/bo-actions";
 import { relLabel } from "@/lib/util";
 import { Gauge } from "./ui";
+import { TagPicker } from "./TagPicker";
 
 type V = EditFields & { destaque?: boolean; fonte?: Fonte };
 const toDate = (iso: string) => (iso ? iso.slice(0, 10) : "");
@@ -21,17 +22,10 @@ export function DraftFields({ value: v, onChange, areas, cats, withSource = fals
         <input autoComplete="off" value={v.titulo} maxLength={140} onChange={(e) => onChange({ titulo: e.target.value })} /></label>
 
       <div className="fgrid">
-        <label className="fld"><span>Área</span>
-          <select value={v.area} onChange={(e) => onChange({ area: e.target.value })}>{areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}</select></label>
-        <label className="fld"><span>Categoria</span>
-          <select value={v.categoria} onChange={(e) => onChange({ categoria: e.target.value })}>
-            {/* Primeiro as categorias do anel escolhido, depois as restantes */}
-            {cats.some((c) => c.area === v.area) && <optgroup label={areas.find((a) => a.id === v.area)?.nome || "Deste anel"}>
-              {cats.filter((c) => c.area === v.area || !c.area).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</optgroup>}
-            {cats.some((c) => c.area === v.area)
-              ? <optgroup label="Outros anéis">{cats.filter((c) => c.area && c.area !== v.area).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</optgroup>
-              : cats.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </select></label>
+        <label className="fld wide"><span>Cadeia de valor</span>
+          <select value={v.area} onChange={(e) => onChange({ area: e.target.value })}>
+            {!areas.some((a) => a.id === v.area) && <option value={v.area}>Escolhe a cadeia de valor</option>}
+            {areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}</select></label>
         <label className="fld"><span>Data de publicação</span>
           <input type="date" value={toDate(v.dataPublicacao)} onChange={(e) => onChange({ dataPublicacao: fromDate(e.target.value, v.dataPublicacao) })} /></label>
         <div className="fld"><span>Relevância</span>
@@ -39,6 +33,8 @@ export function DraftFields({ value: v, onChange, areas, cats, withSource = fals
             <input type="range" min={0} max={100} value={v.relevancia} aria-label="Relevância" onChange={(e) => onChange({ relevancia: +e.target.value })} />
             <b>{v.relevancia}</b><small>{relLabel(v.relevancia)}</small></div></div>
       </div>
+
+      <div className="fld full"><span>Tags</span><TagPicker cats={cats} value={v.tags || []} onChange={(tags) => onChange({ tags })} /></div>
 
       <label className="fld full"><span>Resumo <em>(parágrafos separados por uma linha em branco; o primeiro é o lead)</em></span>
         <textarea rows={9} value={v.resumo} onChange={(e) => onChange({ resumo: e.target.value })} /></label>
