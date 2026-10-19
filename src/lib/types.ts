@@ -53,6 +53,8 @@ export interface Area { id: string; nome: string; descricao: string; cor: string
 export interface Category {
   id: string; nome: string; icone: string; descricao: string; ordem: number;
   palavrasChave: string[];
+  /** Anel (área) a que a categoria pertence. Sem anel, vale para todos. */
+  area?: string | null;
 }
 export interface Source {
   id: string; nome: string; tipo: "rss" | "wp-api"; url: string; lingua: "pt" | "en"; ativo: boolean;
