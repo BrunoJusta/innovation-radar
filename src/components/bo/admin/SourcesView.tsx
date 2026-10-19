@@ -98,7 +98,7 @@ function RefSites({ flash }: { flash: (m: string) => void }) {
   return (<section className="adm-sec">
     <div className="gh"><h2>Sites de referência</h2><span>{sites?.length ?? ""}</span><span className="sp" />
       <button className="btn" onClick={() => setEdit((sites || []).join("\n"))}><Icon name="pencil-simple" />Editar</button></div>
-    <p className="hint">A pesquisa online (a semanal e o Procurar online) dá prioridade a estes sites, e a recolha semanal faz uma pesquisa por setor só dentro deles. Bases pagas como a Dealroom e a Crunchbase entram só pelo que a Pesquisa Google mostra.</p>
+    <p className="hint">A pesquisa online (a semanal e o Procurar online) dá prioridade a estes sites, e a recolha semanal faz uma pesquisa por categoria só dentro deles. Bases pagas como a Dealroom e a Crunchbase entram só pelo que a Pesquisa Google mostra.</p>
     <div className="refsites">{(sites || []).map((d) => <a key={d} href={`https://${d}`} target="_blank" rel="noopener noreferrer" className="chipf">{d}<Icon name="arrow-up-right" /></a>)}</div>
     {edit !== null && (
       <FormModal title="Sites de referência" onClose={() => setEdit(null)} onSave={save}>

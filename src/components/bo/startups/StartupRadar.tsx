@@ -14,6 +14,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Area, Category, FASES, Sector, Startup } from "@/lib/types";
 import { useSession } from "../AuthGate";
+import { useDeals } from "../pipeline/DealsLookup";
 import { StartupDrawer } from "./StartupDrawer";
 
 type Vista = "radar" | "lista";
@@ -24,7 +25,7 @@ const LS_VISTA = "startups:radar:vista";
 const LABELS: EmLabels = { titulo: "nome", resumo: "descrição", entidades: "investidores", area: "cadeia de valor", categoria: "fase", fontes: "origem" };
 
 /**
- * Radar das startups aprovadas: anéis = cadeias de valor (como no radar das notícias), cor = cadeia; o setor e a fase são filtros.
+ * Radar das startups aprovadas: anéis = cadeias de valor (como no radar das notícias), cor = cadeia; a categoria, a fase e o ano são filtros.
  * Igual ao radar das notícias: pesquisa que acende os resultados no radar, vista em lista e paginação.
  */
 export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { areas: Area[]; startups: Startup[]; sectors: Sector[]; loaded: boolean }) {
@@ -32,6 +33,8 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   const [fRing, setFRing] = useState<string | null>(null);
   const [fFase, setFFase] = useState("all");
   const [fSec, setFSec] = useState("all");
+  const [fAno, setFAno] = useState("all");
+  const { deals } = useDeals();
   const [openId, setOpenId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const [view, setViewS] = useState<Vista>("radar");
@@ -97,10 +100,18 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   const hitSet = useMemo(() => (searching ? new Set(hits.map((h) => h.id)) : null), [hits, searching]);
   const itemById = useMemo(() => new Map(items.map((x) => [x.id, x])), [items]);
   const secOf = useCallback((x: RadarItem) => byId.get(x.id)?.setor || "", [byId]);
+  // Ano: o de entrada no pipeline, quando está lá; senão o ano em que a startup entrou no radar
+  const anoDe = useMemo(() => {
+    const m = new Map<string, string>();
+    approved.forEach((st) => { const d = deals.find((x) => x.id === st.dealId || x.startupId === st.id); m.set(st.id, (d?.entrada || st.criadoEm || "").slice(0, 4)); });
+    return m;
+  }, [approved, deals]);
+  const anos = useMemo(() => [...new Set([...anoDe.values()].filter((a) => /^\d{4}$/.test(a)))].sort().reverse(), [anoDe]);
   /** Setor e fase (os filtros em dropdown); o anel filtra-se à parte. */
-  const passaSF = useCallback((x: RadarItem) => (fFase === "all" || x.cat === fFase) && (fSec === "all" || secOf(x) === fSec), [fFase, fSec, secOf]);
+  const passaSF = useCallback((x: RadarItem) => (fFase === "all" || x.cat === fFase) && (fSec === "all" || secOf(x) === fSec) && (fAno === "all" || anoDe.get(x.id) === fAno), [fFase, fSec, fAno, secOf, anoDe]);
   const passa = useCallback((x: RadarItem) => (!fRing || x.area === fRing) && passaSF(x), [fRing, passaSF]);
-  const temFiltroSF = fFase !== "all" || fSec !== "all";
+  const temFiltroSF = fFase !== "all" || fSec !== "all" || fAno !== "all";
+  const anoOk = (x: RadarItem) => fAno === "all" || anoDe.get(x.id) === fAno;
   const hitItems = useMemo(() => hits.map((h) => itemById.get(h.id)!).filter(Boolean), [hits, itemById]);
   const results = useMemo(() => hitItems.filter(passa), [hitItems, passa]);
   const byArea = useMemo(() => {
@@ -134,11 +145,11 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
     if (ordem === "recentes") return [...l].sort((a, b) => b.data.localeCompare(a.data));
     return searching ? l : [...l].sort((a, b) => b.relevancia - a.relevancia || b.data.localeCompare(a.data));
   }, [searching, results, items, passa, ordem]);
-  const pgL = usePaged(rows, `${dq}|${fRing}|${fFase}|${fSec}|${ordem}`);
-  const pgR = usePaged(results, `${dq}|${fRing}|${fFase}|${fSec}`);
+  const pgL = usePaged(rows, `${dq}|${fRing}|${fFase}|${fSec}|${fAno}|${ordem}`);
+  const pgR = usePaged(results, `${dq}|${fRing}|${fFase}|${fSec}|${fAno}`);
 
   const nav = view === "lista" ? pgL.items : pgR.items;
-  useEffect(() => setActive(0), [dq, fRing, fFase, fSec, view, ordem, pgL.page, pgR.page]);
+  useEffect(() => setActive(0), [dq, fRing, fFase, fSec, fAno, view, ordem, pgL.page, pgR.page]);
   useEffect(() => {
     if (!searching) return;
     const el = document.getElementById(`sr-${nav[active]?.id}`);
@@ -160,8 +171,8 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   const focusId = hover ?? (searching ? nav[active]?.id ?? null : null);
 
   const counts = (rid: string) => items.filter((x) => x.ring === rid && passaSF(x)).length;
-  const faseCount = (fid: string) => items.filter((x) => x.cat === fid && (!fRing || x.area === fRing) && (fSec === "all" || secOf(x) === fSec)).length;
-  const secCount = (sid: string) => items.filter((x) => secOf(x) === sid && (!fRing || x.area === fRing) && (fFase === "all" || x.cat === fFase)).length;
+  const faseCount = (fid: string) => items.filter((x) => x.cat === fid && (!fRing || x.area === fRing) && (fSec === "all" || secOf(x) === fSec) && anoOk(x)).length;
+  const secCount = (sid: string) => items.filter((x) => secOf(x) === sid && (!fRing || x.area === fRing) && (fFase === "all" || x.cat === fFase) && anoOk(x)).length;
   const open = openId ? startups.find((s) => s.id === openId) || null : null;
   const drawerList = (view === "lista" ? rows : searching ? results : items).map((x) => byId.get(x.id)!).filter(Boolean);
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 2600); };
@@ -169,6 +180,12 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   const filtros = (<>
     <SectorSelect sectors={sectors} value={fSec} onChange={setFSec} counts={secCount} />
     <FaseSelect fases={[...FASES].reverse()} value={fFase} onChange={setFFase} counts={faseCount} />
+    {anos.length > 0 && <label className="periodo">
+      <span>Ano</span>
+      <select value={fAno} onChange={(e) => setFAno(e.target.value)} aria-label="Ano">
+        <option value="all">Todos os anos</option>{anos.map((a) => <option key={a} value={a}>{a}</option>)}
+      </select>
+    </label>}
   </>);
   const aviso = semCadeia.length > 0 && (
     <div className="notice warn scad"><span>{semCadeia.length} {semCadeia.length === 1 ? "startup aprovada ainda não tem" : "startups aprovadas ainda não têm"} cadeia de valor e não {semCadeia.length === 1 ? "aparece" : "aparecem"} no radar.</span>
@@ -182,12 +199,12 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   const empty = searching ? (
     <>
       <b>Nenhuma startup para «{dq.trim()}»</b>
-      <span>{hits.length ? "Há resultados noutras cadeias de valor, setores ou fases. Tira os filtros para os veres." : "Experimenta outra palavra, um investidor ou um país."}</span>
-      {hits.length ? <button className="chip" onClick={() => { setFRing(null); setFFase("all"); setFSec("all"); }}>Tirar filtros</button>
+      <span>{hits.length ? "Há resultados noutras cadeias de valor, categorias, fases ou anos. Tira os filtros para os veres." : "Experimenta outra palavra, um investidor ou um país."}</span>
+      {hits.length ? <button className="chip" onClick={() => { setFRing(null); setFFase("all"); setFSec("all"); setFAno("all"); }}>Tirar filtros</button>
         : <div className="ssc">{suggestions.slice(0, 6).map((s) => <button key={s.label} className="chip" onClick={() => setQ(s.label)}>{s.icon && <Icon name={s.icon} />}{s.label}</button>)}</div>}
     </>
   ) : (
-    <><b>Sem startups com estes filtros</b><span>Tira os filtros de cadeia de valor, setor e fase.</span></>
+    <><b>Sem startups com estes filtros</b><span>Tira os filtros de cadeia de valor, categoria, fase e ano.</span></>
   );
 
   return (<>

@@ -64,7 +64,7 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
         <button className="btn icon" title="Fechar" aria-label="Fechar" onClick={onClose}><Icon name="x" /></button></div>
       <div className="dscroll">
         <div className="dmeta">
-          <span className="tg ar" style={{ ["--c" as string]: sec?.cor || "var(--ink-tertiary)" }}>{sec?.nome || "Sem setor"}</span>
+          <span className="tg ar" style={{ ["--c" as string]: sec?.cor || "var(--ink-tertiary)" }}>{sec?.nome || "Sem categoria"}</span>
           {cad && <span className="tg"><i className="cdot" style={{ background: cad.cor }} />{cad.nome}</span>}
           <span className="tg">{fase?.nome}</span>
           {s.status === "approved" && <span className="badge ok"><Icon name="check" />Aprovada</span>}

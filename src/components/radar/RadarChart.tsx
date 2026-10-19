@@ -38,16 +38,22 @@ export function layout<T extends { id: string; ring: string; relevancia: number 
   const SPAN = 304, START = 28;                    // arco usado em graus (o topo fica livre para o nome do anel)
   const slot = 2 * BASE_R * 1.2;                     // espaço que um ponto normal ocupa
   let n = 0;
-  rings.forEach((r, ri) => {
+  // Geometria de cada anel e a escala que os pontos teriam nele (área útil a dividir pelos pontos)
+  const geo = rings.map((r, ri) => {
     const l = list.filter((x) => x.ring === r.id).sort((a, b) => b.relevancia - a.relevancia);
-    if (!l.length) return;
     const outer = R[ri], inner = ri ? R[ri - 1] : 0;
     const lo = ri ? inner + 0.2 * (outer - inner) : outer * 0.36;
     const hi = ri ? outer - 0.2 * (outer - inner) : outer * 0.8;
     const band = Math.max(0, hi - lo);
-    // Escala: área útil do anel a dividir pelos pontos
     const area = (Math.PI * (hi * hi - lo * lo) * SPAN) / 360 + (band < slot ? 2 * Math.PI * ((lo + hi) / 2) * slot * SPAN / 360 : 0);
-    const sc = Math.max(MIN_S, Math.min(1, Math.sqrt(area / (l.length * slot * slot * 1.5))));
+    return { l, lo, hi, band, sc: l.length ? Math.max(MIN_S, Math.min(1, Math.sqrt(area / (l.length * slot * slot * 1.5)))) : 1 };
+  });
+  // Todos os pontos com o mesmo tamanho: o do anel mais cheio
+  const scGlobal = Math.min(1, ...geo.map((g) => g.sc));
+  rings.forEach((r, ri) => {
+    const { l, lo, hi, band } = geo[ri];
+    if (!l.length) return;
+    const sc = scGlobal;
     const rnd = seeded(`${r.id}:${l.map((x) => x.id).join(",")}`);
     // Ângulos: uma fatia por item, por ordem baralhada, com variação dentro da fatia
     const order = l.map((_, k) => k);

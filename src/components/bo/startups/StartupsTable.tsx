@@ -66,7 +66,7 @@ export function StartupsTable({ list, sectors, onOpen, onAnalise, onApprove, onR
       <table>
         <thead><tr>
           <th className="ck"><input type="checkbox" aria-label="Selecionar todas" checked={all} onChange={() => { const n = new Set(picked); pg.items.forEach((r) => (all ? n.delete(r.id) : n.add(r.id))); setPicked(n); }} /></th>
-          {Th({ col: "nome", children: "Startup" })}{Th({ col: "setor", children: "Setor" })}{Th({ col: "fase", children: "Fase" })}{Th({ col: "pais", children: "País" })}
+          {Th({ col: "nome", children: "Startup" })}{Th({ col: "setor", children: "Categoria" })}{Th({ col: "fase", children: "Fase" })}{Th({ col: "pais", children: "País" })}
           {Th({ col: "fundacao", cls: "n", children: "Fundação" })}<th>Financiamento</th>{Th({ col: "analise", children: "Análise" })}{Th({ col: "relevancia", cls: "n", children: "Relevância" })}{Th({ col: "criadoEm", cls: "n", children: "Entrou" })}
           <th className="acts"><span className="sr">Ações</span></th>
         </tr></thead>
@@ -77,7 +77,7 @@ export function StartupsTable({ list, sectors, onOpen, onAnalise, onApprove, onR
               <td className="ck" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Selecionar ${s.nome}`} checked={picked.has(s.id)} onChange={() => toggle(s.id)} /></td>
               <td><div className="tname"><span className="slogo">{s.nome.slice(0, 1).toUpperCase()}</span>
                 <div><b>{s.nome}</b><a href={s.site} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>{s.dominio}</a></div></div></td>
-              <td><span className="tg ar">{c?.nome || "Sem setor"}</span></td>
+              <td><span className="tg ar">{c?.nome || "Sem categoria"}</span></td>
               <td>{f?.nome}</td>
               <td>{s.pais || <span className="mut">Sem dados</span>}</td>
               <td className="n">{s.fundacao || <span className="mut">-</span>}</td>

@@ -69,6 +69,7 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
     const antes = [...deals];
     const ids = new Set(antes.map((d) => d.id));
     const apagadas = new Set<string>();
+    const novas: { id: string; nome: string; descricao: string }[] = [];
     let startups: Startup[] = [];
     try { startups = (await getDocs(collection(db, "startups"))).docs.map((d) => ({ id: d.id, ...d.data() }) as Startup); } catch { /* sem ligação ao radar: importa na mesma */ }
     const agora = nowIso();
@@ -109,7 +110,7 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
       b.set(doc(db, "deals", id), clean(deal));
       historicoDaLinha(l).forEach((h, i) => b.set(doc(db, "deals", id, "interacoes", `xl-${i}`), clean({ ...h, criadoEm: agora })));
       if (st) b.update(doc(db, "startups", st.id), { dealId: id, pipelineEm: agora, atualizadoEm: agora, ...(st.cadeia ? {} : { cadeia: extra.cadeia }), ...(st.status === "approved" ? {} : { status: "approved", aprovadoEm: agora, aprovadoPor: email }) });
-      else b.set(doc(db, "startups", sid), clean(startupDaLinha(l, extra, id, email, agora)));
+      else { b.set(doc(db, "startups", sid), clean(startupDaLinha(l, extra, id, email, agora))); novas.push({ id: sid, nome: l.nome, descricao: l.descricao }); }
       await b.commit();
       ids.add(id);
       if (!deal.site) setSemSite((x) => [...x, l.nome]);
@@ -131,6 +132,16 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
     for (let i = 0; i < lotes.length && !parar.current; i += PARALELO) {
       await Promise.all(lotes.slice(i, i + PARALELO).map((lote, j) => umLote(lote, (i + j) * LOTE)));
     }
+    // Categoria (tipo de solução) das fichas novas no radar de startups
+    try {
+      const cats = (await getDocs(collection(db, "sectors"))).docs.map((d) => ({ id: d.id, nome: String(d.data().nome || ""), descricao: String(d.data().descricao || "") }));
+      for (let i = 0; cats.length && i < novas.length; i += 80) {
+        const j = await post<{ setores: Record<string, string> }>("/api/startups/setores", { startups: novas.slice(i, i + 80), sectors: cats });
+        const b = writeBatch(db);
+        Object.entries(j.setores).forEach(([id, setor]) => b.update(doc(db, "startups", id), { setor }));
+        await b.commit();
+      }
+    } catch { /* a recolha semanal atribui as que faltarem */ }
     setEstado("feito");
   };
 

@@ -119,7 +119,7 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
             <input autoFocus value={query} disabled={busy} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && procurar()}
               placeholder="ex.: startups de rótulos inteligentes para vinho" /></label>
           {!cands && <div className="sugs">{sectors.flatMap((s) => (s.pesquisas || []).slice(0, 1)).map((q) => <button key={q} className="chipf" onClick={() => setQuery(q)}>{q}</button>)}</div>}
-          {!cands && <p className="hint">A Gemini pesquisa na web e propõe startups com site, fase e setor. Demora normalmente 15 a 40 segundos. Escolhes quais vão para a triagem.</p>}
+          {!cands && <p className="hint">A Gemini pesquisa na web e propõe startups com site, fase, categoria e cadeia de valor. Demora normalmente 15 a 40 segundos. Escolhes quais vão para a triagem.</p>}
           {cands && (cands.length === 0 ? <p className="hint">Não encontrei startups com site próprio para esta pesquisa. Tenta outras palavras.</p> : (
             <ul className="clist">
               {cands.map((c) => {

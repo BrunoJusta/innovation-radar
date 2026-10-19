@@ -148,10 +148,10 @@ export function AreaSelect({ areas, value, onChange, counts }: { areas: Area[]; 
   return <CatSelect cats={itens} value={value} onChange={onChange} counts={counts} simples allLabel="Todas as cadeias de valor" procurar="Procurar cadeia de valor" />;
 }
 
-/** Filtro de setor das startups (ícone do setor), com o mesmo comportamento dos filtros de tags. */
+/** Filtro de categoria das startups (ícone da categoria), com o mesmo comportamento dos filtros de tags. */
 export function SectorSelect({ sectors, value, onChange, counts }: { sectors: { id: string; nome: string; icone: string; descricao: string; ordem: number }[]; value: string; onChange: (id: string) => void; counts?: (id: string) => number }) {
   const itens = sectors.map((s) => ({ id: s.id, nome: s.nome, icone: s.icone || "briefcase", descricao: s.descricao, ordem: s.ordem, palavrasChave: [] })) as Category[];
-  return <CatSelect cats={itens} value={value} onChange={onChange} counts={counts} simples allLabel="Todos os setores" procurar="Procurar setor" />;
+  return <CatSelect cats={itens} value={value} onChange={onChange} counts={counts} simples allLabel="Todas as categorias" procurar="Procurar categoria" />;
 }
 
 /** Filtro de fase das startups (bolinha com a cor da fase), da mais jovem para a mais madura. */

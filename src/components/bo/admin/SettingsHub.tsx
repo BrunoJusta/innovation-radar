@@ -18,7 +18,7 @@ const GROUPS: { titulo: string; itens: { id: Sec; label: string; icon: string }[
     { id: "newsRules", label: "Regras da recolha", icon: "funnel" },
   ] },
   { titulo: "Startups", itens: [
-    { id: "sectors", label: "Setores e pesquisas", icon: "lightbulb" },
+    { id: "sectors", label: "Categorias e pesquisas", icon: "lightbulb" },
     { id: "startupSources", label: "Fontes", icon: "rss" },
     { id: "investment", label: "Critérios de investimento", icon: "scales" },
     { id: "startupRules", label: "Regras da recolha", icon: "funnel" },

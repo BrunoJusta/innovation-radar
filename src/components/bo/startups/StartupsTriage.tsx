@@ -119,7 +119,7 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
               <div className="cbody" role="button" tabIndex={0} aria-label={`Abrir ${s.nome}`} onClick={() => setOpenId(s.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(s.id); } }}>
                 <div className="ctopg">
                   <div className="tags">
-                    <span className="tg ar">{c?.nome || "Sem setor"}</span>
+                    <span className="tg ar">{c?.nome || "Sem categoria"}</span>
                     {areas.find((a) => a.id === s.cadeia) && <span className="tg"><i className="cdot" style={{ background: areas.find((a) => a.id === s.cadeia)!.cor }} />{areas.find((a) => a.id === s.cadeia)!.nome}</span>}
                     <span className="tg">{fase?.nome}</span>
                     

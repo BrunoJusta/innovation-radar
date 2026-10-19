@@ -7,6 +7,7 @@ import { AREAS_V2, TAGS_V2 } from "../src/lib/taxonomia";
 
 const ADMIN = (process.env.SEED_ADMIN || "bruno.justa@sogrape.pt").toLowerCase();
 
+import { CATEGORIAS_V2 } from "../src/lib/categorias";
 const DATA: Record<string, Record<string, object>> = {
   // Taxonomia v2: cadeias de valor (anéis) e tags (temáticas, tecnologias e canais)
   areas: AREAS_V2,
@@ -35,37 +36,23 @@ const DATA: Record<string, Record<string, object>> = {
     "the-spoon": { nome: "The Spoon", tipo: "rss", url: "https://thespoon.tech/feed/", lingua: "en", ativo: true, para: "startups" },
   },
   settings: { geral: { corteRelevancia: 50, janelaDias: 90, corteStartups: 50 } },
-  sectors: {
-    "vinha-adega": { nome: "Vinha e adega", cor: "#16A34A", icone: "leaf", ordem: 1,
-      descricao: "Tecnologia para a vinha e para a adega: viticultura de precisão, sensores, drones, robótica, clima, água, solo, doenças, controlo de fermentação, qualidade e desalcoolização.",
-      pesquisas: ["vineyard precision agriculture startup", "viticulture robotics startup funding", "startup controlo de fermentação vinho", "dealcoholisation technology startup"] },
-    "embalagem-rotulos": { nome: "Embalagem e rótulos", cor: "#E7A912", icone: "cube", ordem: 2,
-      descricao: "Rótulos inteligentes (NFC, QR, realidade aumentada), anticontrafação, rastreabilidade da garrafa, garrafas leves, embalagem sustentável e novos formatos.",
-      pesquisas: ["smart wine label NFC startup", "startups de rótulos inteligentes para vinhos", "anti-counterfeiting wine bottle startup", "sustainable wine packaging startup"] },
-    "consumidor-vendas": { nome: "Consumidor e vendas", cor: "#7C3AED", icone: "users", ordem: 3,
-      descricao: "Venda e relação com o consumidor: e-commerce e venda direta, marketplaces, recomendação personalizada, enoturismo, fidelização, marcas no/low e experiências digitais.",
-      pesquisas: ["wine e-commerce startup funding", "wine recommendation app startup", "wine tourism platform startup", "non-alcoholic wine brand startup raises"] },
-    "dados-operacoes": { nome: "Dados e operações", cor: "#0EA5DE", icone: "chart-line", ordem: 4,
-      descricao: "Dados e IA para a operação: previsão de procura, planeamento, cadeia de abastecimento, logística, preços, gestão de stock e automação.",
-      pesquisas: ["AI demand forecasting startup beverage", "supply chain startup wine distribution", "pricing analytics startup drinks", "AI startup food and beverage operations"] },
-  },
+  sectors: CATEGORIAS_V2,
   users: { [ADMIN]: { role: "admin", nome: "Bruno Justa", adicionadoEm: new Date().toISOString(), adicionadoPor: "seed" } },
 };
 
-/** Setores da primeira versão, substituídos pelos atuais. As startups que os usavam passam para o setor mais próximo. */
-const OLD_SECTORS: Record<string, string> = {
-  "wine-tech": "consumidor-vendas", "viticultura-agtech": "vinha-adega", "ia-aplicada": "dados-operacoes", "no-low-bebidas": "vinha-adega",
-};
+/**
+ * Setores antigos, substituídos pelas categorias (tipo de solução). As startups que os usavam ficam sem categoria válida
+ * e são reclassificadas pela Gemini na recolha semanal ou no botão das Definições.
+ */
+const OLD_SECTORS = ["wine-tech", "viticultura-agtech", "ia-aplicada", "no-low-bebidas", "vinha-adega", "embalagem-rotulos", "consumidor-vendas", "dados-operacoes"];
 
 async function main() {
   const db = adminDb();
-  for (const [old, novo] of Object.entries(OLD_SECTORS)) {
+  for (const old of OLD_SECTORS) {
     const ref = db.collection("sectors").doc(old);
     if (!(await ref.get()).exists) continue;
-    const st = await db.collection("startups").where("setor", "==", old).get();
-    for (const d of st.docs) await d.ref.update({ setor: novo });
     await ref.delete();
-    console.log(`setor antigo ${old} removido (${st.size} startups passaram para ${novo})`);
+    console.log(`setor antigo ${old} removido (as startups dele são reclassificadas na recolha semanal)`);
   }
   for (const [col, docs] of Object.entries(DATA)) for (const [id, data] of Object.entries(docs)) {
     try { await db.collection(col).doc(id).create(data); console.log(`criado   ${col}/${id}`); }

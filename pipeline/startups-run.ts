@@ -6,7 +6,7 @@
  */
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "./lib/admin";
-import { checkSite, Candidate, classificarCadeias, discover, domainOf, fromNews, profile, startupId } from "./lib/startups";
+import { checkSite, Candidate, classificarCadeias, classificarSetores, discover, domainOf, fromNews, profile, startupId } from "./lib/startups";
 import { lisbon } from "./lib/math";
 import { fetchRss, fetchWp, FetchError } from "./lib/feeds";
 import { htmlToText } from "./lib/text";
@@ -113,6 +113,19 @@ async function main() {
       log(`Cadeia de valor atribuída a ${Object.keys(cad).length} de ${semCadeia.length} startups sem cadeia`);
     }
   } catch (e) { log("  ! cadeias de valor:", (e as Error).message); }
+
+  // Startups sem categoria válida (por exemplo, depois de as categorias mudarem): classifica pela descrição
+  try {
+    const okSet = new Set(sectors.map((x) => x.id));
+    const semSetor = (await db.collection("startups").select("nome", "descricao", "setor", "status").get()).docs
+      .filter((d) => !okSet.has(d.data().setor) && d.data().status !== "rejected")
+      .map((d) => ({ id: d.id, nome: String(d.data().nome || ""), descricao: String(d.data().descricao || "") }));
+    if (semSetor.length) {
+      const set = await classificarSetores(semSetor, sectors);
+      if (!DRY) for (const [id, setor] of Object.entries(set)) await db.doc(`startups/${id}`).update({ setor });
+      log(`Categoria atribuída a ${Object.keys(set).length} de ${semSetor.length} startups sem categoria válida`);
+    }
+  } catch (e) { log("  ! categorias:", (e as Error).message); }
 
   try {
     // 1) Pesquisas online por setor

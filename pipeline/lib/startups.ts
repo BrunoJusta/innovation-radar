@@ -191,3 +191,24 @@ No fim, responde APENAS com um bloco \`\`\`json: {"startups":[{"k":0,"site":"htt
     return { k: s.k, site: ok ? site : "", dominio: ok ? dominio : "", cadeia: (r && CADEIA_IDS.includes(r.cadeia) ? r.cadeia : cad[String(s.k)]) || "" };
   });
 }
+
+/**
+ * Atribui a categoria (tipo de solução, coleção «sectors») a várias startups de uma vez, pela descrição.
+ * Devolve um mapa id → categoria; as que a Gemini não classificar ficam de fora.
+ */
+export async function classificarSetores(lista: { id: string; nome: string; descricao: string }[], sectors: { id: string; nome: string; descricao: string }[], sp: Speed = {}): Promise<Record<string, string>> {
+  const ids = sectors.map((s) => s.id), out: Record<string, string> = {};
+  if (!ids.length) return out;
+  const lotes: (typeof lista)[] = [];
+  for (let i = 0; i < lista.length; i += 40) lotes.push(lista.slice(i, i + 40));
+  for (let i = 0; i < lotes.length; i += 4) {
+    await Promise.all(lotes.slice(i, i + 4).map(async (lote) => {
+      const r = await json<{ startups: { n: number; categoria: string }[] }>(
+        `Classificas startups pelo tipo de solução para o radar de startups da Sogrape. ${GUARD}\nCATEGORIAS (categoria = id; escolhe a que melhor descreve o que a startup faz ou vende):\n${sectors.map((s) => `- ${s.id}: ${s.nome}. ${s.descricao}`).join("\n")}\nCada startup fica com uma só categoria (o id).`,
+        lote.map((s, k) => `<startup n="${k}"><nome>${s.nome}</nome><descricao>${(s.descricao || "").slice(0, 600)}</descricao></startup>`).join("\n"),
+        { type: "OBJECT", properties: { startups: { type: "ARRAY", items: { type: "OBJECT", properties: { n: { type: "INTEGER" }, categoria: { type: "STRING", enum: ids } }, required: ["n", "categoria"] } } }, required: ["startups"] }, sp);
+      for (const x of r.startups || []) if (lote[x.n] && ids.includes(x.categoria)) out[lote[x.n].id] = x.categoria;
+    }));
+  }
+  return out;
+}

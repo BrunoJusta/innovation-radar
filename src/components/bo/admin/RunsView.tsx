@@ -18,7 +18,7 @@ export function RunsView() {
     (s) => setRuns(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Run)), () => setRuns([])), []);
 
   return (<>
-    <AdmHead title="Execuções" text="Cada recolha, fonte a fonte (ou setor a setor, nas startups): quantos artigos foram lidos, quantos já tinham sido vistos, quantos passaram o filtro e quantos chegaram à triagem." />
+    <AdmHead title="Execuções" text="Cada recolha, fonte a fonte (ou categoria a categoria, nas startups): quantos artigos foram lidos, quantos já tinham sido vistos, quantos passaram o filtro e quantos chegaram à triagem." />
     {runs === null ? <div className="loading">A carregar…</div>
       : runs.length === 0 ? <Empty icon={<Icon name="rss" size={22} />} title="Ainda não houve recolhas" text="A primeira execução aparece aqui depois de correr o workflow no GitHub (todos os dias às 6h30, ou manualmente)." />
       : <div className="tbl"><table>
