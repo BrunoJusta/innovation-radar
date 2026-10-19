@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { VEZES, Vez } from "@/lib/types";
+import { MOTIVOS_ARQUIVO, VEZES, Vez } from "@/lib/types";
 import { Icon } from "@/components/Icon";
 import { useSession } from "../AuthGate";
 import { useFlash } from "../admin/common";
@@ -11,8 +11,12 @@ import { PipelineTable } from "./PipelineTable";
 import { DealDrawer } from "./DealDrawer";
 import { PipelineCalendar } from "./PipelineCalendar";
 import { ImportDealflow } from "./ImportDealflow";
-import { CatSelect } from "@/components/CatSelect";
+import { AreaSelect, CatSelect, SectorSelect } from "@/components/CatSelect";
+import { useAreas, useCategorias } from "@/lib/use-areas";
 import type { Category } from "@/lib/types";
+
+/** Motivos de arquivo no formato do dropdown. */
+const MOT_OPC = MOTIVOS_ARQUIVO.map((m, i) => ({ id: m.id, nome: m.nome, icone: "prohibit", descricao: "", ordem: i, palavrasChave: [] })) as Category[];
 
 /** Opções do filtro "de quem é a vez", no formato do dropdown das tags. */
 const VEZ_OPC = VEZES.map((v, i) => ({ id: v.id, nome: v.nome, icone: ({ sogrape: "wine", startup: "lightbulb", beta: "briefcase", reuniao: "calendar-blank" } as Record<string, string>)[v.id] || "users", descricao: "", ordem: i, palavrasChave: [] })) as Category[];
@@ -36,6 +40,12 @@ export function PipelineSection({ search }: { search: string }) {
   const [atrasadas, setAtrasadas] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [importando, setImportando] = useState(false);
+  // Filtros do arquivo
+  const areas = useAreas(), categorias = useCategorias();
+  const [aCad, setACad] = useState("all");
+  const [aCat, setACat] = useState("all");
+  const [aMot, setAMot] = useState("all");
+  const [aAno, setAAno] = useState("all");
   const { flash, el } = useFlash();
 
   const ativas = deals.filter((d) => d.etapa !== "arquivada"), arq = deals.filter((d) => d.etapa === "arquivada");
@@ -45,10 +55,15 @@ export function PipelineSection({ search }: { search: string }) {
     const q = norm(search.trim());
     return (arquivadas ? arq : ativas).filter((d) =>
       (!q || norm([d.nome, d.fundadores, d.descricao, d.pais, d.origem?.nome, d.origem?.contacto, d.ref, d.proximaAcao].join(" ")).includes(q)) &&
+      (!arquivadas || ((aCad === "all" || d.cadeia === aCad) && (aCat === "all" || d.categoria === aCat) && (aMot === "all" || d.arquivo?.motivo === aMot) && (aAno === "all" || (d.arquivo?.em || d.etapaDesde || "").startsWith(aAno)))) &&
       (arquivadas || ((!vez || d.vez === vez) && (!minhas || norm(d.responsavel || "").includes(norm(eu))) && (!atrasadas || prazoEstado(d) === "atrasado"))));
-  }, [deals, arquivadas, search, vez, minhas, atrasadas, eu]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [deals, arquivadas, search, vez, minhas, atrasadas, eu, aCad, aCat, aMot, aAno]); // eslint-disable-line react-hooks/exhaustive-deps
   const origens = useMemo(() => Array.from(new Set(deals.map((d) => d.origem?.nome).filter(Boolean))).sort(), [deals]);
   const pessoas = useMemo(() => Array.from(new Set([email, ...deals.map((d) => d.responsavel).filter(Boolean)])).sort(), [deals, email]);
+  // Contagens de cada opção do arquivo, com os outros filtros aplicados
+  const arqF = (sem: string) => arq.filter((d) => (sem === "cad" || aCad === "all" || d.cadeia === aCad) && (sem === "cat" || aCat === "all" || d.categoria === aCat)
+    && (sem === "mot" || aMot === "all" || d.arquivo?.motivo === aMot) && (sem === "ano" || aAno === "all" || (d.arquivo?.em || d.etapaDesde || "").startsWith(aAno)));
+  const anosArq = Array.from(new Set(arq.map((d) => (d.arquivo?.em || d.etapaDesde || "").slice(0, 4)).filter((a) => /^\d{4}$/.test(a)))).sort().reverse();
   const late = ativas.filter((d) => prazoEstado(d) === "atrasado").length;
   const open = deals.find((d) => d.id === openId);
 
@@ -68,6 +83,13 @@ export function PipelineSection({ search }: { search: string }) {
           <button aria-pressed={minhas} onClick={() => setMinhas(!minhas)}><Icon name="users" />As minhas</button>
           <button aria-pressed={atrasadas} onClick={() => setAtrasadas(!atrasadas)} disabled={!late && !atrasadas}><Icon name="clock" />Atrasadas{late ? <span className="sc warn">{late}</span> : null}</button>
         </div>
+      </>}
+      {arquivadas && <>
+        <AreaSelect areas={areas} value={aCad} onChange={setACad} counts={(id) => arqF("cad").filter((d) => d.cadeia === id).length} />
+        <SectorSelect sectors={categorias} value={aCat} onChange={setACat} counts={(id) => arqF("cat").filter((d) => d.categoria === id).length} />
+        <CatSelect cats={MOT_OPC} value={aMot} onChange={setAMot} simples counts={(id) => arqF("mot").filter((d) => d.arquivo?.motivo === id).length} total={arqF("mot").length} allLabel="Todos os motivos" procurar="Procurar motivo" />
+        <label className={`fsel${aAno !== "all" ? " on" : ""}`}><select value={aAno} onChange={(e) => setAAno(e.target.value)} aria-label="Ano de arquivo">
+          <option value="all">Todos os anos</option>{anosArq.map((a) => <option key={a} value={a}>{a}</option>)}</select></label>
       </>}
       <span className="sp" />
       <button className="btn" onClick={() => setImportando(true)} disabled={!loaded || !!erro}><Icon name="upload-simple" />Importar Excel</button>

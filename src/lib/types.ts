@@ -322,6 +322,8 @@ export interface Deal {
   vertical: VerticalDF | ""; fase: FaseDF | "";
   /** Cadeia de valor (id de areas). */
   cadeia?: string;
+  /** Categoria, o tipo de solução (id de sectors). */
+  categoria?: string;
   etapa: Etapa; etapaDesde: string;
   /** Interesse quando está no radar: investimento ou outro tipo de relação (piloto, parceria). */
   interesse: "investimento" | "outro";

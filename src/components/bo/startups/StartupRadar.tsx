@@ -15,6 +15,7 @@ import { db } from "@/lib/firebase";
 import { Area, Category, FASES, Sector, Startup } from "@/lib/types";
 import { useSession } from "../AuthGate";
 import { useDeals } from "../pipeline/DealsLookup";
+import { cadeiasParaApi } from "@/lib/use-areas";
 import { StartupDrawer } from "./StartupDrawer";
 
 type Vista = "radar" | "lista";
@@ -69,7 +70,7 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
       let feitas = 0;
       for (let i = 0; i < semCadeia.length; i += 80) {
         const lote = semCadeia.slice(i, i + 80).map((s) => ({ id: s.id, nome: s.nome, descricao: s.descricao, setor: sectors.find((x) => x.id === s.setor)?.nome || "" }));
-        const j = await post<{ cadeias: Record<string, string> }>("/api/startups/cadeias", { startups: lote });
+        const j = await post<{ cadeias: Record<string, string> }>("/api/startups/cadeias", { startups: lote, cadeias: cadeiasParaApi(cadeias) });
         await Promise.all(Object.entries(j.cadeias).map(([id, cadeia]) => updateDoc(doc(db, "startups", id), { cadeia })));
         feitas += Object.keys(j.cadeias).length;
       }

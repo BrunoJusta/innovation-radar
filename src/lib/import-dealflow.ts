@@ -145,12 +145,12 @@ export function converterDealflow(linhas: Celula[][], hoje: string): LinhaDF[] {
 }
 
 /** Ficha do pipeline a partir de uma linha (o site e a cadeia de valor vêm da pesquisa). */
-export function dealDaLinha(l: LinhaDF, extra: { site: string; dominio: string; cadeia: string }, por: string, agora: string): Omit<Deal, "id"> {
+export function dealDaLinha(l: LinhaDF, extra: { site: string; dominio: string; cadeia: string; categoria?: string }, por: string, agora: string): Omit<Deal, "id"> {
   const ativa = l.etapa !== "arquivada" && l.etapa !== "investida";
   const passo = ativa ? [{ id: "xl1", texto: l.etapa === "radar" ? "Fazer o primeiro contacto" : "Rever o ponto de situação", vez: l.vez, prazo: null, responsavel: "", feito: null }] : [];
   return {
     ref: l.ref, nome: l.nome, site: extra.site, dominio: extra.dominio, fundadores: l.fundadores, descricao: l.descricao, pais: l.pais,
-    vertical: l.vertical, fase: l.fase, cadeia: extra.cadeia || undefined,
+    vertical: l.vertical, fase: l.fase, cadeia: extra.cadeia || undefined, categoria: extra.categoria || undefined,
     etapa: l.etapa, etapaDesde: l.etapaDesde, interesse: l.interesse, entrada: l.entrada,
     vez: ativa ? l.vez : null, proximaAcao: passo[0]?.texto || "", prazo: null, responsavel: "", passos: passo,
     ronda: l.ronda, origem: l.origem, documentos: [], arquivo: l.arquivo,
@@ -179,11 +179,11 @@ const slugId = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLower
 export const startupIdDe = (nome: string, dominio: string) => dominio ? dominio.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") : `xl-${slugId(nome)}`;
 
 /** Ficha no radar de startups para uma startup importada (aprovada e já ligada ao pipeline), para aparecer no anel da sua cadeia de valor. */
-export function startupDaLinha(l: LinhaDF, extra: { site: string; dominio: string; cadeia: string }, dealId: string, por: string, agora: string): Omit<Startup, "id"> {
+export function startupDaLinha(l: LinhaDF, extra: { site: string; dominio: string; cadeia: string; categoria?: string }, dealId: string, por: string, agora: string): Omit<Startup, "id"> {
   const r = l.ronda, eur = (n: number | null) => n == null ? "" : n >= 1e6 ? `${(n / 1e6).toLocaleString("pt-PT", { maximumFractionDigits: 2 })} M€` : `${Math.round(n / 1e3)} mil €`;
   return {
     status: "approved", nome: l.nome, site: extra.site, dominio: extra.dominio, pais: l.pais, fundacao: null,
-    fase: FASE_RADAR[l.fase] || "seed", setor: "", cadeia: extra.cadeia, descricao: l.descricao, porque: "",
+    fase: FASE_RADAR[l.fase] || "seed", setor: extra.categoria || "", cadeia: extra.cadeia, descricao: l.descricao, porque: "",
     relevancia: 50, financiamento: r.valor ? `Ronda de ${eur(r.valor)}` : "", investidores: [],
     origens: [{ tipo: "manual", titulo: "Excel do dealflow da Sogrape Ventures", url: extra.site, data: agora }],
     destaque: false, manual: true, criadoPor: por, criadoEm: agora, atualizadoEm: agora, aprovadoEm: agora, aprovadoPor: por,

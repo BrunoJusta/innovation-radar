@@ -10,7 +10,8 @@ import { AdmHead, DangerBtn, errMsg, FormModal, useFlash } from "./common";
 type AEdit = Area & { _new?: boolean };
 type CEdit = Omit<Category, "palavrasChave"> & { kw: string; _new?: boolean };
 
-export function TaxonomyView({ areas, cats }: { areas: Area[]; cats: Category[] }) {
+/** Cadeias de valor (parte = "areas", página geral) ou tags das notícias (parte = "tags"). */
+export function TaxonomyView({ areas, cats, parte }: { areas: Area[]; cats: Category[]; parte: "areas" | "tags" }) {
   const [ae, setAe] = useState<AEdit | null>(null);
   const [ce, setCe] = useState<CEdit | null>(null);
   const { flash, el } = useFlash();
@@ -30,9 +31,11 @@ export function TaxonomyView({ areas, cats }: { areas: Area[]; cats: Category[] 
   };
 
   return (<>
-    <AdmHead title="Cadeias de valor e tags" text="As cadeias de valor são os anéis do radar: cada notícia tem uma. As tags dividem-se em temáticas, tecnologias e canais: cada notícia tem pelo menos uma temática, e as tecnologias e os canais que se aplicarem. As palavras-chave decidem que artigos chegam à Gemini." />
+    {parte === "areas"
+      ? <AdmHead title="Cadeias de valor" text="As cadeias de valor são os anéis dos dois radares, o das notícias e o das startups: cada notícia e cada startup tem uma. A Gemini usa o nome e a descrição para classificar, e a ordem decide o anel (1 = centro)." />
+      : <AdmHead title="Tags" text="As tags das notícias dividem-se em temáticas, tecnologias e canais: cada notícia tem pelo menos uma temática, e as tecnologias e os canais que se aplicarem. As palavras-chave decidem que artigos chegam à Gemini." />}
 
-    <section className="adm-sec">
+    {parte === "areas" && <section className="adm-sec">
       <div className="gh"><h2>Cadeias de valor</h2><span>{areas.length}</span><span className="sp" />
         <button className="btn" onClick={() => setAe({ id: "", nome: "", descricao: "", cor: AREA_COLORS[areas.length % AREA_COLORS.length], ordem: areas.length + 1, _new: true })}><Icon name="plus" />Nova cadeia de valor</button></div>
       <div className="rows">{areas.map((a) => (
@@ -51,12 +54,12 @@ export function TaxonomyView({ areas, cats }: { areas: Area[]; cats: Category[] 
             <div className="fld wide"><span>Cor</span><div className="swatches">{AREA_COLORS.map((c) => (
               <button type="button" key={c} className="sw" aria-pressed={ae.cor === c} style={{ background: c }} aria-label={c} onClick={() => setAe({ ...ae, cor: c })} />))}
               <input type="color" value={ae.cor} onChange={(e) => setAe({ ...ae, cor: e.target.value.toUpperCase() })} aria-label="Outra cor" /></div></div>
-            <label className="fld full"><span>Descrição para a Gemini</span><textarea rows={3} value={ae.descricao} onChange={(e) => setAe({ ...ae, descricao: e.target.value })} placeholder="Que tipo de notícia pertence a esta cadeia de valor." /></label>
+            <label className="fld full"><span>Descrição para a Gemini</span><textarea rows={3} value={ae.descricao} onChange={(e) => setAe({ ...ae, descricao: e.target.value })} placeholder="Que notícias e que startups pertencem a esta cadeia de valor." /></label>
           </div>
         </FormModal>)}
-    </section>
+    </section>}
 
-    {TIPOS_TAG.map((tp) => { const l = cats.filter((c) => tipoDe(c) === tp.id).sort((a, b) => a.ordem - b.ordem); return (
+    {parte === "tags" && TIPOS_TAG.map((tp) => { const l = cats.filter((c) => tipoDe(c) === tp.id).sort((a, b) => a.ordem - b.ordem); return (
     <section className="adm-sec" key={tp.id}>
       <div className="gh"><h2>{tp.plural}</h2><span>{l.length}</span><span className="sp" />
         <button type="button" className="btn" onClick={() => setCe({ id: "", nome: "", icone: "sparkle", descricao: "", ordem: l.length + 1, kw: "", tipo: tp.id, _new: true })}><Icon name="plus" />Nova {tp.nome.toLowerCase()}</button></div>

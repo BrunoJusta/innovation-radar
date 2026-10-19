@@ -2,10 +2,10 @@
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import { Deal, FASES_DF, ORIGENS_DF, VERTICAIS_DF } from "@/lib/types";
-import { AREAS_LISTA } from "@/lib/taxonomia";
+import { useAreas, useCategorias } from "@/lib/use-areas";
 
-export type DealEdit = Pick<Deal, "nome" | "site" | "fundadores" | "descricao" | "pais" | "vertical" | "cadeia" | "fase" | "interesse" | "entrada" | "ronda" | "origem" | "documentos">;
-export const pickDeal = (d: Omit<Deal, "id">): DealEdit => ({ nome: d.nome, site: d.site, fundadores: d.fundadores, descricao: d.descricao, pais: d.pais, vertical: d.vertical, cadeia: d.cadeia, fase: d.fase,
+export type DealEdit = Pick<Deal, "nome" | "site" | "fundadores" | "descricao" | "pais" | "vertical" | "cadeia" | "categoria" | "fase" | "interesse" | "entrada" | "ronda" | "origem" | "documentos">;
+export const pickDeal = (d: Omit<Deal, "id">): DealEdit => ({ nome: d.nome, site: d.site, fundadores: d.fundadores, descricao: d.descricao, pais: d.pais, vertical: d.vertical, cadeia: d.cadeia, categoria: d.categoria, fase: d.fase,
   interesse: d.interesse, entrada: d.entrada, ronda: { ...d.ronda, coinvestidores: [...(d.ronda?.coinvestidores || [])] }, origem: { ...d.origem }, documentos: [...(d.documentos || [])] });
 
 /** Lê valores como "1,5 M", "350k", "€ 200 K" ou "2000000" (euros). */
@@ -29,6 +29,7 @@ function Eur({ label, v, on }: { label: string; v: number | null; on: (n: number
 /** Edição da ficha de uma startup no pipeline. */
 export function DealFields({ value: v, onChange, origens }: { value: DealEdit; onChange: (p: Partial<DealEdit>) => void; origens: string[] }) {
   const [coinv, setCoinv] = useState(v.ronda.coinvestidores.join(", "));
+  const areas = useAreas(), categorias = useCategorias();
   const r = (p: Partial<Deal["ronda"]>) => onChange({ ronda: { ...v.ronda, ...p } });
   return (
     <div className="dform">
@@ -40,7 +41,9 @@ export function DealFields({ value: v, onChange, origens }: { value: DealEdit; o
         <label className="fld"><span>Vertical</span><select value={v.vertical} onChange={(e) => onChange({ vertical: e.target.value as DealEdit["vertical"] })}>
           <option value="">Por definir</option>{VERTICAIS_DF.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
         <label className="fld"><span>Cadeia de valor</span><select value={v.cadeia || ""} onChange={(e) => onChange({ cadeia: e.target.value || undefined })}>
-          <option value="">Por definir</option>{AREAS_LISTA.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
+          <option value="">Por definir</option>{areas.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
+        <label className="fld"><span>Categoria</span><select value={v.categoria || ""} onChange={(e) => onChange({ categoria: e.target.value || undefined })}>
+          <option value="">Por definir</option>{categorias.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
         <label className="fld"><span>Fase</span><select value={v.fase} onChange={(e) => onChange({ fase: e.target.value as DealEdit["fase"] })}>
           <option value="">Por definir</option>{FASES_DF.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
         <label className="fld"><span>Interesse</span><select value={v.interesse} onChange={(e) => onChange({ interesse: e.target.value as DealEdit["interesse"] })}>

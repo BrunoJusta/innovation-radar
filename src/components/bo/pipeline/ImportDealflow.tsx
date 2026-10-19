@@ -9,9 +9,10 @@ import { cadeiaPorDefeito, converterDealflow, dealDaLinha, historicoDaLinha, Lin
 import { normNome } from "@/lib/deal-actions";
 import { Deal, ETAPAS, Startup } from "@/lib/types";
 import { hojeLocal, nowIso } from "@/lib/util";
+import { cadeiasParaApi, useAreas, useCategorias } from "@/lib/use-areas";
 
 const LOTE = 8, PARALELO = 3;
-type Res = { k: number; site: string; dominio: string; cadeia: string };
+type Res = { k: number; site: string; dominio: string; cadeia: string; categoria?: string };
 const clean = <T,>(o: T): T => JSON.parse(JSON.stringify(o));
 
 /** As fichas do pipeline que já existem e correspondem a esta linha (mesmo nome, mesma referência ou mesmo domínio). */
@@ -35,6 +36,8 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
   const [falhas, setFalhas] = useState<string[]>([]);
   const [subst, setSubst] = useState(0);
   const parar = useRef(false);
+  const areas = useAreas();
+  const categorias = useCategorias();
   const busy = estado === "importar";
 
   useEffect(() => {
@@ -70,6 +73,7 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
     const ids = new Set(antes.map((d) => d.id));
     const apagadas = new Set<string>();
     const novas: { id: string; nome: string; descricao: string }[] = [];
+    const dealDe = new Map<string, string>();
     let startups: Startup[] = [];
     try { startups = (await getDocs(collection(db, "startups"))).docs.map((d) => ({ id: d.id, ...d.data() }) as Startup); } catch { /* sem ligação ao radar: importa na mesma */ }
     const agora = nowIso();
@@ -78,7 +82,9 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
 
     const gravar = async (l: LinhaDF, r: Res | undefined) => {
       // Cada startup fica sempre com uma cadeia de valor: a da Gemini ou, se falhar, a que corresponde à vertical do Excel
-      const extra = { site: r?.site || "", dominio: r?.dominio || "", cadeia: r?.cadeia || cadeiaPorDefeito(l) };
+      const extra = { site: r?.site || "", dominio: r?.dominio || "", cadeia: r?.cadeia || cadeiaPorDefeito(l), categoria: r?.categoria || "" };
+      // A cadeia por defeito tem de existir na lista atual; senão, Adjacências ou a última
+      if (!areas.some((a) => a.id === extra.cadeia)) extra.cadeia = areas.find((a) => a.id === "adjacencias")?.id || areas[areas.length - 1]?.id || extra.cadeia;
       const velhas = iguais(l, extra.dominio, antes).filter((d) => !apagadas.has(d.id));
       // Mantém a ligação ao radar de startups da ficha substituída
       const ligada = velhas.find((d) => d.startupId);
@@ -109,8 +115,8 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
       const b = writeBatch(db);
       b.set(doc(db, "deals", id), clean(deal));
       historicoDaLinha(l).forEach((h, i) => b.set(doc(db, "deals", id, "interacoes", `xl-${i}`), clean({ ...h, criadoEm: agora })));
-      if (st) b.update(doc(db, "startups", st.id), { dealId: id, pipelineEm: agora, atualizadoEm: agora, ...(st.cadeia ? {} : { cadeia: extra.cadeia }), ...(st.status === "approved" ? {} : { status: "approved", aprovadoEm: agora, aprovadoPor: email }) });
-      else { b.set(doc(db, "startups", sid), clean(startupDaLinha(l, extra, id, email, agora))); novas.push({ id: sid, nome: l.nome, descricao: l.descricao }); }
+      if (st) b.update(doc(db, "startups", st.id), { dealId: id, pipelineEm: agora, atualizadoEm: agora, ...(st.cadeia ? {} : { cadeia: extra.cadeia }), ...(extra.categoria && !categorias.some((c) => c.id === st.setor) ? { setor: extra.categoria } : {}), ...(st.status === "approved" ? {} : { status: "approved", aprovadoEm: agora, aprovadoPor: email }) });
+      else { b.set(doc(db, "startups", sid), clean(startupDaLinha(l, extra, id, email, agora))); if (!extra.categoria) { novas.push({ id: sid, nome: l.nome, descricao: l.descricao }); dealDe.set(sid, id); } }
       await b.commit();
       ids.add(id);
       if (!deal.site) setSemSite((x) => [...x, l.nome]);
@@ -120,7 +126,7 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
       const pedido = lote.map((l, k) => ({ k: base + k, nome: l.nome, descricao: l.descricao, pais: l.pais, fundadores: l.fundadores }));
       let res: Res[] = [];
       for (let t = 0; t < 2 && !res.length; t++) {
-        try { res = (await post<{ startups: Res[] }>("/api/startups/importar", { startups: pedido })).startups; } catch { /* tenta outra vez; à segunda importa sem site */ }
+        try { res = (await post<{ startups: Res[] }>("/api/startups/importar", { startups: pedido, cadeias: cadeiasParaApi(areas), categorias: cadeiasParaApi(categorias) })).startups; } catch { /* tenta outra vez; à segunda importa sem site */ }
       }
       for (let k = 0; k < lote.length; k++) {
         try { await gravar(lote[k], res.find((r) => r.k === base + k)); }
@@ -132,13 +138,13 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
     for (let i = 0; i < lotes.length && !parar.current; i += PARALELO) {
       await Promise.all(lotes.slice(i, i + PARALELO).map((lote, j) => umLote(lote, (i + j) * LOTE)));
     }
-    // Categoria (tipo de solução) das fichas novas no radar de startups
+    // Categoria das fichas novas que a pesquisa não conseguiu classificar
     try {
-      const cats = (await getDocs(collection(db, "sectors"))).docs.map((d) => ({ id: d.id, nome: String(d.data().nome || ""), descricao: String(d.data().descricao || "") }));
+      const cats = cadeiasParaApi(categorias);
       for (let i = 0; cats.length && i < novas.length; i += 80) {
         const j = await post<{ setores: Record<string, string> }>("/api/startups/setores", { startups: novas.slice(i, i + 80), sectors: cats });
         const b = writeBatch(db);
-        Object.entries(j.setores).forEach(([id, setor]) => b.update(doc(db, "startups", id), { setor }));
+        Object.entries(j.setores).forEach(([id, setor]) => { b.update(doc(db, "startups", id), { setor }); if (dealDe.get(id)) b.update(doc(db, "deals", dealDe.get(id)!), { categoria: setor }); });
         await b.commit();
       }
     } catch { /* a recolha semanal atribui as que faltarem */ }
@@ -157,7 +163,7 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
       </div>
       <div className="mdl-b scroll">
         {estado === "rever" && (<>
-          <p className="hint">Escolhe o Excel da FCR Sogrape Ventures (folha «Dealflow»). Cada startup entra no pipeline na fase em que está no Excel. Para cada uma, a Gemini pesquisa o site oficial e atribui uma cadeia de valor, e a startup aparece no radar de startups no anel dessa cadeia. As startups que já estiverem no pipeline são apagadas e substituídas pelas do Excel.</p>
+          <p className="hint">Escolhe o Excel da FCR Sogrape Ventures (folha «Dealflow»). Cada startup entra no pipeline na fase em que está no Excel. Para cada uma, a Gemini pesquisa o site oficial e atribui uma cadeia de valor e uma categoria, e a startup aparece no radar de startups no anel dessa cadeia. As startups que já estiverem no pipeline são apagadas e substituídas pelas do Excel.</p>
           <label className="impf">
             <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => ler(e.target.files?.[0])} disabled={lendo} />
             <Icon name="stack" /><span>{lendo ? "A ler o ficheiro…" : nomeFicheiro || "Escolher ficheiro .xlsx"}</span>

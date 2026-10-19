@@ -86,7 +86,7 @@ export async function reopenDeal(d: Deal, by: string) {
 /** Leva uma startup do radar para o pipeline (fica ligada à ficha e à análise). */
 export function dealFromStartup(s: Startup, deals: Deal[], setor: string): Omit<Deal, "id"> {
   return {
-    ...DEAL_VAZIO(), ref: proximaRef(deals), nome: s.nome, site: s.site, dominio: s.dominio, descricao: s.descricao, ...(s.cadeia ? { cadeia: s.cadeia } : {}),
+    ...DEAL_VAZIO(), ref: proximaRef(deals), nome: s.nome, site: s.site, dominio: s.dominio, descricao: s.descricao, ...(s.cadeia ? { cadeia: s.cadeia } : {}), ...(s.setor ? { categoria: s.setor } : {}),
     pais: s.pais || "", etapa: "radar", interesse: "investimento", vez: "sogrape", proximaAcao: "Fazer o primeiro contacto", passos: [novoPasso({ texto: "Fazer o primeiro contacto" })],
     origem: { tipo: "radar", nome: setor ? `Radar · ${setor}` : "Radar de startups", contacto: "" },
     startupId: s.id, ...(s.analiseResumo ? { analiseResumo: s.analiseResumo } : {}),

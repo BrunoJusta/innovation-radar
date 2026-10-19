@@ -6,7 +6,7 @@
  */
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "./lib/admin";
-import { checkSite, Candidate, classificarCadeias, classificarSetores, discover, domainOf, fromNews, profile, startupId } from "./lib/startups";
+import { cadeiasDe, checkSite, Candidate, classificarCadeias, classificarSetores, discover, domainOf, fromNews, profile, startupId } from "./lib/startups";
 import { lisbon } from "./lib/math";
 import { fetchRss, fetchWp, FetchError } from "./lib/feeds";
 import { htmlToText } from "./lib/text";
@@ -44,6 +44,8 @@ async function main() {
     db.collection("startups").select("origens", "status").get(), db.collection("startupSeen").select().get(),
     db.collection("sources").where("para", "==", "startups").get(),
   ]);
+  // Cadeias de valor da coleção «areas» (as mesmas das notícias)
+  const cadeias = cadeiasDe((await db.collection("areas").orderBy("ordem").get()).docs.map((d) => ({ id: d.id, ...d.data() })));
   const feeds = srcS.docs.map((d) => ({ id: d.id, ...d.data() }) as Source).filter((s) => s.ativo);
   const sectors = secS.docs.map((d) => ({ id: d.id, ...d.data() }) as Sector).sort((a, b) => a.ordem - b.ordem);
   if (!sectors.length) throw new Error("Não há setores de startups. Corre primeiro o seed.");
@@ -97,7 +99,7 @@ async function main() {
     const d = domainOf(n.site);
     if (d && (existing.has(startupId(d)) || seen.has(startupId(d)))) { await handle({ id: startupId(d) } as Candidate, origem, st); return; }
     try {
-      const c = await profile(n.site, sectors, n.nome);
+      const c = await profile(n.site, sectors, n.nome, {}, cadeias);
       if (c) await handle(c, origem, st); else st.filtro++;
     } catch (e) { st.erros.push(`${n.nome}: ${(e as Error).message.slice(0, 160)}`); }
   }
@@ -108,7 +110,7 @@ async function main() {
       .filter((d) => !d.data().cadeia && d.data().status !== "rejected")
       .map((d) => ({ id: d.id, nome: String(d.data().nome || ""), descricao: String(d.data().descricao || ""), setor: sectors.find((x) => x.id === d.data().setor)?.nome || "" }));
     if (semCadeia.length) {
-      const cad = await classificarCadeias(semCadeia);
+      const cad = await classificarCadeias(semCadeia, {}, cadeias);
       if (!DRY) for (const [id, cadeia] of Object.entries(cad)) await db.doc(`startups/${id}`).update({ cadeia });
       log(`Cadeia de valor atribuída a ${Object.keys(cad).length} de ${semCadeia.length} startups sem cadeia`);
     }
@@ -137,7 +139,7 @@ async function main() {
       if (sites.length) qs.push({ q: `startups: ${sec.nome}. ${sec.descricao}`, so: true });
       for (const { q, so } of qs) {
         try {
-          const found = await discover(q, sectors, 8, {}, sites, so);
+          const found = await discover(q, sectors, 8, {}, sites, so, cadeias);
           log(`${sec.nome} «${q}»: ${found.length}`);
           for (const c of found) await handle(c, { tipo: "pesquisa", titulo: c.fonte.titulo, url: c.fonte.url, data: now(), pesquisa: so ? `Sites de referência · ${sec.nome}` : q }, st);
         } catch (e) { st.erros.push(`«${q}»: ${(e as Error).message.slice(0, 160)}`); log("  ! erro", q, (e as Error).message); }

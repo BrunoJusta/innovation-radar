@@ -10,11 +10,14 @@ import { RunsView } from "./RunsView";
 import { SectorsView } from "./SectorsView";
 import { InvestmentView } from "./InvestmentView";
 
-type Sec = "sources" | "taxonomy" | "newsRules" | "sectors" | "startupSources" | "investment" | "startupRules" | "users" | "runs";
+type Sec = "areas" | "sources" | "taxonomy" | "newsRules" | "sectors" | "startupSources" | "investment" | "startupRules" | "users" | "runs";
 const GROUPS: { titulo: string; itens: { id: Sec; label: string; icon: string }[] }[] = [
+  { titulo: "Geral", itens: [
+    { id: "areas", label: "Cadeias de valor", icon: "target" },
+  ] },
   { titulo: "Notícias", itens: [
     { id: "sources", label: "Fontes", icon: "rss" },
-    { id: "taxonomy", label: "Cadeias de valor e tags", icon: "stack" },
+    { id: "taxonomy", label: "Tags", icon: "stack" },
     { id: "newsRules", label: "Regras da recolha", icon: "funnel" },
   ] },
   { titulo: "Startups", itens: [
@@ -31,7 +34,7 @@ const GROUPS: { titulo: string; itens: { id: Sec; label: string; icon: string }[
 
 /** Definições: o que é das notícias, o que é das startups e o que é comum. */
 export function SettingsHub({ areas, cats }: { areas: Area[]; cats: Category[] }) {
-  const [sec, setSec] = useState<Sec>("sources");
+  const [sec, setSec] = useState<Sec>("areas");
   return (
     <div className="hub">
       <aside className="hubnav" aria-label="Definições">
@@ -48,7 +51,8 @@ export function SettingsHub({ areas, cats }: { areas: Area[]; cats: Category[] }
       <section className="hubbody">
         {sec === "sources" && <SourcesView key="n" />}
         {sec === "startupSources" && <SourcesView key="s" para="startups" />}
-        {sec === "taxonomy" && <TaxonomyView areas={areas} cats={cats} />}
+        {sec === "areas" && <TaxonomyView areas={areas} cats={cats} parte="areas" />}
+        {sec === "taxonomy" && <TaxonomyView areas={areas} cats={cats} parte="tags" />}
         {sec === "newsRules" && <SettingsView scope="news" />}
         {sec === "sectors" && <SectorsView />}
         {sec === "investment" && <InvestmentView />}

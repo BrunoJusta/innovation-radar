@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Area, Fila, Sector, Startup } from "@/lib/types";
-import { AREAS_LISTA } from "@/lib/taxonomia";
+import { useAreas } from "@/lib/use-areas";
 import { Icon } from "@/components/Icon";
 import { StartupsTriage } from "./StartupsTriage";
 import { StartupRadar } from "./StartupRadar";
@@ -25,7 +25,6 @@ function Section({ initial }: { initial: Page }) {
   const [page, setPage] = useState<Page>((initial === "pipeline" || initial === "review") && !canPipeline ? "approved" : initial);
   const [startups, setStartups] = useState<Startup[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
-  const [areasDb, setAreas] = useState<Area[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
@@ -33,11 +32,10 @@ function Section({ initial }: { initial: Page }) {
     const u1 = onSnapshot(collection(db, "startups"), (s) => { setStartups(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Startup)); setLoaded(true); },
       (e) => { console.error(e); setLoaded(true); });
     const u2 = onSnapshot(query(collection(db, "sectors"), orderBy("ordem")), (s) => setSectors(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Sector)));
-    const u3 = onSnapshot(query(collection(db, "areas"), orderBy("ordem")), (s) => setAreas(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Area)));
-    return () => { u1(); u2(); u3(); };
+    return () => { u1(); u2(); };
   }, []);
   // Cadeias de valor (os anéis do radar); enquanto a coleção não carrega, as da taxonomia
-  const areas: Area[] = areasDb.length ? areasDb : AREAS_LISTA;
+  const areas: Area[] = useAreas();
   // As aprovadas que passaram para o pipeline saem da lista de Aprovadas (continuam aprovadas na base de dados e no radar)
   const noPipe = new Set(deals.map((d) => d.startupId).filter(Boolean));
   const lista = startups.filter((s) => !(s.status === "approved" && (s.dealId || noPipe.has(s.id))));

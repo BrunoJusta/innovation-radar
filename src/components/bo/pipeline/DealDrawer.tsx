@@ -11,7 +11,7 @@ import { fdLongo, hojeLocal, nDias } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { AnaliseView } from "../startups/AnaliseView";
 import { DealEdit, DealFields, fmtEur, pickDeal } from "./DealFields";
-import { AREAS_LISTA } from "@/lib/taxonomia";
+import { useAreas, useCategorias } from "@/lib/use-areas";
 import { diasDesde } from "./PipelineBoard";
 import { PassosBox } from "./PassosBox";
 
@@ -30,6 +30,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
   const [editing, setEditing] = useState(false);
   const [f, setF] = useState<DealEdit>(pickDeal(d));
   const [archiving, setArchiving] = useState(false);
+  const cad = useAreas().find((a) => a.id === d.cadeia), cat = useCategorias().find((c) => c.id === d.categoria);
   const [motivo, setMotivo] = useState<MotivoArquivo | "">("");
   const [notaArq, setNotaArq] = useState("");
   // Editar o motivo de uma startup já arquivada
@@ -76,7 +77,8 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
         <div className="dmeta">
           {d.ref && <span className="tg mn">{d.ref}</span>}
           {d.vertical && <span className="tg">{nm(VERTICAIS_DF, d.vertical)}</span>}
-          {AREAS_LISTA.find((a) => a.id === d.cadeia) && <span className="tg"><i className="cdot" style={{ background: AREAS_LISTA.find((a) => a.id === d.cadeia)!.cor }} />{AREAS_LISTA.find((a) => a.id === d.cadeia)!.nome}</span>}
+          {cad && <span className="tg"><i className="cdot" style={{ background: cad.cor }} />{cad.nome}</span>}
+          {cat && <span className="tg">{cat.nome}</span>}
           {d.fase && <span className="tg">{nm(FASES_DF, d.fase)}</span>}
           {d.pais && <span className="tg">{d.pais}</span>}
           {d.interesse === "outro" && <span className="tg">Outra relação</span>}

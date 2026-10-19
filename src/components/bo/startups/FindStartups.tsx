@@ -10,6 +10,7 @@ import { Icon } from "@/components/Icon";
 import { useSession } from "../AuthGate";
 import { StartupFields } from "./StartupFields";
 import { useAnaliseQueue } from "../AnaliseQueue";
+import { cadeiasParaApi } from "@/lib/use-areas";
 
 type Cand = StartupEdit & { id: string; dominio: string; fonte: { titulo: string; url: string }; siteOk?: boolean };
 
@@ -54,7 +55,7 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
     if (query.trim().length < 3) { setErro("Escreve o que queres procurar."); return; }
     setErro(""); setBusy(true); setCands(null);
     try {
-      const j = await post<{ candidatas: Cand[] }>("/api/startups/procurar", { query, sectors: secs, sites });
+      const j = await post<{ candidatas: Cand[] }>("/api/startups/procurar", { query, sectors: secs, sites, cadeias: cadeiasParaApi(areas) });
       setCands(j.candidatas);
       setPick(new Set(j.candidatas.filter((c) => !exists(c.id)).map((c) => c.id)));
       // Verificação dos sites em segundo plano: avisa e desmarca os que não respondem
@@ -82,7 +83,7 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
   const preparar = async () => {
     setErro(""); setBusy(true);
     try {
-      const j = await post<{ ficha: Cand; siteOk: boolean }>("/api/startups/ficha", { site, sectors: secs });
+      const j = await post<{ ficha: Cand; siteOk: boolean }>("/api/startups/ficha", { site, sectors: secs, cadeias: cadeiasParaApi(areas) });
       setFicha({ c: { ...j.ficha, siteOk: j.siteOk }, e: toEdit(j.ficha) });
     } catch (e) { setErro((e as Error).message); } finally { setBusy(false); }
   };
