@@ -17,7 +17,7 @@ import { Icon } from "@/components/Icon";
 
 type View = "dashboard" | "news" | "startups" | "settings";
 const NEWS: { id: Status; label: string; icon: string }[] = [
-  { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Rejeitadas", icon: "prohibit" },
+  { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Arquivo", icon: "prohibit" },
 ];
 
 export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
