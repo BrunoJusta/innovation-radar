@@ -10,7 +10,6 @@ import { PipelineBoard, prazoEstado } from "./PipelineBoard";
 import { PipelineTable } from "./PipelineTable";
 import { DealDrawer } from "./DealDrawer";
 import { PipelineCalendar } from "./PipelineCalendar";
-import { ImportDealflow } from "./ImportDealflow";
 import { AreaSelect, CatSelect, SectorSelect } from "@/components/CatSelect";
 import { useAreas, useCategorias } from "@/lib/use-areas";
 import type { Category } from "@/lib/types";
@@ -39,7 +38,6 @@ export function PipelineSection({ search }: { search: string }) {
   const [minhas, setMinhas] = useState(false);
   const [atrasadas, setAtrasadas] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [importando, setImportando] = useState(false);
   // Filtros do arquivo
   const areas = useAreas(), categorias = useCategorias();
   const [aCad, setACad] = useState("all");
@@ -92,7 +90,6 @@ export function PipelineSection({ search }: { search: string }) {
           <option value="all">Todos os anos</option>{anosArq.map((a) => <option key={a} value={a}>{a}</option>)}</select></label>
       </>}
       <span className="sp" />
-      <button className="btn" onClick={() => setImportando(true)} disabled={!loaded || !!erro}><Icon name="upload-simple" />Importar Excel</button>
       {!arquivadas && <div className="seg" role="group" aria-label="Vista">
         <button aria-pressed={vista === "quadro"} onClick={() => setVista("quadro")} title="Quadro"><Icon name="kanban" />Quadro</button>
         <button aria-pressed={vista === "lista"} onClick={() => setVista("lista")} title="Lista"><Icon name="list-bullets" />Lista</button>
@@ -100,13 +97,12 @@ export function PipelineSection({ search }: { search: string }) {
     </div>
     {!loaded ? <div className="loading">A carregar…</div>
       : erro ? <Empty title="Sem acesso ao pipeline" text={erro} />
-      : !deals.length ? <Empty title="O pipeline está vazio" text="Para começar o seguimento de uma startup, abre-a na Triagem ou nas Aprovadas e carrega em «Pôr no pipeline», ou importa o Excel do dealflow." />
+      : !deals.length ? <Empty title="O pipeline está vazio" text="Para começar o seguimento de uma startup, abre-a na Triagem ou nas Aprovadas e carrega em «Pôr no pipeline»." />
       : !arquivadas && vista === "calendario" ? <PipelineCalendar deals={filtradas} onOpen={setOpenId} />
       : !arquivadas && vista === "quadro" ? <PipelineBoard deals={filtradas} onOpen={setOpenId} notify={flash} />
       : !filtradas.length ? <Empty title="Nada encontrado" text="Muda a pesquisa ou os filtros." />
       : <PipelineTable key={`${estado}-${vista}`} deals={filtradas} arquivadas={arquivadas} onOpen={setOpenId} />}
     {open && <DealDrawer d={open} list={filtradas} origens={origens} pessoas={pessoas} onClose={() => setOpenId(null)} onNav={setOpenId} notify={flash} />}
-    {importando && <ImportDealflow deals={deals} email={email} onClose={() => setImportando(false)} onDone={(m) => { setImportando(false); flash(m); }} />}
     {el}
   </>);
 }
