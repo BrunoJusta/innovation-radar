@@ -18,7 +18,8 @@ service cloud.firestore {
       // Notícias adicionadas à mão a partir de um link
       allow create: if member() && request.resource.data.manual == true
                     && request.resource.data.status in ['pending', 'approved'];
-      allow delete: if admin();
+      // Rejeitar apaga: a equipa só pode apagar uma notícia já marcada como rejeitada
+      allow delete: if admin() || (member() && resource.data.status == 'rejected');
     }
     // Estrutura do radar: pública para leitura
     match /areas/{id}      { allow read: if true; allow write: if admin(); }
@@ -37,16 +38,19 @@ service cloud.firestore {
       allow read, update: if member();
       allow create: if member() && request.resource.data.manual == true
                     && request.resource.data.status in ['pending', 'approved'];
-      allow delete: if admin();
+      // Rejeitar apaga: a equipa só pode apagar uma startup já marcada como rejeitada
+      allow delete: if admin() || (member() && resource.data.status == 'rejected');
     }
     // Análises de investimento: histórico por startup (o BO cria; só admin apaga)
     match /startups/{id}/analises/{a} {
       allow read, create: if member();
-      allow update, delete: if admin();
+      allow update: if admin();
+      allow delete: if admin() || (member() && get(/databases/$(database)/documents/startups/$(id)).data.status == 'rejected');
     }
     // Configuração privada (guidelines de investimento): só para o BO
     match /config/{id}   { allow read: if member(); allow write: if admin(); }
-    match /startupSeen/{id} { allow read, write: if false; }
+    // Marca das startups rejeitadas (para a recolha semanal não as voltar a propor): o BO só escreve
+    match /startupSeen/{id} { allow read, update, delete: if false; allow create: if member(); }
     // Pipeline (dealflow): confidencial, só para administradores
     match /deals/{id} {
       allow read, create, update: if ventures();
