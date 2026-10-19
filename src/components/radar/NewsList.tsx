@@ -1,4 +1,5 @@
 "use client";
+import { CatSelect } from "@/components/CatSelect";
 import { Icon } from "@/components/Icon";
 import { snippet, SearchHit } from "@/lib/search";
 import { Area, Category } from "@/lib/types";
@@ -9,11 +10,11 @@ import { where } from "./SearchResults";
 export type Ordem = "recentes" | "relevancia";
 
 /** Vista em lista: todas as notícias do período (ou da pesquisa), por mês ou por relevância. */
-export function NewsList({ rows, ts, searching, hitsById, areas, cats, fRing, setFRing, fCat, setFCat, counts, period, setPeriod, periodOptions,
+export function NewsList({ rows, ts, searching, hitsById, areas, cats, fRing, setFRing, fCat, setFCat, counts, catCount, period, setPeriod, periodOptions,
   ordem, setOrdem, active, onOpen, setHover, summary, empty }: {
   rows: RadarItem[]; ts: string[]; searching: boolean; hitsById: Map<string, SearchHit>;
   areas: Area[]; cats: Category[]; fRing: string | null; setFRing: (id: string | null) => void; fCat: string; setFCat: (id: string) => void;
-  counts: (aid: string) => number; period: string; setPeriod: (p: string) => void; periodOptions: { v: string; l: string }[];
+  counts: (aid: string) => number; catCount: (cid: string) => number; period: string; setPeriod: (p: string) => void; periodOptions: { v: string; l: string }[];
   ordem: Ordem; setOrdem: (o: Ordem) => void; active: number; onOpen: (id: string) => void; setHover: (id: string | null) => void;
   summary: React.ReactNode; empty: React.ReactNode;
 }) {
@@ -43,16 +44,11 @@ export function NewsList({ rows, ts, searching, hitsById, areas, cats, fRing, se
               </button>
             ))}
           </div>
-          <div className="cats" role="group" aria-label="Filtrar por categoria">
-            <button className="chip" aria-pressed={fCat === "all"} onClick={() => setFCat("all")}>Todas as categorias</button>
-            {cats.map((c) => (
-              <button key={c.id} className="chip" aria-pressed={fCat === c.id} onClick={() => setFCat(c.id)}><Icon name={c.icone} />{c.nome}</button>
-            ))}
-          </div>
         </div>
       )}
       <div className="lctl">
         <span className="lcount"><b>{rows.length}</b> {rows.length === 1 ? "notícia" : "notícias"}</span>
+        {!searching && <CatSelect cats={cats} areas={areas} value={fCat} onChange={setFCat} area={fRing} counts={catCount} />}
         <span className="sp" />
         {!searching && (
           <label className="periodo">

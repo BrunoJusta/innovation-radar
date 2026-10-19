@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { CatSelect } from "@/components/CatSelect";
 import { Icon } from "@/components/Icon";
 import { loadPublished, loadStructure } from "@/lib/data";
 import { search, SearchDoc, terms } from "@/lib/search";
@@ -156,11 +157,17 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
     signals.forEach((s) => (s.publicado?.entidades || []).forEach((e) => n.set(e, (n.get(e) || 0) + 1)));
     return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([e]) => e);
   }, [signals]);
-  const examples = useMemo(() => [...topEnts.slice(0, 5), ...cats.map((c) => c.nome)], [topEnts, cats]);
+  // Categorias com mais notícias (com muitas categorias, só as principais entram nas sugestões)
+  const topCats = useMemo(() => {
+    const n = new Map<string, number>();
+    signals.forEach((s) => { const c = s.publicado?.categoria; if (c) n.set(c, (n.get(c) || 0) + 1); });
+    return [...cats].sort((a, b) => (n.get(b.id) || 0) - (n.get(a.id) || 0) || a.ordem - b.ordem).slice(0, 4);
+  }, [signals, cats]);
+  const examples = useMemo(() => [...topEnts.slice(0, 5), ...topCats.map((c) => c.nome)], [topEnts, topCats]);
   const suggestions: { label: string; icon?: string }[] = useMemo(() => [
-    ...cats.map((c) => ({ label: c.nome, icon: c.icone })),
+    ...topCats.map((c) => ({ label: c.nome, icon: c.icone })),
     ...topEnts.slice(0, 6).map((e) => ({ label: e })),
-  ], [cats, topEnts]);
+  ], [topCats, topEnts]);
 
   // Lista: filtros e ordem
   const rows = useMemo(() => {
@@ -193,6 +200,12 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
   const focusId = hover ?? (searching ? nav[active]?.id ?? null : null);
 
   const counts = (aid: string) => items.filter((x) => x.area === aid && (fCat === "all" || x.cat === fCat)).length;
+  const catCount = (cid: string) => items.filter((x) => x.cat === cid && (!fRing || x.area === fRing)).length;
+  // Ao escolher um anel, a categoria escolhida sai se for de outro anel
+  useEffect(() => {
+    const c = cats.find((x) => x.id === fCat);
+    if (c && fRing && c.area && c.area !== fRing) setFCat("all");
+  }, [fRing, fCat, cats]);
   const open = items.find((x) => x.id === openId) || null;
   const cur = cat(fCat);
 
@@ -246,18 +259,15 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                         </button>
                       ))}
                     </div>
-                    <div className="cats" role="group" aria-label="Filtrar por categoria">
-                      <button className="chip" aria-pressed={fCat === "all"} onClick={() => setFCat("all")}>Todas as categorias</button>
-                      {cats.map((c) => (
-                        <button key={c.id} className="chip" aria-pressed={fCat === c.id} onClick={() => setFCat(c.id)}><Icon name={c.icone} />{c.nome}</button>
-                      ))}
+                    <div className="fline">
+                      <CatSelect cats={cats} areas={areas} value={fCat} onChange={setFCat} area={fRing} counts={catCount} />
+                      <label className="periodo">
+                        <span>Período</span>
+                        <select value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Período">
+                          {periodOptions.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+                        </select>
+                      </label>
                     </div>
-                    <label className="periodo">
-                      <span>Período</span>
-                      <select value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Período">
-                        {periodOptions.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
-                      </select>
-                    </label>
                   </>
                 )}
               </div>
@@ -268,7 +278,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
             </>
           ) : (
             <NewsList rows={rows} ts={ts} searching={searching} hitsById={hitsById} areas={areas} cats={cats} fRing={fRing} setFRing={setFRing}
-              fCat={fCat} setFCat={setFCat} counts={counts} period={period} setPeriod={setPeriod} periodOptions={periodOptions}
+              fCat={fCat} setFCat={setFCat} counts={counts} catCount={catCount} period={period} setPeriod={setPeriod} periodOptions={periodOptions}
               ordem={ordem} setOrdem={setOrdem} active={searching ? active : -1}
               onOpen={setOpenId} setHover={() => {}} summary={summary}
               empty={state === "loading" ? <span>A carregar as notícias…</span> : state === "error" ? <><b>Não foi possível carregar as notícias</b><span>Atualiza a página dentro de alguns minutos.</span></> : empty} />
