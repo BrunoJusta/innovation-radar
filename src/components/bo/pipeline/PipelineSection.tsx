@@ -63,7 +63,7 @@ export function PipelineSection({ search }: { search: string }) {
       </div>
       {!arquivadas && <>
         <CatSelect cats={VEZ_OPC} value={vez || "all"} onChange={(id) => setVez(id === "all" ? "" : (id as Vez))} simples
-          counts={(id) => ativas.filter((d) => d.vez === id).length} total={ativas.length} allLabel="De quem é a vez: todos" procurar="Procurar" />
+          counts={(id) => ativas.filter((d) => d.vez === id).length} total={ativas.length} allLabel="Responsável: todos" procurar="Procurar" />
         <div className="seg" role="group" aria-label="Filtros">
           <button aria-pressed={minhas} onClick={() => setMinhas(!minhas)}><Icon name="users" />As minhas</button>
           <button aria-pressed={atrasadas} onClick={() => setAtrasadas(!atrasadas)} disabled={!late && !atrasadas}><Icon name="clock" />Atrasadas{late ? <span className="sc warn">{late}</span> : null}</button>
