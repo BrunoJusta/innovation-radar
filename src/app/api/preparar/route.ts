@@ -13,7 +13,7 @@ import { memberFromRequest } from "@/lib/server/auth";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-type Opt = { id: string; nome: string; descricao: string };
+type Opt = { id: string; nome: string; descricao: string; tipo?: "tematica" | "tecnologia" | "canal" };
 
 const fail = (msg: string, status = 400) => NextResponse.json({ erro: msg }, { status });
 
@@ -25,8 +25,8 @@ export async function POST(req: Request) {
   try { body = await req.json(); } catch { return fail("Pedido inválido."); }
   const url = (body.url || "").trim();
   if (!/^https?:\/\/\S+\.\S+/.test(url)) return fail("Indica um link que comece por http.");
-  const areas = (body.areas || []).slice(0, 20), cats = (body.cats || []).slice(0, 30);
-  if (!areas.length || !cats.length) return fail("Não há áreas ou categorias configuradas.");
+  const areas = (body.areas || []).slice(0, 20), cats = (body.cats || []).slice(0, 60);
+  if (!areas.length || !cats.length) return fail("Não há cadeias de valor ou tags configuradas.");
 
   // Texto: o que foi colado tem prioridade; senão, lê a página
   let page: Page = { url, titulo: (body.titulo || "").trim(), site: new URL(url).hostname.replace(/^www\./, ""), data: null, texto: htmlToText(body.texto || "") };
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       aviso,
       rascunho: {
         titulo: c.titulo_pt, resumo: c.resumo_pt, porque: c.porque_pt, entidades: c.entidades.slice(0, 6),
-        area: c.area, categoria: c.categoria, relevancia: c.relevancia,
+        area: c.area, tags: c.tags, relevancia: c.relevancia,
         dataPublicacao: page.data || new Date().toISOString(),
         fonte: { site: page.site, sourceId: "manual", url: normalizeUrl(page.url), urlHash: urlHash(page.url), tituloOriginal: page.titulo, data: page.data || new Date().toISOString(), ...(page.autor ? { autor: page.autor } : {}) },
       },
