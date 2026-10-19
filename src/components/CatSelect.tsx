@@ -2,16 +2,15 @@
 import "./CatSelect.css";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { Area, Category } from "@/lib/types";
+import { Area, Category, TIPOS_TAG, tipoDe } from "@/lib/types";
 
 /**
- * Filtro de categoria em dropdown: agrupado por anel, com pesquisa, contagens e teclado.
- * Usado no radar público e nas listas de notícias do backoffice. Com `area`, mostra só as
- * categorias desse anel (as categorias sem anel aparecem sempre).
+ * Filtro de tags em dropdown: agrupado em temáticas, tecnologias e canais, com pesquisa, contagens e teclado.
+ * Usado no radar público e nas listas de notícias do backoffice.
  */
-export function CatSelect({ cats, areas, value, onChange, counts, area = null, allLabel = "Todas as categorias", className = "" }: {
-  cats: Category[]; areas: Area[]; value: string; onChange: (id: string) => void;
-  counts?: (catId: string) => number; area?: string | null; allLabel?: string; className?: string;
+export function CatSelect({ cats, value, onChange, counts, total = null, allLabel = "Todas as tags", className = "" }: {
+  cats: Category[]; areas?: Area[]; value: string; onChange: (id: string) => void;
+  counts?: (catId: string) => number; /** Número de notícias sem filtro de tag (uma notícia pode ter várias tags). */ total?: number | null; allLabel?: string; className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -22,21 +21,19 @@ export function CatSelect({ cats, areas, value, onChange, counts, area = null, a
   const uid = useId();
 
   const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-  const visiveis = useMemo(() => cats.filter((c) => !area || !c.area || c.area === area), [cats, area]);
+  const visiveis = cats;
 
-  // Grupos por anel (pela ordem dos anéis); as categorias sem anel ficam num grupo no fim
+  // Grupos por tipo: temáticas, tecnologias e canais
   const groups = useMemo(() => {
     const f = fold(q.trim());
     const match = (c: Category) => !f || fold(c.nome).includes(f);
     const out: { key: string; nome: string; cor?: string; items: Category[] }[] = [];
-    for (const a of areas) {
-      const items = visiveis.filter((c) => c.area === a.id && match(c));
-      if (items.length) out.push({ key: a.id, nome: a.nome, cor: a.cor, items });
+    for (const tp of TIPOS_TAG) {
+      const items = visiveis.filter((c) => tipoDe(c) === tp.id && match(c)).sort((a, b) => a.ordem - b.ordem);
+      if (items.length) out.push({ key: tp.id, nome: tp.plural, items });
     }
-    const soltas = visiveis.filter((c) => (!c.area || !areas.some((a) => a.id === c.area)) && match(c));
-    if (soltas.length) out.push({ key: "_", nome: out.length ? "Sem anel" : "", items: soltas });
     return out;
-  }, [areas, visiveis, q]);
+  }, [visiveis, q]);
   const flat = useMemo(() => [...(q.trim() ? [] : ["all"]), ...groups.flatMap((g) => g.items.map((c) => c.id))], [groups, q]);
 
   const cur = cats.find((c) => c.id === value);
@@ -64,7 +61,6 @@ export function CatSelect({ cats, areas, value, onChange, counts, area = null, a
     else if (e.key === "Enter") { e.preventDefault(); if (flat[hi]) pick(flat[hi]); }
   };
 
-  const total = counts ? visiveis.reduce((n, c) => n + counts(c.id), 0) : null;
   let i = q.trim() ? -1 : 0;
 
   return (
@@ -78,18 +74,18 @@ export function CatSelect({ cats, areas, value, onChange, counts, area = null, a
         <Icon name="caret-down" className="cdc" />
       </button>
       {value !== "all" && (
-        <button type="button" className="cdx" aria-label="Tirar filtro de categoria" onClick={() => onChange("all")}><Icon name="x" /></button>
+        <button type="button" className="cdx" aria-label="Tirar filtro de tag" onClick={() => onChange("all")}><Icon name="x" /></button>
       )}
       {open && (
         <div className="cdp" onKeyDown={onKey}>
           {visiveis.length > 6 && (
             <div className="cds-q">
               <Icon name="magnifying-glass" />
-              <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar categoria" aria-label="Procurar categoria"
+              <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar tag" aria-label="Procurar tag"
                 role="combobox" aria-expanded aria-controls={`${uid}l`} aria-activedescendant={flat[hi] ? `${uid}-${flat[hi]}` : undefined} />
             </div>
           )}
-          <div className="cdo" role="listbox" id={`${uid}l`} ref={list} tabIndex={visiveis.length > 6 ? -1 : 0} aria-label="Categorias">
+          <div className="cdo" role="listbox" id={`${uid}l`} ref={list} tabIndex={visiveis.length > 6 ? -1 : 0} aria-label="Tags">
             {!q.trim() && (
               <button type="button" role="option" id={`${uid}-all`} data-i={0} aria-selected={value === "all"} className={`cdi${hi === 0 ? " hi" : ""}`}
                 onMouseEnter={() => setHi(0)} onClick={() => pick("all")}>
@@ -110,7 +106,7 @@ export function CatSelect({ cats, areas, value, onChange, counts, area = null, a
                 })}
               </div>
             ))}
-            {!groups.length && <div className="cde">Nenhuma categoria com «{q}»</div>}
+            {!groups.length && <div className="cde">Nenhuma tag com «{q}»</div>}
           </div>
         </div>
       )}
