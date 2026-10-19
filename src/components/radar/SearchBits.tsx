@@ -75,8 +75,8 @@ export function ViewToggle({ view, setView }: { view: "radar" | "lista"; setView
   return (
     <div className="vtog" role="radiogroup" aria-label="Vista">
       <span className="vth" style={{ transform: view === "lista" ? "translateX(100%)" : "none" }} aria-hidden="true" />
-      <button role="radio" aria-checked={view === "radar"} onClick={() => setView("radar")}><Icon name="target" />Radar</button>
-      <button role="radio" aria-checked={view === "lista"} onClick={() => setView("lista")}><Icon name="list-bullets" />Lista</button>
+      <button role="radio" title="Radar" aria-checked={view === "radar"} onClick={() => setView("radar")}><Icon name="target" />Radar</button>
+      <button role="radio" title="Lista" aria-checked={view === "lista"} onClick={() => setView("lista")}><Icon name="list-bullets" />Lista</button>
     </div>
   );
 }
