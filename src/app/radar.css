@@ -421,3 +421,8 @@
 /* Números com 3 dígitos cabem no círculo */
 .rp .num{width:auto;min-width:24px;padding:0 4px;border-radius:999px}
 .rp .lrow .num{width:auto;min-width:28px}
+
+/* Radar das startups (no backoffice): fase com bolinha de cor, domínio ao lado do nome */
+.rp .scdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--sc);flex:none}
+.rp .chip .cn{font-family:var(--f-mono);font-size:12px;color:var(--ink-subtle);margin-left:2px}
+.rp .ltit .ldom{margin-left:10px;font-family:var(--f-mono);font-size:12px;font-weight:400;color:var(--ink-tertiary);letter-spacing:0}
