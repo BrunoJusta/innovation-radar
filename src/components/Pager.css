@@ -14,3 +14,9 @@
 .pgr-anchor{scroll-margin-top:16px}
 .bo .pgr-anchor{scroll-margin-top:80px}
 @media (max-width:640px){.pgr{justify-content:center}.pgr .pgi{width:100%;text-align:center}}
+/* Junto ao fim da lista e com espaço por baixo */
+.pgr{padding:14px 0 32px}
+.bo .pgr{padding:14px 0 64px}
+.bo .tbl:has(+ .pgr){margin-bottom:0}
+.bo .group:has(+ .pgr){padding-bottom:0}
+.rp .pgr-s{padding:10px 0 4px}
