@@ -1,5 +1,6 @@
 "use client";
 import { Icon } from "@/components/Icon";
+import { useEffect, useRef } from "react";
 import { snippet, SearchHit } from "@/lib/search";
 import { Area, Category } from "@/lib/types";
 import type { RadarItem } from "./RadarApp";
@@ -61,9 +62,12 @@ export function SearchResults({ results, hitsById, ts, area, cat, active, setHov
   area: (id: string) => Area | undefined; cat: (id: string) => Category | undefined;
   active: number; setHover: (id: string | null) => void; onOpen: (id: string) => void; empty: React.ReactNode;
 }) {
+  const ref = useRef<HTMLOListElement>(null);
+  const first = results[0]?.id;
+  useEffect(() => { if (ref.current) ref.current.scrollTop = 0; }, [first]);
   if (!results.length) return <div className="snone">{empty}</div>;
   return (
-    <ol className="slist" id="sres" role="listbox" aria-label="Resultados da pesquisa">
+    <ol className="slist" id="sres" role="listbox" aria-label="Resultados da pesquisa" ref={ref}>
       {results.map((x, k) => {
         const a = area(x.area), c = cat(x.cat), h = hitsById.get(x.id);
         return (

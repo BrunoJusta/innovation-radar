@@ -10,9 +10,10 @@ import { where } from "./SearchResults";
 export type Ordem = "recentes" | "relevancia";
 
 /** Vista em lista: todas as notícias do período (ou da pesquisa), por mês ou por relevância. */
-export function NewsList({ rows, ts, searching, hitsById, areas, cats, fRing, setFRing, fCat, setFCat, counts, catCount, period, setPeriod, periodOptions,
+export function NewsList({ rows, allRows, pager, topRef, ts, searching, hitsById, areas, cats, fRing, setFRing, fCat, setFCat, counts, catCount, period, setPeriod, periodOptions,
   ordem, setOrdem, active, onOpen, setHover, summary, empty }: {
-  rows: RadarItem[]; ts: string[]; searching: boolean; hitsById: Map<string, SearchHit>;
+  /** Notícias desta página; `allRows` são todas (para os totais). */
+  rows: RadarItem[]; allRows: RadarItem[]; pager: React.ReactNode; topRef: React.RefObject<HTMLDivElement | null>; ts: string[]; searching: boolean; hitsById: Map<string, SearchHit>;
   areas: Area[]; cats: Category[]; fRing: string | null; setFRing: (id: string | null) => void; fCat: string; setFCat: (id: string) => void;
   counts: (aid: string) => number; catCount: (cid: string) => number; period: string; setPeriod: (p: string) => void; periodOptions: { v: string; l: string }[];
   ordem: Ordem; setOrdem: (o: Ordem) => void; active: number; onOpen: (id: string) => void; setHover: (id: string | null) => void;
@@ -31,6 +32,9 @@ export function NewsList({ rows, ts, searching, hitsById, areas, cats, fRing, se
     }
   } else groups.push({ key: "all", label: "", rows });
 
+  // Total de cada mês em todas as páginas (um mês pode continuar na página seguinte)
+  const mesTotal = (k: string) => allRows.filter((x) => mesKey(x.data) === k).length;
+
   let idx = -1;
   return (
     <div className="lv">
@@ -47,7 +51,7 @@ export function NewsList({ rows, ts, searching, hitsById, areas, cats, fRing, se
         </div>
       )}
       <div className="lctl">
-        <span className="lcount"><b>{rows.length}</b> {rows.length === 1 ? "notícia" : "notícias"}</span>
+        <span className="lcount"><b>{allRows.length}</b> {allRows.length === 1 ? "notícia" : "notícias"}</span>
         {!searching && <CatSelect cats={cats} areas={areas} value={fCat} onChange={setFCat} area={fRing} counts={catCount} />}
         <span className="sp" />
         {!searching && (
@@ -66,11 +70,12 @@ export function NewsList({ rows, ts, searching, hitsById, areas, cats, fRing, se
           </select>
         </label>
       </div>
+      <div ref={topRef} className="pgr-anchor" />
       {!rows.length ? <div className="snone">{empty}</div> : (
         <div className="lgroups" id="sres" role={searching ? "listbox" : undefined} aria-label={searching ? "Resultados da pesquisa" : undefined}>
           {groups.map((g) => (
             <section key={g.key} className="lgrp" aria-label={g.label || undefined}>
-              {g.label && <h3 className="lmh"><span>{g.label}</span><em>{g.rows.length}</em></h3>}
+              {g.label && <h3 className="lmh"><span>{g.label}</span><em>{mesTotal(g.key)}</em></h3>}
               <ol className="lrows">
                 {g.rows.map((x) => {
                   idx++;
@@ -99,6 +104,7 @@ export function NewsList({ rows, ts, searching, hitsById, areas, cats, fRing, se
               </ol>
             </section>
           ))}
+          {pager}
         </div>
       )}
     </div>

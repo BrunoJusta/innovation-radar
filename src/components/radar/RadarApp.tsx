@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { Pager, usePaged } from "@/components/Pager";
 import { CatSelect } from "@/components/CatSelect";
 import { Icon } from "@/components/Icon";
 import { loadPublished, loadStructure } from "@/lib/data";
@@ -176,8 +177,11 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
     return searching ? l : [...l].sort((a, b) => b.relevancia - a.relevancia || b.data.localeCompare(a.data));
   }, [searching, results, items, passa, ordem]);
 
-  const nav = view === "lista" ? rows : results;
-  useEffect(() => setActive(0), [dq, fRing, fCat, view, ordem]);
+  // 40 por página na lista e nos resultados ao lado do radar
+  const pgL = usePaged(rows, `${dq}|${fRing}|${fCat}|${period}|${ordem}`);
+  const pgR = usePaged(results, `${dq}|${fRing}|${fCat}`);
+  const nav = view === "lista" ? pgL.items : pgR.items;
+  useEffect(() => setActive(0), [dq, fRing, fCat, view, ordem, pgL.page, pgR.page]);
   useEffect(() => {
     if (!searching) return;
     const el = document.getElementById(`sr-${nav[active]?.id}`);
@@ -247,8 +251,9 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                 {searching ? (
                   <div className="spanel" key="s">
                     {summary}
-                    <SearchResults results={results} hitsById={hitsById} ts={ts} area={area} cat={cat} active={active}
+                    <SearchResults results={pgR.items} hitsById={hitsById} ts={ts} area={area} cat={cat} active={active}
                       setHover={setHover} onOpen={setOpenId} empty={empty} />
+                    <Pager {...pgR} label="sinais" className="pgr-s" />
                   </div>
                 ) : (
                   <>
@@ -277,7 +282,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                 emptyTitle="Ainda sem sinais neste período" emptyText="Assim que a equipa de Inovação aprovar notícias, elas aparecem aqui." ariaLabel="Radar com os sinais do período" />
             </>
           ) : (
-            <NewsList rows={rows} ts={ts} searching={searching} hitsById={hitsById} areas={areas} cats={cats} fRing={fRing} setFRing={setFRing}
+            <NewsList rows={pgL.items} allRows={rows} pager={<Pager {...pgL} label="notícias" />} topRef={pgL.top} ts={ts} searching={searching} hitsById={hitsById} areas={areas} cats={cats} fRing={fRing} setFRing={setFRing}
               fCat={fCat} setFCat={setFCat} counts={counts} catCount={catCount} period={period} setPeriod={setPeriod} periodOptions={periodOptions}
               ordem={ordem} setOrdem={setOrdem} active={searching ? active : -1}
               onOpen={setOpenId} setHover={() => {}} summary={summary}
