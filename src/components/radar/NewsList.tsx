@@ -10,12 +10,12 @@ import { where } from "./SearchResults";
 export type Ordem = "recentes" | "relevancia";
 
 /** Vista em lista: todas as notícias do período (ou da pesquisa), por mês ou por relevância. */
-export function NewsList({ rows, allRows, pager, topRef, ts, searching, hitsById, areas, cats, fRing, setFRing, fCat, setFCat, counts, catCount, period, setPeriod, periodOptions,
+export function NewsList({ rows, allRows, pager, topRef, ts, searching, hitsById, areas, cats, fRing, setFRing, fCat, setFCat, counts, catCount, catTotal, period, setPeriod, periodOptions,
   ordem, setOrdem, active, onOpen, setHover, summary, empty }: {
   /** Notícias desta página; `allRows` são todas (para os totais). */
   rows: RadarItem[]; allRows: RadarItem[]; pager: React.ReactNode; topRef: React.RefObject<HTMLDivElement | null>; ts: string[]; searching: boolean; hitsById: Map<string, SearchHit>;
   areas: Area[]; cats: Category[]; fRing: string | null; setFRing: (id: string | null) => void; fCat: string; setFCat: (id: string) => void;
-  counts: (aid: string) => number; catCount: (cid: string) => number; period: string; setPeriod: (p: string) => void; periodOptions: { v: string; l: string }[];
+  counts: (aid: string) => number; catCount: (cid: string) => number; catTotal?: number; period: string; setPeriod: (p: string) => void; periodOptions: { v: string; l: string }[];
   ordem: Ordem; setOrdem: (o: Ordem) => void; active: number; onOpen: (id: string) => void; setHover: (id: string | null) => void;
   summary: React.ReactNode; empty: React.ReactNode;
 }) {
@@ -40,8 +40,8 @@ export function NewsList({ rows, allRows, pager, topRef, ts, searching, hitsById
     <div className="lv">
       {searching ? summary : (
         <div className="lbar">
-          <div className="lareas" role="group" aria-label="Filtrar por área">
-            <button className="chip" aria-pressed={!fRing} onClick={() => setFRing(null)}>Todas as áreas</button>
+          <div className="lareas" role="group" aria-label="Filtrar por cadeia de valor">
+            <button className="chip" aria-pressed={!fRing} onClick={() => setFRing(null)}>Todas as cadeias de valor</button>
             {areas.map((a) => (
               <button key={a.id} className="chip achip" style={{ ["--c" as string]: a.cor }} aria-pressed={fRing === a.id} onClick={() => setFRing(fRing === a.id ? null : a.id)}>
                 <span className="cdot" />{a.nome}<span className="cn">{counts(a.id)}</span>
@@ -52,7 +52,7 @@ export function NewsList({ rows, allRows, pager, topRef, ts, searching, hitsById
       )}
       <div className="lctl">
         <span className="lcount"><b>{allRows.length}</b> {allRows.length === 1 ? "notícia" : "notícias"}</span>
-        {!searching && <CatSelect cats={cats} areas={areas} value={fCat} onChange={setFCat} area={fRing} counts={catCount} />}
+        {!searching && <CatSelect cats={cats} value={fCat} onChange={setFCat} counts={catCount} total={catTotal} />}
         <span className="sp" />
         {!searching && (
           <label className="periodo">
@@ -79,7 +79,7 @@ export function NewsList({ rows, allRows, pager, topRef, ts, searching, hitsById
               <ol className="lrows">
                 {g.rows.map((x) => {
                   idx++;
-                  const a = area(x.area), c = cat(x.cat), h = hitsById.get(x.id), k = idx;
+                  const a = area(x.area), tg = (x.tags || [x.cat]).map(cat).filter((y): y is Category => !!y), h = hitsById.get(x.id), k = idx;
                   return (
                     <li key={x.id} style={{ ["--c" as string]: x.color, ["--k" as string]: Math.min(k, 14) }}>
                       <button id={`sr-${x.id}`} className={`lrow${k === active ? " act" : ""}`} onClick={() => onOpen(x.id)}
@@ -91,7 +91,7 @@ export function NewsList({ rows, allRows, pager, topRef, ts, searching, hitsById
                           <span className="lres"><Hl text={searching ? snippet(x.resumo, ts, 220) : x.resumo} ts={ts} /></span>
                           <span className="lmeta">
                             <span className="lar"><i />{a?.nome}</span>
-                            {c && <span className="lca"><Icon name={c.icone} />{c.nome}</span>}
+                            {tg.slice(0, 3).map((c) => <span key={c.id} className="lca"><Icon name={c.icone} />{c.nome}</span>)}
                             {x.entidades.slice(0, 4).map((e) => <span key={e} className="lent"><Hl text={e} ts={ts} /></span>)}
                             {searching && h && where(h) && <span className="swhere">encontrado em {where(h)}</span>}
                           </span>

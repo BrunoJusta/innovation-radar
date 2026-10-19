@@ -18,8 +18,8 @@ function splitParagraphs(resumo: string) {
   return { lede, paras };
 }
 
-export function SignalModal({ item: x, items, areas, R, area, cat, onClose }: {
-  item: RadarItem; items: RadarItem[]; areas: Area[]; R: number[]; area?: Area; cat?: Category; onClose: () => void;
+export function SignalModal({ item: x, items, areas, R, area, cat, tags, onClose }: {
+  item: RadarItem; items: RadarItem[]; areas: Area[]; R: number[]; area?: Area; cat?: Category; /** Todas as tags da notícia (sem isto mostra só `cat`). */ tags?: Category[]; onClose: () => void;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -43,7 +43,7 @@ export function SignalModal({ item: x, items, areas, R, area, cat, onClose }: {
         <header className="mhead" style={{ ["--c" as string]: c }}>
           <div className="mtop">
             <div className="mtl">
-              <div className="kick"><span className="a">{area?.nome}</span><span className="sep" /><span className="c">{cat && <Icon name={cat.icone} />}{cat?.nome}</span></div>
+              <div className="kick"><span className="a">{area?.nome}</span>{(tags || (cat ? [cat] : [])).map((c) => <span key={c.id} className="kt"><span className="sep" /><span className="c"><Icon name={c.icone} />{c.nome}</span></span>)}</div>
               <h2 className="mtitle" id="mt">{x.titulo}</h2>
               <div className="mdate">{fdLongo(x.data)}<span className="dot" />{minutos} min de leitura</div>
             </div>

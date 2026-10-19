@@ -5,7 +5,7 @@ import { CatSelect } from "@/components/CatSelect";
 import { Icon } from "@/components/Icon";
 import { loadPublished, loadStructure } from "@/lib/data";
 import { search, SearchDoc, terms } from "@/lib/search";
-import { Area, Category, Settings, Signal } from "@/lib/types";
+import { Area, Category, Settings, Signal, tagsDe, tipoDe } from "@/lib/types";
 import { quarterKey, quarterLabel } from "@/lib/util";
 import { NewsList, Ordem } from "./NewsList";
 import { ChartItem, layout, RadarChart, ringRadii } from "./RadarChart";
@@ -14,7 +14,8 @@ import { SearchResults, SearchSummary } from "./SearchResults";
 import { SignalModal } from "./SignalModal";
 
 export interface RadarItem extends ChartItem {
-  area: string; cat: string;
+  /** `cat` é a tag principal (a primeira temática); `tags` são todas (só nas notícias). */
+  area: string; cat: string; tags?: string[];
   resumo: string; entidades: string[]; fontes: { titulo: string; url: string }[];
   data: string; relevancia: number; destaque: boolean;
 }
@@ -118,9 +119,11 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
     });
     const base = inPeriod.map((s) => {
       const p = s.publicado!;
-      const a = areas.find((x) => x.id === p.area), c = cats.find((x) => x.id === p.categoria);
-      return { id: s.id, ring: p.area, area: p.area, cat: p.categoria, group: p.categoria, color: a?.cor || "#999",
-        titulo: p.titulo, sub: `${a?.nome || ""}, ${c?.nome || ""}`, resumo: p.resumo, entidades: p.entidades || [], fontes: p.fontes || [],
+      const a = areas.find((x) => x.id === p.area);
+      const tags = tagsDe(p), tc = tags.map((id) => cats.find((x) => x.id === id)).filter((c): c is Category => !!c);
+      const principal = tc.find((c) => tipoDe(c) === "tematica")?.id || tags[0] || "";
+      return { id: s.id, ring: p.area, area: p.area, cat: principal, tags, group: principal, groups: tags, color: a?.cor || "#999",
+        titulo: p.titulo, sub: [a?.nome, ...tc.slice(0, 2).map((c) => c.nome)].filter(Boolean).join(", "), resumo: p.resumo, entidades: p.entidades || [], fontes: p.fontes || [],
         data: p.dataPublicacao, relevancia: p.relevancia, destaque: p.destaque };
     });
     return layout(areas, base);
@@ -129,20 +132,21 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
   // Pesquisa
   const docs: SearchDoc[] = useMemo(() => items.map((x) => ({
     id: x.id, titulo: x.titulo, resumo: x.resumo, entidades: x.entidades, fontes: x.fontes,
-    areaNome: area(x.area)?.nome || "", catNome: cat(x.cat)?.nome || "", relevancia: x.relevancia, data: x.data,
+    areaNome: area(x.area)?.nome || "", catNome: (x.tags || [x.cat]).map((id) => cat(id)?.nome || "").join(" · "), relevancia: x.relevancia, data: x.data,
   })), [items, area, cat]);
   const hits = useMemo(() => (searching ? search(docs, dq) : []), [docs, dq, searching]);
   const hitsById = useMemo(() => new Map(hits.map((h) => [h.id, h])), [hits]);
   const hitSet = useMemo(() => (searching ? new Set(hits.map((h) => h.id)) : null), [hits, searching]);
   const byId = useMemo(() => new Map(items.map((x) => [x.id, x])), [items]);
-  const passa = useCallback((x: RadarItem) => (!fRing || x.area === fRing) && (fCat === "all" || x.cat === fCat), [fRing, fCat]);
+  const temTag = useCallback((x: RadarItem) => fCat === "all" || (x.tags || [x.cat]).includes(fCat), [fCat]);
+  const passa = useCallback((x: RadarItem) => (!fRing || x.area === fRing) && temTag(x), [fRing, temTag]);
   const hitItems = useMemo(() => hits.map((h) => byId.get(h.id)!).filter(Boolean), [hits, byId]);
   const results = useMemo(() => hitItems.filter(passa), [hitItems, passa]);
   const byArea = useMemo(() => {
     const o: Record<string, number> = {};
-    hitItems.filter((x) => fCat === "all" || x.cat === fCat).forEach((x) => { o[x.area] = (o[x.area] || 0) + 1; });
+    hitItems.filter(temTag).forEach((x) => { o[x.area] = (o[x.area] || 0) + 1; });
     return o;
-  }, [hitItems, fCat]);
+  }, [hitItems, temTag]);
   // Entidades que aparecem nos resultados e que ainda não estão na pesquisa: servem para afinar
   const related = useMemo(() => {
     if (!searching) return [];
@@ -161,7 +165,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
   // Categorias com mais notícias (com muitas categorias, só as principais entram nas sugestões)
   const topCats = useMemo(() => {
     const n = new Map<string, number>();
-    signals.forEach((s) => { const c = s.publicado?.categoria; if (c) n.set(c, (n.get(c) || 0) + 1); });
+    signals.forEach((s) => tagsDe(s.publicado).forEach((c) => n.set(c, (n.get(c) || 0) + 1)));
     return [...cats].sort((a, b) => (n.get(b.id) || 0) - (n.get(a.id) || 0) || a.ordem - b.ordem).slice(0, 4);
   }, [signals, cats]);
   const examples = useMemo(() => [...topEnts.slice(0, 5), ...topCats.map((c) => c.nome)], [topEnts, topCats]);
@@ -203,13 +207,9 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
   };
   const focusId = hover ?? (searching ? nav[active]?.id ?? null : null);
 
-  const counts = (aid: string) => items.filter((x) => x.area === aid && (fCat === "all" || x.cat === fCat)).length;
-  const catCount = (cid: string) => items.filter((x) => x.cat === cid && (!fRing || x.area === fRing)).length;
-  // Ao escolher um anel, a categoria escolhida sai se for de outro anel
-  useEffect(() => {
-    const c = cats.find((x) => x.id === fCat);
-    if (c && fRing && c.area && c.area !== fRing) setFCat("all");
-  }, [fRing, fCat, cats]);
+  const counts = (aid: string) => items.filter((x) => x.area === aid && temTag(x)).length;
+  const catCount = (cid: string) => items.filter((x) => (x.tags || [x.cat]).includes(cid) && (!fRing || x.area === fRing)).length;
+  const catTotal = items.filter((x) => !fRing || x.area === fRing).length;
   const open = items.find((x) => x.id === openId) || null;
   const cur = cat(fCat);
 
@@ -220,7 +220,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
   const empty = searching ? (
     <>
       <b>Nada no radar para «{dq.trim()}»</b>
-      <span>{hits.length ? "Há resultados noutras áreas ou categorias. Tira os filtros para os veres." : "Experimenta outra palavra ou um destes temas:"}</span>
+      <span>{hits.length ? "Há resultados noutras cadeias de valor ou tags. Tira os filtros para os veres." : "Experimenta outra palavra ou um destes temas:"}</span>
       {hits.length ? (
         <button className="chip" onClick={() => { setFRing(null); setFCat("all"); }}>Tirar filtros</button>
       ) : (
@@ -228,7 +228,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
       )}
     </>
   ) : (
-    <><b>Sem notícias com estes filtros</b><span>Escolhe outro período ou tira os filtros de área e categoria.</span></>
+    <><b>Sem notícias com estes filtros</b><span>Escolhe outro período ou tira os filtros de cadeia de valor e tag.</span></>
   );
 
   return (
@@ -257,7 +257,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                   </div>
                 ) : (
                   <>
-                    <div className={`legend${fRing ? " filtering" : ""}`} role="group" aria-label="Filtrar por área">
+                    <div className={`legend${fRing ? " filtering" : ""}`} role="group" aria-label="Filtrar por cadeia de valor">
                       {areas.map((a) => (
                         <button key={a.id} className="lg" style={{ ["--c" as string]: a.cor }} aria-pressed={fRing === a.id} onClick={() => setFRing(fRing === a.id ? null : a.id)}>
                           <span className="sw" /><b>{a.nome}</b><span className="n">{counts(a.id)}</span>
@@ -265,7 +265,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                       ))}
                     </div>
                     <div className="fline">
-                      <CatSelect cats={cats} areas={areas} value={fCat} onChange={setFCat} area={fRing} counts={catCount} />
+                      <CatSelect cats={cats} value={fCat} onChange={setFCat} counts={catCount} total={catTotal} />
                       <label className="periodo">
                         <span>Período</span>
                         <select value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Período">
@@ -283,7 +283,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
             </>
           ) : (
             <NewsList rows={pgL.items} allRows={rows} pager={<Pager {...pgL} label="notícias" />} topRef={pgL.top} ts={ts} searching={searching} hitsById={hitsById} areas={areas} cats={cats} fRing={fRing} setFRing={setFRing}
-              fCat={fCat} setFCat={setFCat} counts={counts} catCount={catCount} period={period} setPeriod={setPeriod} periodOptions={periodOptions}
+              fCat={fCat} setFCat={setFCat} counts={counts} catCount={catCount} catTotal={catTotal} period={period} setPeriod={setPeriod} periodOptions={periodOptions}
               ordem={ordem} setOrdem={setOrdem} active={searching ? active : -1}
               onOpen={setOpenId} setHover={() => {}} summary={summary}
               empty={state === "loading" ? <span>A carregar as notícias…</span> : state === "error" ? <><b>Não foi possível carregar as notícias</b><span>Atualiza a página dentro de alguns minutos.</span></> : empty} />
@@ -291,7 +291,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
         </section>
       </main>
       {open && (
-        <SignalModal item={open} items={items} areas={areas} R={R} area={area(open.area)} cat={cat(open.cat)} onClose={() => setOpenId(null)} />
+        <SignalModal item={open} items={items} areas={areas} R={R} area={area(open.area)} cat={cat(open.cat)} tags={(open.tags || [open.cat]).map(cat).filter((c): c is Category => !!c)} onClose={() => setOpenId(null)} />
       )}
     </div>
   );

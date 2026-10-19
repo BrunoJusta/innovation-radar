@@ -8,13 +8,14 @@ const ang = (p: { x: number; y: number }) => ((Math.atan2(p.x, -p.y) * 180) / Ma
 
 export interface Ring { id: string; nome: string; cor: string }
 export interface ChartItem {
-  id: string; n: number; ring: string; color: string; group: string; x: number; y: number; titulo: string; sub: string;
+  id: string; n: number; ring: string; color: string; group: string; /** Vários grupos (as tags de uma notícia); sem isto vale `group`. */ groups?: string[]; x: number; y: number; titulo: string; sub: string;
   /** Escala do ponto (1 = normal); fica menor quando o anel tem muitos itens. */
   s?: number;
 }
 
 /** Raio exterior de cada anel. O expoente < 1 dá mais largura aos anéis de dentro, que têm menos perímetro. */
-export const ringRadii = (n: number) => Array.from({ length: n }, (_, i) => RMAX * Math.pow((i + 1) / Math.max(n, 1), 0.7));
+// Com muitos anéis o expoente aproxima-se de 1, para os de fora não ficarem colados uns aos outros
+export const ringRadii = (n: number) => { const e = n >= 6 ? 0.86 : n >= 4 ? 0.78 : 0.7; return Array.from({ length: n }, (_, i) => RMAX * Math.pow((i + 1) / Math.max(n, 1), e)); };
 
 const BASE_R = 13; // raio normal do ponto
 const MIN_S = 0.5; // escala mínima
@@ -99,7 +100,7 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
   useEffect(() => setStill(prefersReduced()), []);
   const [tip, setTip] = useState<{ x: number; y: number; t: string; s: string } | null>(null);
   const R = useMemo(() => ringRadii(rings.length), [rings.length]);
-  const match = (x: ChartItem) => (!fRing || x.ring === fRing) && (fGroup === "all" || x.group === fGroup) && (!hits || hits.has(x.id));
+  const match = (x: ChartItem) => (!fRing || x.ring === fRing) && (fGroup === "all" || (x.groups ? x.groups.includes(fGroup) : x.group === fGroup)) && (!hits || hits.has(x.id));
   const P = idPrefix;
 
   // O círculo entra sempre a crescer: escala menor sem transição e depois o tamanho final
@@ -213,10 +214,10 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
         {[...rings].map((a, i) => ({ a, i })).reverse().map(({ a, i }) => (
           <g key={a.id} className={`ringg${fRing && a.id !== fRing ? " off" : ""}`}>
             <circle style={{ r: R[i] * K }} r={R[i]} fill={`color-mix(in srgb, ${a.cor} 3%, transparent)`} />
-            <circle style={{ r: R[i] * K }} r={R[i]} fill="none" stroke={`url(#${P}rg${i})`} strokeWidth={3} filter={`url(#${P}glow)`} />
+            <circle style={{ r: R[i] * K }} r={R[i]} fill="none" stroke={`url(#${P}rg${i})`} strokeWidth={2} filter={`url(#${P}glow)`} />
             {/* Órbita pontilhada que roda muito devagar junto a cada anel */}
             <g className="orbit">
-              <circle style={{ r: R[i] * K - 9 }} r={R[i] - 9} fill="none" stroke={a.cor} strokeWidth={1.4} strokeDasharray="1.5 9" strokeLinecap="round" opacity={0.45} />
+              <circle style={{ r: R[i] * K - 9 }} r={R[i] - 9} fill="none" stroke={a.cor} strokeWidth={1.1} strokeDasharray="1.5 9" strokeLinecap="round" opacity={0.45} />
               {!still && <animateTransform attributeName="transform" type="rotate" from={i % 2 ? "0 0 0" : "360 0 0"} to={i % 2 ? "360 0 0" : "0 0 0"} dur={`${90 + i * 30}s`} repeatCount="indefinite" />}
             </g>
           </g>
