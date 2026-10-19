@@ -82,15 +82,24 @@ export function layout<T extends { id: string; ring: string; relevancia: number 
   return out;
 }
 
-export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, state, emptyTitle, emptyText, ariaLabel, idPrefix = "r" }: {
+export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, state, emptyTitle, emptyText, ariaLabel, idPrefix = "r", hits = null, focusId = null, scanKey = "", center = null, onHover }: {
   rings: Ring[]; items: ChartItem[]; fRing: string | null; fGroup: string; regrowKey: string;
   onOpen: (id: string) => void; state: "loading" | "ok" | "error"; emptyTitle: string; emptyText: string; ariaLabel: string; idPrefix?: string;
+  /** Pesquisa: só estes itens ficam acesos (os outros apagam-se e os acesos ficam ligados entre si). */
+  hits?: Set<string> | null;
+  /** Item em destaque (por exemplo, o resultado por cima do qual está o rato). */
+  focusId?: string | null;
+  /** Muda a cada pesquisa nova: o varrimento passa pelo radar e acende os resultados à medida que lhes toca. */
+  scanKey?: string;
+  /** Número grande no centro do radar (por exemplo, quantos resultados há). */
+  center?: { n: number; label: string } | null;
+  onHover?: (id: string | null) => void;
 }) {
   const [still, setStill] = useState(false); // movimento reduzido: anéis parados
   useEffect(() => setStill(prefersReduced()), []);
   const [tip, setTip] = useState<{ x: number; y: number; t: string; s: string } | null>(null);
   const R = useMemo(() => ringRadii(rings.length), [rings.length]);
-  const match = (x: ChartItem) => (!fRing || x.ring === fRing) && (fGroup === "all" || x.group === fGroup);
+  const match = (x: ChartItem) => (!fRing || x.ring === fRing) && (fGroup === "all" || x.group === fGroup) && (!hits || hits.has(x.id));
   const P = idPrefix;
 
   // O círculo entra sempre a crescer: escala menor sem transição e depois o tamanho final
@@ -115,22 +124,24 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
   // Ligações entre itens do mesmo grupo (categoria ou setor)
   const linksRef = useRef<SVGGElement>(null);
   const links = useMemo(() => {
-    if (fGroup === "all") return [];
+    if (fGroup === "all" && !hits) return [];
     // Em cadeia: cada item liga ao vizinho seguinte à volta do radar (leve e legível com 5 ou com 50)
     const pts = items.filter(match).sort((a, b) => ang(a) - ang(b));
+    if (hits && (pts.length < 2 || pts.length > 60)) return []; // na pesquisa, a constelação só ajuda com poucos resultados
     const pairs: [ChartItem, ChartItem][] = [];
     for (let i = 0; i + 1 < pts.length; i++) pairs.push([pts[i], pts[i + 1]]);
     if (pts.length > 2) pairs.push([pts[pts.length - 1], pts[0]]);
     return pairs;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, fGroup, fRing]);
+  }, [items, fGroup, fRing, hits]);
   useEffect(() => {
     if (prefersReduced() || !linksRef.current) return;
     linksRef.current.querySelectorAll("path").forEach((el, n) => {
       const len = (el as SVGPathElement).getTotalLength();
       (el as SVGPathElement).style.strokeDasharray = String(len);
-      el.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: 1000, delay: (grew ? 650 : 0) + n * 45, easing: "cubic-bezier(.65,0,.35,1)", fill: "both" });
+      el.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: 1000, delay: (grew ? 650 : 0) + (hits ? 900 : 0) + n * 45, easing: "cubic-bezier(.65,0,.35,1)", fill: "both" });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [links, grew]);
 
   // Pulsação contínua: cada ponto solta uma onda à vez, numa volta de 9 s
@@ -219,6 +230,27 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
             </g>
           );
         })}
+        {/* Varrimento da pesquisa: uma volta rápida que acende os resultados quando passa por eles */}
+        {hits && scanKey && !still && (
+          <g key={scanKey} className="scan" aria-hidden="true">
+            <circle r={RMAX * Kfinal} fill="none" stroke="none" />
+            <defs>
+              <linearGradient id={`${P}scan`} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stopColor="var(--accent)" stopOpacity="0" />
+                <stop offset="1" stopColor="var(--accent)" stopOpacity=".28" />
+              </linearGradient>
+            </defs>
+            <path d={`M0 0 L${(-Math.sin(Math.PI / 4) * RMAX * Kfinal).toFixed(1)} ${(-Math.cos(Math.PI / 4) * RMAX * Kfinal).toFixed(1)} A${RMAX * Kfinal} ${RMAX * Kfinal} 0 0 1 0 ${-RMAX * Kfinal} Z`} fill={`url(#${P}scan)`} />
+            <line x1={0} y1={0} x2={0} y2={-RMAX * Kfinal} stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" opacity={0.7} />
+          </g>
+        )}
+        {center && (
+          <g className="rcenter" aria-hidden="true" key={`c${scanKey}`}>
+            <circle r={34} fill="#fff" opacity={0.92} />
+            <text className="cn" y={6} textAnchor="middle">{center.n}</text>
+            <text className="cl" y={21} textAnchor="middle">{center.label}</text>
+          </g>
+        )}
         <g className="links" ref={linksRef}>
           {links.map(([p, q], n) => (
             <path key={`${p.id}-${q.id}-${grew}`} d={`M${(p.x * K).toFixed(1)} ${(p.y * K).toFixed(1)} Q${((p.x + q.x) * K * 0.18).toFixed(1)} ${((p.y + q.y) * K * 0.18).toFixed(1)} ${(q.x * K).toFixed(1)} ${(q.y * K).toFixed(1)}`} stroke={`url(#${P}lg${n})`} />
@@ -226,15 +258,17 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
         </g>
         {items.map((x, k) => {
           const c = x.color, off = !!fRing && x.ring !== fRing, on = match(x);
+          const hit = !!hits && on, focus = focusId === x.id;
           // Ao filtrar um anel, os pontos voltam ao tamanho normal (há espaço para isso)
           const sc = fRing && x.ring === fRing ? Math.min(1, (x.s ?? 1) * K) : x.s ?? 1;
           const stagger = (k * Math.min(1, 14 / Math.max(items.length, 1))).toFixed(2); // a entrada demora sempre menos de 1 s
           return (
-            <g key={x.id} className={`bw${off ? " off" : ""}${!on ? " dim" : ""}`} style={{ transform: `translate(${(x.x * K).toFixed(1)}px, ${(x.y * K).toFixed(1)}px)` }}>
+            <g key={x.id} className={`bw${off ? " off" : ""}${!on ? " dim" : ""}${hits && !on ? " miss" : ""}${focus ? " focus" : ""}`} style={{ transform: `translate(${(x.x * K).toFixed(1)}px, ${(x.y * K).toFixed(1)}px)` }}>
+              {hit && <circle key={`h${scanKey}`} className="beacon" r={14 * sc} fill="none" stroke={c} strokeWidth={2.5} style={{ ["--d" as string]: `${((ang(x) / 360) * 1.1).toFixed(2)}s` }} />}
               <circle className="rip" r={14 * sc} fill="none" stroke={c} strokeWidth={2} data-rip={x.id} />
-              <g className={`blip${fGroup !== "all" && on ? " link" : ""}`} tabIndex={0} role="button" style={{ ["--i" as string]: stagger }}
+              <g className={`blip${(fGroup !== "all" || hits) && on ? " link" : ""}${hit ? " hit" : ""}`} tabIndex={hits && !on ? -1 : 0} role="button" style={{ ["--i" as string]: stagger, ["--d" as string]: `${((ang(x) / 360) * 1.1).toFixed(2)}s` }}
                 aria-label={`${x.n}. ${x.titulo}`}
-                onMouseEnter={(e) => showTip(e, x)} onMouseLeave={() => setTip(null)} onFocus={(e) => showTip(e, x)} onBlur={() => setTip(null)}
+                onMouseEnter={(e) => { showTip(e, x); onHover?.(x.id); }} onMouseLeave={() => { setTip(null); onHover?.(null); }} onFocus={(e) => showTip(e, x)} onBlur={() => setTip(null)}
                 onClick={() => onOpen(x.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(x.id); } }}>
                 <circle className="halo" r={20 * sc} fill={c} opacity={0.18} />
                 <circle className="dot" r={BASE_R * sc} fill={c} filter={`url(#${P}glow)`} />
