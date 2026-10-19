@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Pager, usePaged } from "@/components/Pager";
 import { Icon } from "@/components/Icon";
 import { approveStartup, rejectStartup, restoreStartup, SSnapshot, startupBackToTriage } from "@/lib/startup-actions";
 import { FASES, Sector, Startup, Status } from "@/lib/types";
@@ -53,6 +54,10 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
     return [...l].sort((a, b) => sort === "date" ? b.criadoEm.localeCompare(a.criadoEm) : b.relevancia - a.relevancia);
   }, [startups, status, fSec, fFase, search, sort]);
 
+  // 40 por página; volta à 1.ª quando os filtros mudam
+  const pageKey = `${status}|${fSec}|${fFase}|${search}|${sort}`;
+  const pg = usePaged(list, pageKey);
+
   const act = async (p: Promise<SSnapshot>, msg: string, next?: boolean) => {
     const i = list.findIndex((x) => x.id === openId);
     try { const snap = await p; notify(msg, snap); if (next && openId) setOpenId(list[i + 1]?.id || list[i - 1]?.id || null); }
@@ -89,7 +94,7 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
         ? <Empty icon={<Icon name="rss" size={22} />} title="Ainda sem startups" text="A recolha semanal corre à segunda de manhã. Também podes usar Adicionar startups para procurar online ou indicar o site de uma startup." />
         : <Empty icon={<Icon name="magnifying-glass" size={22} />} title="Nada por aqui" text="Nenhuma startup corresponde a este estado ou filtro." />
     ) : view === "list" ? (
-      <StartupsTable list={list} sectors={sectors} onOpen={setOpenId} onAnalise={setAnFor}
+      <StartupsTable list={list} sectors={sectors} onOpen={setOpenId} onAnalise={setAnFor} pageKey={pageKey}
         onApprove={(s) => act(approveStartup(s, email), `«${s.nome}» aprovada e no radar`)}
         onReject={(s, m) => act(rejectStartup(s, m), `«${s.nome}» rejeitada`)} onBack={(s) => act(startupBackToTriage(s), `«${s.nome}» voltou à triagem`)}
         onBulk={async (ids, acao, motivo) => {
@@ -100,8 +105,9 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
           } catch { notify("Algumas não foram guardadas. Tenta outra vez."); }
         }} />
     ) : (
+      <><div ref={pg.top} className="pgr-anchor" />
       <div className="grid">
-        {list.map((s) => {
+        {pg.items.map((s) => {
           const c = sec(s.setor), fase = FASES.find((f) => f.id === s.fase), lv = relLevel(s.relevancia);
           return (
             <article key={s.id} className={"card scard"} style={{ ["--c" as string]: c?.cor || "var(--ink-tertiary)" }} data-lv={lv}>
@@ -142,6 +148,7 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
           );
         })}
       </div>
+      <Pager {...pg} label="startups" /></>
     )}
 
     {open && (

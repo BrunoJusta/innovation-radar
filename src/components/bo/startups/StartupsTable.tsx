@@ -1,5 +1,6 @@
 "use client";
 import { Fragment, useMemo, useState } from "react";
+import { Pager, usePaged } from "@/components/Pager";
 import { Icon } from "@/components/Icon";
 import { FASES, Sector, Startup } from "@/lib/types";
 import { fdCurto, relLevel } from "@/lib/util";
@@ -12,7 +13,9 @@ type Col = "nome" | "setor" | "fase" | "pais" | "fundacao" | "relevancia" | "cri
 const FASE_ORD: Record<string, number> = { ideia: 0, seed: 1, "serie-a": 2, crescimento: 3 };
 
 /** Vista em lista: colunas ordenáveis, seleção múltipla e ações por linha. */
-export function StartupsTable({ list, sectors, onOpen, onAnalise, onApprove, onReject, onBack, onBulk }: {
+export function StartupsTable({ list, sectors, onOpen, onAnalise, onApprove, onReject, onBack, onBulk, pageKey = "" }: {
+  /** Muda quando os filtros mudam: volta à 1.ª página. */
+  pageKey?: string;
   list: Startup[]; sectors: Sector[]; onOpen: (id: string) => void; onAnalise: (s: Startup) => void;
   onApprove: (s: Startup) => void; onReject: (s: Startup, motivo: string) => void; onBack: (s: Startup) => void;
   onBulk: (ids: string[], acao: "approve" | "reject" | "back", motivo?: string) => Promise<void>;
@@ -41,9 +44,11 @@ export function StartupsTable({ list, sectors, onOpen, onAnalise, onApprove, onR
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list, sort, sectors]);
 
+  // 40 por página; a seleção pode juntar linhas de várias páginas
+  const pg = usePaged(rows, `${sort.col}${sort.dir}|${pageKey}`);
   const visible = new Set(rows.map((r) => r.id));
   const sel = [...picked].filter((id) => visible.has(id));
-  const all = rows.length > 0 && sel.length === rows.length;
+  const all = pg.items.length > 0 && pg.items.every((r) => picked.has(r.id));
   const status = rows[0]?.status;
   const toggle = (id: string) => { const n = new Set(picked); if (n.has(id)) n.delete(id); else n.add(id); setPicked(n); };
   // Função (não componente): o botão de ordenar não é recriado e mantém o foco
@@ -56,15 +61,16 @@ export function StartupsTable({ list, sectors, onOpen, onAnalise, onApprove, onR
   const bulk = async (acao: "approve" | "reject" | "back", motivo?: string) => { await onBulk(sel, acao, motivo); setPicked(new Set()); setBulkReject(false); };
 
   return (<>
+    <div ref={pg.top} className="pgr-anchor" />
     <div className="tbl stbl">
       <table>
         <thead><tr>
-          <th className="ck"><input type="checkbox" aria-label="Selecionar todas" checked={all} onChange={() => setPicked(all ? new Set() : new Set(rows.map((r) => r.id)))} /></th>
+          <th className="ck"><input type="checkbox" aria-label="Selecionar todas" checked={all} onChange={() => { const n = new Set(picked); pg.items.forEach((r) => (all ? n.delete(r.id) : n.add(r.id))); setPicked(n); }} /></th>
           {Th({ col: "nome", children: "Startup" })}{Th({ col: "setor", children: "Setor" })}{Th({ col: "fase", children: "Fase" })}{Th({ col: "pais", children: "País" })}
           {Th({ col: "fundacao", cls: "n", children: "Fundação" })}<th>Financiamento</th>{Th({ col: "analise", children: "Análise" })}{Th({ col: "relevancia", cls: "n", children: "Relevância" })}{Th({ col: "criadoEm", cls: "n", children: "Entrou" })}
           <th className="acts"><span className="sr">Ações</span></th>
         </tr></thead>
-        <tbody>{rows.map((s) => {
+        <tbody>{pg.items.map((s) => {
           const c = sec(s.setor), f = FASES.find((x) => x.id === s.fase);
           return (<Fragment key={s.id}>
             <tr className={picked.has(s.id) ? "on" : ""} tabIndex={0} onClick={() => onOpen(s.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) onOpen(s.id); }} style={{ ["--c" as string]: c?.cor || "var(--ink-tertiary)" }}>
@@ -101,6 +107,7 @@ export function StartupsTable({ list, sectors, onOpen, onAnalise, onApprove, onR
         })}</tbody>
       </table>
     </div>
+    <Pager {...pg} label="startups" />
     {sel.length > 0 && (
       <div className="bulk">
         <span>{sel.length} selecionada{sel.length > 1 ? "s" : ""}</span>
