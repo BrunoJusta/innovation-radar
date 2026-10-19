@@ -40,6 +40,31 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
   const categorias = useCategorias();
   const busy = estado === "importar";
 
+  // Startups do radar que vieram de um import anterior e já não têm ficha no pipeline (por exemplo, depois de apagar o pipeline)
+  const [orfas, setOrfas] = useState<Startup[]>([]);
+  const [limpando, setLimpando] = useState(false);
+  useEffect(() => {
+    const ids = new Set(deals.map((d) => d.id));
+    getDocs(collection(db, "startups")).then((q) => setOrfas(q.docs.map((d) => ({ id: d.id, ...d.data() }) as Startup)
+      .filter((st) => (st.origens || []).some((o) => o.titulo === "Excel do dealflow da Sogrape Ventures") && !(st.dealId && ids.has(st.dealId))))).catch(() => {});
+  }, [deals]);
+  const limparOrfas = async () => {
+    if (!window.confirm(`Apagar do radar de startups as ${orfas.length} startups que vieram do Excel e já não estão no pipeline? Não dá para anular.`)) return;
+    setLimpando(true);
+    try {
+      for (let i = 0; i < orfas.length; i += 50) {
+        const lote = orfas.slice(i, i + 50);
+        const an = await Promise.all(lote.map((st) => getDocs(collection(db, "startups", st.id, "analises"))));
+        const b = writeBatch(db);
+        an.forEach((q) => q.docs.forEach((d) => b.delete(d.ref)));
+        lote.forEach((st) => b.delete(doc(db, "startups", st.id)));
+        await b.commit();
+      }
+      setOrfas([]);
+    } catch (e) { setErro((e as { code?: string }).code === "permission-denied" ? "Sem permissão para apagar startups." : "Não foi possível apagar todas. Tenta outra vez."); }
+    setLimpando(false);
+  };
+
   useEffect(() => {
     const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !busy) onClose(); };
@@ -164,6 +189,8 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
       <div className="mdl-b scroll">
         {estado === "rever" && (<>
           <p className="hint">Escolhe o Excel da FCR Sogrape Ventures (folha «Dealflow»). Cada startup entra no pipeline na fase em que está no Excel. Para cada uma, a Gemini pesquisa o site oficial e atribui uma cadeia de valor e uma categoria, e a startup aparece no radar de startups no anel dessa cadeia. As startups que já estiverem no pipeline são apagadas e substituídas pelas do Excel.</p>
+          {orfas.length > 0 && <div className="notice warn scad"><span>Há {orfas.length} startups no radar de startups que vieram de um import anterior e já não têm ficha no pipeline.</span>
+            <button className="btn" onClick={limparOrfas} disabled={limpando}>{limpando ? <><span className="spin" aria-hidden="true" />A apagar…</> : <><Icon name="trash" />Apagar do radar</>}</button></div>}
           <label className="impf">
             <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => ler(e.target.files?.[0])} disabled={lendo} />
             <Icon name="stack" /><span>{lendo ? "A ler o ficheiro…" : nomeFicheiro || "Escolher ficheiro .xlsx"}</span>

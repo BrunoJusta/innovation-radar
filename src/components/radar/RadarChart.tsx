@@ -135,7 +135,7 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
     if (fGroup === "all" && !hits) return [];
     // Em cadeia: cada item liga ao vizinho seguinte à volta do radar (leve e legível com 5 ou com 50)
     const pts = items.filter(match).sort((a, b) => ang(a) - ang(b));
-    if (hits && (pts.length < 2 || pts.length > 60)) return []; // na pesquisa, a constelação só ajuda com poucos resultados
+    if (pts.length < 2 || pts.length > 60) return []; // a constelação só ajuda com poucos pontos; com muitos vira um emaranhado
     const pairs: [ChartItem, ChartItem][] = [];
     for (let i = 0; i + 1 < pts.length; i++) pairs.push([pts[i], pts[i + 1]]);
     if (pts.length > 2) pairs.push([pts[pts.length - 1], pts[0]]);

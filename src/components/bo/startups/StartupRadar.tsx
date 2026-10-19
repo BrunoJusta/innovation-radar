@@ -61,7 +61,17 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
 
   const aprovadas = useMemo(() => startups.filter((s) => s.status === "approved"), [startups]);
   // Só entram no radar as que têm cadeia de valor; as outras ficam à espera de serem classificadas
-  const approved = useMemo(() => aprovadas.filter((s) => cadeias.some((a) => a.id === s.cadeia)), [aprovadas, cadeias]);
+  const comCadeia = useMemo(() => aprovadas.filter((s) => cadeias.some((a) => a.id === s.cadeia)), [aprovadas, cadeias]);
+  // Ano: o de entrada no pipeline, quando está lá; senão o ano em que a startup entrou no radar.
+  // O ano escolhe que startups entram no radar (não é um realce, por isso não liga os pontos)
+  const anoDe = useMemo(() => {
+    const m = new Map<string, string>();
+    comCadeia.forEach((st) => { const d = deals.find((x) => x.id === st.dealId || x.startupId === st.id); m.set(st.id, (d?.entrada || st.criadoEm || "").slice(0, 4)); });
+    return m;
+  }, [comCadeia, deals]);
+  // O ano atual aparece sempre (é o filtro por defeito), mesmo sem startups
+  const anos = useMemo(() => [...new Set([String(new Date().getFullYear()), ...[...anoDe.values()].filter((a) => /^\d{4}$/.test(a))])].sort().reverse(), [anoDe]);
+  const approved = useMemo(() => comCadeia.filter((s) => fAno === "all" || anoDe.get(s.id) === fAno), [comCadeia, anoDe, fAno]);
   const semCadeia = useMemo(() => aprovadas.filter((s) => !cadeias.some((a) => a.id === s.cadeia)), [aprovadas, cadeias]);
   const [classificando, setClassificando] = useState(false);
   const classificar = async () => {
@@ -101,19 +111,10 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   const hitSet = useMemo(() => (searching ? new Set(hits.map((h) => h.id)) : null), [hits, searching]);
   const itemById = useMemo(() => new Map(items.map((x) => [x.id, x])), [items]);
   const secOf = useCallback((x: RadarItem) => byId.get(x.id)?.setor || "", [byId]);
-  // Ano: o de entrada no pipeline, quando está lá; senão o ano em que a startup entrou no radar
-  const anoDe = useMemo(() => {
-    const m = new Map<string, string>();
-    approved.forEach((st) => { const d = deals.find((x) => x.id === st.dealId || x.startupId === st.id); m.set(st.id, (d?.entrada || st.criadoEm || "").slice(0, 4)); });
-    return m;
-  }, [approved, deals]);
-  // O ano atual aparece sempre (é o filtro por defeito), mesmo sem startups
-  const anos = useMemo(() => [...new Set([String(new Date().getFullYear()), ...[...anoDe.values()].filter((a) => /^\d{4}$/.test(a))])].sort().reverse(), [anoDe]);
   /** Setor e fase (os filtros em dropdown); o anel filtra-se à parte. */
-  const passaSF = useCallback((x: RadarItem) => (fFase === "all" || x.cat === fFase) && (fSec === "all" || secOf(x) === fSec) && (fAno === "all" || anoDe.get(x.id) === fAno), [fFase, fSec, fAno, secOf, anoDe]);
+  const passaSF = useCallback((x: RadarItem) => (fFase === "all" || x.cat === fFase) && (fSec === "all" || secOf(x) === fSec), [fFase, fSec, secOf]);
   const passa = useCallback((x: RadarItem) => (!fRing || x.area === fRing) && passaSF(x), [fRing, passaSF]);
-  const temFiltroSF = fFase !== "all" || fSec !== "all" || fAno !== "all";
-  const anoOk = (x: RadarItem) => fAno === "all" || anoDe.get(x.id) === fAno;
+  const temFiltroSF = fFase !== "all" || fSec !== "all";
   const hitItems = useMemo(() => hits.map((h) => itemById.get(h.id)!).filter(Boolean), [hits, itemById]);
   const results = useMemo(() => hitItems.filter(passa), [hitItems, passa]);
   const byArea = useMemo(() => {
@@ -173,8 +174,8 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   const focusId = hover ?? (searching ? nav[active]?.id ?? null : null);
 
   const counts = (rid: string) => items.filter((x) => x.ring === rid && passaSF(x)).length;
-  const faseCount = (fid: string) => items.filter((x) => x.cat === fid && (!fRing || x.area === fRing) && (fSec === "all" || secOf(x) === fSec) && anoOk(x)).length;
-  const secCount = (sid: string) => items.filter((x) => secOf(x) === sid && (!fRing || x.area === fRing) && (fFase === "all" || x.cat === fFase) && anoOk(x)).length;
+  const faseCount = (fid: string) => items.filter((x) => x.cat === fid && (!fRing || x.area === fRing) && (fSec === "all" || secOf(x) === fSec)).length;
+  const secCount = (sid: string) => items.filter((x) => secOf(x) === sid && (!fRing || x.area === fRing) && (fFase === "all" || x.cat === fFase)).length;
   const open = openId ? startups.find((s) => s.id === openId) || null : null;
   const drawerList = (view === "lista" ? rows : searching ? results : items).map((x) => byId.get(x.id)!).filter(Boolean);
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 2600); };
