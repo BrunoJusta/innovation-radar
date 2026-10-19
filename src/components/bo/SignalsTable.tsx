@@ -2,11 +2,11 @@
 import { Fragment, useMemo, useState } from "react";
 import { Pager, usePaged } from "@/components/Pager";
 import { Icon } from "@/components/Icon";
-import { Area, Category, REJECT_REASONS, Signal, tagsDe } from "@/lib/types";
+import { Area, Category, REJECT_REASONS, Signal, TipoTag, tagsDe, tipoDe } from "@/lib/types";
 import { fdCurto, relLevel } from "@/lib/util";
 import { Gauge } from "./ui";
 
-type Col = "titulo" | "area" | "categoria" | "dataPublicacao" | "relevancia" | "criadoEm";
+type Col = "titulo" | "area" | TipoTag | "dataPublicacao" | "relevancia" | "criadoEm";
 
 /** Vista em lista das notícias: colunas ordenáveis, seleção múltipla e ações por linha. */
 export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, onBack, onBulk, pageKey = "" }: {
@@ -22,13 +22,15 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
   const [bulkReject, setBulkReject] = useState(false);
   const area = (id: string) => areas.find((a) => a.id === id);
   const cat = (id: string) => cats.find((c) => c.id === id);
+  /** Tags da notícia de um tipo (temática, tecnologia ou canal). */
+  const doTipo = (s: Signal, tp: TipoTag) => tagsDe(s).map(cat).filter((c): c is Category => !!c && tipoDe(c) === tp);
 
   const rows = useMemo(() => {
     const v = (s: Signal): string | number => {
       switch (sort.col) {
         case "titulo": return s.titulo.toLowerCase();
         case "area": return area(s.area)?.ordem ?? 99;
-        case "categoria": return cat(tagsDe(s)[0] || "")?.nome.toLowerCase() ?? "~";
+        case "tematica": case "tecnologia": case "canal": return doTipo(s, sort.col)[0]?.nome.toLowerCase() ?? "~";
         case "dataPublicacao": return s.dataPublicacao;
         case "relevancia": return s.relevancia;
         case "criadoEm": return s.criadoEm;
@@ -48,7 +50,7 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
   // Função (não componente): o botão de ordenar não é recriado e mantém o foco
   const Th = ({ col, children, cls = "" }: { col: Col; children: React.ReactNode; cls?: string }) => (
     <th key={col} className={cls} aria-sort={sort.col === col ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
-      <button className="thb" onClick={() => setSort(sort.col === col ? { col, dir: sort.dir === 1 ? -1 : 1 } : { col, dir: col === "titulo" || col === "area" || col === "categoria" ? 1 : -1 })}>
+      <button className="thb" onClick={() => setSort(sort.col === col ? { col, dir: sort.dir === 1 ? -1 : 1 } : { col, dir: col === "titulo" || col === "area" || col === "tematica" || col === "tecnologia" || col === "canal" ? 1 : -1 })}>
         {children}<Icon name={sort.col === col ? (sort.dir === 1 ? "caret-up" : "caret-down") : "caret-up-down"} /></button>
     </th>
   );
@@ -60,12 +62,12 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
       <table>
         <thead><tr>
           <th className="ck"><input type="checkbox" aria-label="Selecionar todas" checked={all} onChange={() => { const n = new Set(picked); pg.items.forEach((r) => (all ? n.delete(r.id) : n.add(r.id))); setPicked(n); }} /></th>
-          {Th({ col: "titulo", children: "Notícia" })}{Th({ col: "area", children: "Cadeia de valor" })}{Th({ col: "categoria", children: "Tags" })}
+          {Th({ col: "titulo", children: "Notícia" })}{Th({ col: "area", children: "Cadeia de valor" })}{Th({ col: "tematica", children: "Temática" })}{Th({ col: "tecnologia", children: "Tecnologia" })}{Th({ col: "canal", children: "Canal" })}
           {Th({ col: "dataPublicacao", cls: "n", children: "Publicada" })}{Th({ col: "relevancia", cls: "n", children: "Relevância" })}{Th({ col: "criadoEm", cls: "n", children: "Entrou" })}
           <th className="acts"><span className="sr">Ações</span></th>
         </tr></thead>
         <tbody>{pg.items.map((s) => {
-          const a = area(s.area), tg = tagsDe(s).map(cat).filter((c): c is Category => !!c), sites = [...new Set(s.fontes.map((f) => f.site))];
+          const a = area(s.area), sites = [...new Set(s.fontes.map((f) => f.site))];
           return (<Fragment key={s.id}>
             <tr className={picked.has(s.id) ? "on" : ""} tabIndex={0} onClick={() => onOpen(s.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) onOpen(s.id); }} style={{ ["--c" as string]: a?.cor || "var(--ink-tertiary)" }}>
               <td className="ck" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Selecionar ${s.titulo}`} checked={picked.has(s.id)} onChange={() => toggle(s.id)} /></td>
@@ -73,7 +75,10 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
                 <span className="tsub">{sites.length > 1 ? `${sites[0]} e mais ${sites.length - 1}` : sites[0]}
                   {s.flagNovaFonte && s.status === "pending" && <em className="tnew">Nova fonte</em>}{s.manual && <em className="tman">À mão</em>}</span></td>
               <td><span className="tg ar">{a?.nome || "Sem cadeia de valor"}</span></td>
-              <td><span className="tcat" title={tg.map((c) => c.nome).join(", ")}>{tg[0] && <Icon name={tg[0].icone} />}{tg[0]?.nome || "Sem tags"}{tg.length > 1 && <em className="tmore">+{tg.length - 1}</em>}</span></td>
+              {(["tematica", "tecnologia", "canal"] as TipoTag[]).map((tp) => { const l = doTipo(s, tp); return (
+                <td key={tp} className="ttags">{l.length ? <span className="tlist" title={l.map((c) => c.nome).join(", ")}>
+                  {l.slice(0, 2).map((c) => <span key={c.id} className="tcat"><Icon name={c.icone} />{c.nome}</span>)}
+                  {l.length > 2 && <em className="tmore">+{l.length - 2}</em>}</span> : <span className="mut">-</span>}</td>); })}
               <td className="n mut">{fdCurto(s.dataPublicacao)}</td>
               <td className="n"><span className={`trel lv-${relLevel(s.relevancia)}`}><Gauge v={s.relevancia} />{s.relevancia}</span></td>
               <td className="n mut">{fdCurto(s.criadoEm)}</td>
@@ -87,7 +92,7 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
               </td>
             </tr>
             {rejectRow === s.id && (
-              <tr className="rrow"><td colSpan={8}>
+              <tr className="rrow"><td colSpan={10}>
                 <span>Porque rejeitas esta notícia?</span>
                 {REJECT_REASONS.map((m) => <button key={m} className="chipf" onClick={() => { setRejectRow(null); onReject(s, m); }}>{m}</button>)}
                 <button className="txtbtn" onClick={() => setRejectRow(null)}>Cancelar</button>

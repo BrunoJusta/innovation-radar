@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pager, usePaged } from "@/components/Pager";
-import { CatSelect } from "@/components/CatSelect";
+import { passaTags, SEM_FILTRO, TagFilters, TagFiltro, temFiltro } from "@/components/CatSelect";
 import { Icon } from "@/components/Icon";
 import { approve, backToTriage, EditFields, purgeSignal, reject, restore, saveEdit, Snapshot } from "@/lib/bo-actions";
 import { agendarApagar, cancelarApagar } from "@/lib/purge";
@@ -10,7 +10,7 @@ import { SignalsTable } from "./SignalsTable";
 
 const VIEW_KEY = "radar.noticias.vista";
 const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; } };
-import { Area, Category, Fila, REJECT_REASONS, Signal, tagsDe, TIPOS_TAG, tipoDe } from "@/lib/types";
+import { Area, Category, Fila, REJECT_REASONS, Signal, tagsDe, TIPOS_TAG, TipoTag, tipoDe } from "@/lib/types";
 import { temTematica } from "./TagPicker";
 import { fdCurto, fdLongo, monogram, relLevel } from "@/lib/util";
 import { useSession } from "./AuthGate";
@@ -26,7 +26,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
 }) {
   const { email } = useSession();
   const [fArea, setFArea] = useState("all");
-  const [fCat, setFCat] = useState("all");
+  const [fTags, setFTags] = useState<TagFiltro>(SEM_FILTRO);
   const [sort, setSort] = useState<"score" | "date">("score");
   const [viewS, setViewS] = useState<"cards" | "list">("cards");
   const view = viewS;
@@ -44,23 +44,20 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
   const cat = (id: string) => cats.find((c) => c.id === id);
 
   // Contagens do dropdown: notícias deste separador (e da cadeia de valor escolhida) com cada tag
-  const catCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    signals.forEach((s) => { if (s.status === status && (fArea === "all" || s.area === fArea)) tagsDe(s).forEach((c) => m.set(c, (m.get(c) || 0) + 1)); });
-    return m;
-  }, [signals, status, fArea]);
-  const catCount = (id: string) => catCounts.get(id) || 0;
+  // Contagem de cada tag com os outros filtros aplicados (o próprio tipo não conta, para se poder trocar)
+  const base = useMemo(() => signals.filter((s) => s.status === status && (fArea === "all" || s.area === fArea)), [signals, status, fArea]);
+  const catCount = (id: string, tp: TipoTag) => base.filter((s) => { const t = tagsDe(s); return t.includes(id) && passaTags(t, fTags, tp); }).length;
 
   const list = useMemo(() => {
     let l = signals.filter((s) => s.status === status);
     if (fArea !== "all") l = l.filter((s) => s.area === fArea);
-    if (fCat !== "all") l = l.filter((s) => tagsDe(s).includes(fCat));
+    if (temFiltro(fTags)) l = l.filter((s) => passaTags(tagsDe(s), fTags));
     if (search) {
       const q = search.toLowerCase();
       l = l.filter((s) => `${s.titulo} ${s.resumo} ${(s.entidades || []).join(" ")} ${s.fontes.map((f) => f.site).join(" ")} ${tagsDe(s).map((c) => cats.find((x) => x.id === c)?.nome || "").join(" ")}`.toLowerCase().includes(q));
     }
     return l.sort((a, b) => (sort === "score" ? b.relevancia - a.relevancia : b.dataPublicacao.localeCompare(a.dataPublicacao)));
-  }, [signals, status, fArea, fCat, search, sort, cats]);
+  }, [signals, status, fArea, fTags, search, sort, cats]);
 
   const notify = (msg: string, undo?: Snapshot[]) => {
     clearTimeout(toastT.current);
@@ -94,7 +91,8 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
   const allCount = signals.length;
 
   // Cartões: 40 por página; os grupos de relevância são feitos com os cartões da página
-  const pageKey = `${status}|${fArea}|${fCat}|${search}|${sort}`;
+  const fKey = `${fTags.tematica}.${fTags.tecnologia}.${fTags.canal}`;
+  const pageKey = `${status}|${fArea}|${fKey}|${search}|${sort}`;
   const pg = usePaged(list, pageKey);
   const pl = pg.items;
   const groups: [string, Signal[], string?][] =
@@ -117,7 +115,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
             <option value="all">Todas as cadeias de valor</option>
             {areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
           </select><Icon name="caret-down" /></label>
-        <CatSelect cats={cats} areas={areas} value={fCat} onChange={setFCat} counts={catCount} allLabel="Todas as tags" />
+        <TagFilters cats={cats} value={fTags} onChange={setFTags} counts={catCount} />
         <span className="sp" />
         {view === "cards" && <div className="seg" role="group" aria-label="Ordenar">
           <button aria-pressed={sort === "score"} onClick={() => setSort("score")}>Relevância</button>
@@ -133,13 +131,13 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
       </div>
 
       {!loaded ? <div className="loading">A carregar…</div> : list.length === 0 ? (
-        status === "pending" && allCount > 0 && !search && fArea === "all" && fCat === "all"
+        status === "pending" && allCount > 0 && !search && fArea === "all" && !temFiltro(fTags)
           ? <Empty icon={<Icon name="check-circle" size={22} />} title="Fila limpa" text="Decidiste tudo o que entrou. A próxima recolha corre amanhã às 6h30." />
           : status === "pending" && allCount === 0
             ? <Empty icon={<Icon name="tray" size={22} />} title="Ainda sem notícias" text="Assim que o pipeline diário correr, as notícias novas aparecem aqui para decidires." />
             : <Empty icon={<Icon name="magnifying-glass" size={22} />} title="Sem resultados" text="Nenhuma notícia corresponde a este filtro." />
       ) : view === "list" ? (
-        <SignalsTable list={list} areas={areas} cats={cats} onOpen={setOpenId} pageKey={`${status}|${fArea}|${fCat}|${search}`}
+        <SignalsTable list={list} areas={areas} cats={cats} onOpen={setOpenId} pageKey={`${status}|${fArea}|${fKey}|${search}`}
           onApprove={(s) => doApprove(s)} onReject={(s, m) => doReject(s, m)} onBack={(s) => doBack(s)}
           onBulk={async (ids, acao, motivo) => {
             const items = list.filter((s) => ids.includes(s.id));
