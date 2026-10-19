@@ -2,8 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pager, usePaged } from "@/components/Pager";
 import { Icon } from "@/components/Icon";
-import { approveStartup, rejectStartup, restoreStartup, SSnapshot, startupBackToTriage } from "@/lib/startup-actions";
-import { FASES, Sector, Startup, Status } from "@/lib/types";
+import { approveStartup, purgeStartup, rejectStartup, restoreStartup, SSnapshot, startupBackToTriage } from "@/lib/startup-actions";
+import { agendarApagar, cancelarApagar } from "@/lib/purge";
+import { FASES, Fila, Sector, Startup } from "@/lib/types";
 import { fdCurto, relLevel } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { Empty, Gauge } from "../ui";
@@ -18,14 +19,13 @@ import { AnaliseView } from "./AnaliseView";
 const VIEW_KEY = "radar.startups.vista";
 const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; } };
 
-const TITLES: Record<Status, [string, string]> = {
+const TITLES: Record<Fila, [string, string]> = {
   pending: ["Triagem", "Startups encontradas na pesquisa semanal, nas notícias e à mão, à espera de decisão."],
   approved: ["Aprovadas", "Estas startups estão no radar de startups. As que passam para o Pipeline saem desta lista, mas continuam aprovadas e no radar."],
-  rejected: ["Arquivo", "Startups rejeitadas. Ficam guardadas com o motivo e não voltam a ser propostas pela recolha."],
 };
 
 export function StartupsTriage({ status, onStatus, startups, sectors, loaded, search, adding, setAdding }: {
-  status: Status; onStatus: (s: Status) => void; startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
+  status: Fila; onStatus: (s: Fila) => void; startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
 }) {
   const { email } = useSession();
   const { dealOf } = useDeals();
@@ -33,8 +33,7 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
   const [fFase, setFFase] = useState("all");
   const [sort, setSort] = useState<"score" | "date">("score");
   const [viewS, setViewS] = useState<"cards" | "list">("cards");
-  // No Arquivo (rejeitadas) é sempre lista
-  const view = status === "rejected" ? "list" : viewS;
+  const view = viewS;
   useEffect(() => setViewS(readView()), []);
   const setView = (v: "cards" | "list") => { setViewS(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* sem armazenamento */ } };
   const [openId, setOpenId] = useState<string | null>(null);
@@ -58,6 +57,8 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
   const pageKey = `${status}|${fSec}|${fFase}|${search}|${sort}`;
   const pg = usePaged(list, pageKey);
 
+  /** Rejeitar: sai logo da vista e é apagada da base de dados quando o aviso com Anular desaparece. */
+  const rej = (s: Startup, m: string) => rejectStartup(s, m).then((snap) => { agendarApagar(`s:${s.id}`, () => purgeStartup(s, m)); return snap; });
   const act = async (p: Promise<SSnapshot>, msg: string, next?: boolean) => {
     const i = list.findIndex((x) => x.id === openId);
     try { const snap = await p; notify(msg, snap); if (next && openId) setOpenId(list[i + 1]?.id || list[i - 1]?.id || null); }
@@ -83,10 +84,10 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
         <button aria-pressed={sort === "score"} onClick={() => setSort("score")}>Relevância</button>
         <button aria-pressed={sort === "date"} onClick={() => setSort("date")}>Recentes</button>
       </div>}
-      {status !== "rejected" && <div className="seg" role="group" aria-label="Vista">
+      <div className="seg" role="group" aria-label="Vista">
         <button aria-pressed={view === "cards"} onClick={() => setView("cards")} title="Cartões"><Icon name="squares-four" />Cartões</button>
         <button aria-pressed={view === "list"} onClick={() => setView("list")} title="Lista"><Icon name="list-bullets" />Lista</button>
-      </div>}
+      </div>
     </div>
 
     {!loaded ? <div className="loading">A carregar…</div> : list.length === 0 ? (
@@ -96,12 +97,13 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
     ) : view === "list" ? (
       <StartupsTable list={list} sectors={sectors} onOpen={setOpenId} onAnalise={setAnFor} pageKey={pageKey}
         onApprove={(s) => act(approveStartup(s, email), `«${s.nome}» aprovada e no radar`)}
-        onReject={(s, m) => act(rejectStartup(s, m), `«${s.nome}» rejeitada`)} onBack={(s) => act(startupBackToTriage(s), `«${s.nome}» voltou à triagem`)}
+        onReject={(s, m) => act(rej(s, m), `«${s.nome}» rejeitada e apagada`)} onBack={(s) => act(startupBackToTriage(s), `«${s.nome}» voltou à triagem`)}
         onBulk={async (ids, acao, motivo) => {
           const sel = startups.filter((s) => ids.includes(s.id));
           try {
-            await Promise.all(sel.map((s) => acao === "approve" ? approveStartup(s, email) : acao === "reject" ? rejectStartup(s, motivo || "Pouco relevante") : startupBackToTriage(s)));
-            notify(`${sel.length} startup${sel.length > 1 ? "s" : ""} ${acao === "approve" ? "aprovada" : acao === "reject" ? "rejeitada" : "de volta à triagem"}${sel.length > 1 ? "s" : ""}`);
+            await Promise.all(sel.map((s) => acao === "approve" ? approveStartup(s, email) : acao === "reject" ? rej(s, motivo || "Pouco relevante") : startupBackToTriage(s)));
+            const pl = sel.length > 1 ? "s" : "";
+            notify(`${sel.length} startup${pl} ${acao === "approve" ? `aprovada${pl}` : acao === "reject" ? `rejeitada${pl} e apagada${pl}` : "de volta à triagem"}`);
           } catch { notify("Algumas não foram guardadas. Tenta outra vez."); }
         }} />
     ) : (
@@ -117,7 +119,6 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
                     <span className="tg ar">{c?.nome || "Sem setor"}</span>
                     <span className="tg">{fase?.nome}</span>
                     
-                    {s.status === "rejected" && <span className="tg no">{s.motivoRejeicao}</span>}
                     {dealOf(s) && <span className="tg pipe" title={`No pipeline: ${nomeEtapa(dealOf(s)!.etapa)}`}><Icon name="kanban" />{dealOf(s)!.etapa === "arquivada" ? "Arquivada no pipeline" : nomeEtapa(dealOf(s)!.etapa)}</span>}
                     <AnaliseLoading path={`startups/${s.id}`} short />
                     <AnChip s={s} onOpen={() => setAnFor(s)} />
@@ -133,7 +134,7 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
               </div>
               {s.status === "pending" ? (rejectCard === s.id ? (
                 <div className="reasons"><div className="rh">Porque rejeitas?<button className="txtbtn" onClick={() => setRejectCard(null)}>Cancelar</button></div>
-                  <div className="rgrid">{SREJECT.map((m) => <button key={m} onClick={() => { setRejectCard(null); act(rejectStartup(s, m), `«${s.nome}» rejeitada`); }}>{m}</button>)}</div></div>
+                  <div className="rgrid">{SREJECT.map((m) => <button key={m} onClick={() => { setRejectCard(null); act(rej(s, m), `«${s.nome}» rejeitada e apagada`); }}>{m}</button>)}</div></div>
               ) : (
                 <div className="cact">
                   <button className="btn primary" onClick={() => act(approveStartup(s, email), `«${s.nome}» aprovada e no radar`)}><Icon name="check" />Aprovar</button>
@@ -154,13 +155,13 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
     {open && (
       <StartupDrawer s={open} list={list} sectors={sectors} onClose={() => setOpenId(null)} onNav={setOpenId} notify={(m) => notify(m)}
         onApprove={() => act(approveStartup(open, email), `«${open.nome}» aprovada e no radar`, true)}
-        onReason={(m) => act(rejectStartup(open, m), `«${open.nome}» rejeitada`, true)} onBack={() => act(startupBackToTriage(open), `«${open.nome}» voltou à triagem`, true)} />
+        onReason={(m) => act(rej(open, m), `«${open.nome}» rejeitada e apagada`, true)} onBack={() => act(startupBackToTriage(open), `«${open.nome}» voltou à triagem`, true)} />
     )}
     {adding && <FindStartups mode="search" sectors={sectors} startups={startups} onClose={() => setAdding(false)}
       onDone={(msg) => { setAdding(false); onStatus("pending"); notify(msg); }} />}
     {toast && (
       <div className="toast" role="status"><span>{toast.msg}</span>
-        {toast.undo && <button className="btn" onClick={() => { restoreStartup(toast.undo!).then(() => notify("Anulado")); }}><Icon name="arrow-counter-clockwise" />Anular</button>}
+        {toast.undo && <button className="btn" onClick={() => { cancelarApagar(`s:${toast.undo!.id}`); restoreStartup(toast.undo!).then(() => notify("Anulado")); }}><Icon name="arrow-counter-clockwise" />Anular</button>}
       </div>
     )}
     {anFor && <AnaliseView alvo={alvoStartup(anFor, sectors.find((x) => x.id === anFor.setor)?.nome || "")} onClose={() => setAnFor(null)} notify={(m) => notify(m)} />}

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Sector, Startup, Status } from "@/lib/types";
+import { Fila, Sector, Startup } from "@/lib/types";
 import { Icon } from "@/components/Icon";
 import { StartupsTriage } from "./StartupsTriage";
 import { StartupRadar } from "./StartupRadar";
@@ -11,8 +11,8 @@ import { DealsLookup, useDeals } from "../pipeline/DealsLookup";
 import { PipelineSection } from "../pipeline/PipelineSection";
 import { useSession } from "../AuthGate";
 
-/** Secção Startups do backoffice: Triagem, Aprovadas, Rejeitadas, Radar e (admins) Pipeline. */
-type Page = Status | "radar" | "pipeline";
+/** Secção Startups do backoffice: Triagem, Aprovadas, (admins) Pipeline e Radar. As rejeitadas são apagadas. */
+type Page = Fila | "radar" | "pipeline";
 export function StartupsSection({ initial = "pending" }: { initial?: Page }) {
   return <DealsLookup><Section initial={initial} /></DealsLookup>;
 }
@@ -35,9 +35,9 @@ function Section({ initial }: { initial: Page }) {
   // As aprovadas que passaram para o pipeline saem da lista de Aprovadas (continuam aprovadas na base de dados e no radar)
   const noPipe = new Set(deals.map((d) => d.startupId).filter(Boolean));
   const lista = startups.filter((s) => !(s.status === "approved" && (s.dealId || noPipe.has(s.id))));
-  const cnt = (st: Status) => lista.filter((s) => s.status === st).length;
-  const TABS: { id: Status; label: string; icon: string }[] = [
-    { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Arquivo", icon: "prohibit" },
+  const cnt = (st: Fila) => lista.filter((s) => s.status === st).length;
+  const TABS: { id: Fila; label: string; icon: string }[] = [
+    { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" },
   ];
   const Tab = ({ t }: { t: (typeof TABS)[number] }) => (
     <button key={t.id} aria-current={page === t.id} onClick={() => setPage(t.id)}><Icon name={t.icon} />{t.label}
@@ -46,9 +46,8 @@ function Section({ initial }: { initial: Page }) {
   return (<>
     <div className="pagebar">
       <nav className="subnav" aria-label="Startups">
-        {TABS.slice(0, 2).map((t) => Tab({ t }))}
+        {TABS.map((t) => Tab({ t }))}
         {canPipeline && <button aria-current={page === "pipeline"} onClick={() => setPage("pipeline")}><Icon name="kanban" />Pipeline<PipeCount /></button>}
-        {TABS.slice(2).map((t) => Tab({ t }))}
         <button aria-current={page === "radar"} onClick={() => setPage("radar")}><Icon name="globe" />Radar</button>
       </nav>
       {page !== "radar" && (
@@ -58,7 +57,7 @@ function Section({ initial }: { initial: Page }) {
         </div>
       )}
     </div>
-    {page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage status={page as Status} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
+    {page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage status={page as Fila} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
   </>);
 }
 
