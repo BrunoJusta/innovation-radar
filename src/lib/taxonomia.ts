@@ -98,3 +98,6 @@ export const TAGS_V2: Record<string, TagSeed> = {
     descricao: "Negócio entre empresas: fornecedores, distribuidores, importadores, private label, granel, feiras profissionais.",
     palavrasChave: k("b2b, fornecedor, fornecedores, importador, importadores, distribuidor, distribuidores, granel, feira, feiras, supplier, suppliers, importer, importers, distributor, distributors, wholesale, wholesaler, bulk wine, trade fair, trade show, prowein, vinexpo, wine paris") },
 };
+
+/** As cadeias de valor como lista (para quando a coleção «areas» ainda não carregou). */
+export const AREAS_LISTA = Object.entries(AREAS_V2).map(([id, v]) => ({ id, ...v }));

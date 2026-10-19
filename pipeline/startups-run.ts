@@ -6,7 +6,7 @@
  */
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "./lib/admin";
-import { checkSite, Candidate, discover, domainOf, fromNews, profile, startupId } from "./lib/startups";
+import { checkSite, Candidate, classificarCadeias, discover, domainOf, fromNews, profile, startupId } from "./lib/startups";
 import { lisbon } from "./lib/math";
 import { fetchRss, fetchWp, FetchError } from "./lib/feeds";
 import { htmlToText } from "./lib/text";
@@ -101,6 +101,18 @@ async function main() {
       if (c) await handle(c, origem, st); else st.filtro++;
     } catch (e) { st.erros.push(`${n.nome}: ${(e as Error).message.slice(0, 160)}`); }
   }
+
+  // 0) Startups antigas sem cadeia de valor (o anel do radar de startups): classifica pela descrição
+  try {
+    const semCadeia = (await db.collection("startups").select("nome", "descricao", "setor", "cadeia", "status").get()).docs
+      .filter((d) => !d.data().cadeia && d.data().status !== "rejected")
+      .map((d) => ({ id: d.id, nome: String(d.data().nome || ""), descricao: String(d.data().descricao || ""), setor: sectors.find((x) => x.id === d.data().setor)?.nome || "" }));
+    if (semCadeia.length) {
+      const cad = await classificarCadeias(semCadeia);
+      if (!DRY) for (const [id, cadeia] of Object.entries(cad)) await db.doc(`startups/${id}`).update({ cadeia });
+      log(`Cadeia de valor atribuída a ${Object.keys(cad).length} de ${semCadeia.length} startups sem cadeia`);
+    }
+  } catch (e) { log("  ! cadeias de valor:", (e as Error).message); }
 
   try {
     // 1) Pesquisas online por setor

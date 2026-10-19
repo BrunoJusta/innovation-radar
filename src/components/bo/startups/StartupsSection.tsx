@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Fila, Sector, Startup } from "@/lib/types";
+import { Area, Fila, Sector, Startup } from "@/lib/types";
+import { AREAS_LISTA } from "@/lib/taxonomia";
 import { Icon } from "@/components/Icon";
 import { StartupsTriage } from "./StartupsTriage";
 import { StartupRadar } from "./StartupRadar";
@@ -24,6 +25,7 @@ function Section({ initial }: { initial: Page }) {
   const [page, setPage] = useState<Page>((initial === "pipeline" || initial === "review") && !canPipeline ? "approved" : initial);
   const [startups, setStartups] = useState<Startup[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
+  const [areasDb, setAreas] = useState<Area[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
@@ -31,8 +33,11 @@ function Section({ initial }: { initial: Page }) {
     const u1 = onSnapshot(collection(db, "startups"), (s) => { setStartups(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Startup)); setLoaded(true); },
       (e) => { console.error(e); setLoaded(true); });
     const u2 = onSnapshot(query(collection(db, "sectors"), orderBy("ordem")), (s) => setSectors(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Sector)));
-    return () => { u1(); u2(); };
+    const u3 = onSnapshot(query(collection(db, "areas"), orderBy("ordem")), (s) => setAreas(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Area)));
+    return () => { u1(); u2(); u3(); };
   }, []);
+  // Cadeias de valor (os anéis do radar); enquanto a coleção não carrega, as da taxonomia
+  const areas: Area[] = areasDb.length ? areasDb : AREAS_LISTA;
   // As aprovadas que passaram para o pipeline saem da lista de Aprovadas (continuam aprovadas na base de dados e no radar)
   const noPipe = new Set(deals.map((d) => d.startupId).filter(Boolean));
   const lista = startups.filter((s) => !(s.status === "approved" && (s.dealId || noPipe.has(s.id))));
@@ -59,7 +64,7 @@ function Section({ initial }: { initial: Page }) {
         </div>
       )}
     </div>
-    {page === "review" ? <ReviewView /> : page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage status={page as Fila} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
+    {page === "review" ? <ReviewView /> : page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage areas={areas} status={page as Fila} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar areas={areas} startups={startups} sectors={sectors} loaded={loaded} />}
   </>);
 }
 

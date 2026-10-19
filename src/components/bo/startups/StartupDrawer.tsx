@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { approveStartup, saveStartup, saveStartupLink, StartupEdit } from "@/lib/startup-actions";
-import { FASES, Sector, Startup } from "@/lib/types";
+import { Area, FASES, Sector, Startup } from "@/lib/types";
 import { fdLongo, relLevel } from "@/lib/util";
 import { Gauge } from "../ui";
 import { StartupFields } from "./StartupFields";
@@ -14,11 +14,11 @@ import { useSession } from "../AuthGate";
 import { useAnaliseQueue } from "../AnaliseQueue";
 
 const ORIGEM: Record<string, string> = { pesquisa: "Pesquisa online", noticia: "Notícia", manual: "Adicionada à mão" };
-export const pickEdit = (s: Startup): StartupEdit => ({ nome: s.nome, site: s.site, pais: s.pais || "", cidade: s.cidade || "", fundacao: s.fundacao ?? null, fase: s.fase, setor: s.setor,
+export const pickEdit = (s: Startup): StartupEdit => ({ nome: s.nome, site: s.site, pais: s.pais || "", cidade: s.cidade || "", fundacao: s.fundacao ?? null, fase: s.fase, setor: s.setor, cadeia: s.cadeia,
   descricao: s.descricao || "", porque: s.porque || "", relevancia: s.relevancia, financiamento: s.financiamento || "", investidores: s.investidores || [] });
 
-export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onReason, onBack, notify }: {
-  s: Startup; list: Startup[]; sectors: Sector[]; onClose: () => void; onNav: (id: string) => void;
+export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onApprove, onReason, onBack, notify }: {
+  s: Startup; list: Startup[]; sectors: Sector[]; areas: Area[]; onClose: () => void; onNav: (id: string) => void;
   onApprove: () => void; onReason: (m: string) => void; onBack: () => void; notify: (m: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -48,7 +48,7 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
   }, [editing, rejecting, analise, onClose]);
 
   const i = list.findIndex((x) => x.id === s.id);
-  const sec = sectors.find((x) => x.id === s.setor), fase = FASES.find((x) => x.id === s.fase);
+  const sec = sectors.find((x) => x.id === s.setor), fase = FASES.find((x) => x.id === s.fase), cad = areas.find((x) => x.id === s.cadeia);
   const lv = relLevel(s.relevancia);
   const save = async () => {
     if (!f.nome.trim()) return;
@@ -65,6 +65,7 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
       <div className="dscroll">
         <div className="dmeta">
           <span className="tg ar" style={{ ["--c" as string]: sec?.cor || "var(--ink-tertiary)" }}>{sec?.nome || "Sem setor"}</span>
+          {cad && <span className="tg"><i className="cdot" style={{ background: cad.cor }} />{cad.nome}</span>}
           <span className="tg">{fase?.nome}</span>
           {s.status === "approved" && <span className="badge ok"><Icon name="check" />Aprovada</span>}
           {s.status === "rejected" && <span className="badge no"><Icon name="x" />{s.motivoRejeicao}</span>}
@@ -73,7 +74,7 @@ export function StartupDrawer({ s, list, sectors, onClose, onNav, onApprove, onR
         {editing ? (
           <div className="blk"><div className="bh"><h4>Editar startup</h4>
             <span style={{ display: "flex", gap: 6 }}><button className="txtbtn" onClick={() => setEditing(false)}>Cancelar</button><button className="txtbtn" onClick={save}><Icon name="check" />Guardar alterações</button></span></div>
-            <StartupFields value={f} onChange={(p) => setF({ ...f, ...p })} sectors={sectors} />
+            <StartupFields value={f} onChange={(p) => setF({ ...f, ...p })} sectors={sectors} areas={areas} />
           </div>
         ) : (<>
           <h2>{s.nome}</h2>

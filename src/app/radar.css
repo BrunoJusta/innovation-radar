@@ -63,8 +63,8 @@
 .rp .sec-l{font-family:var(--f-ui);font-size:13px;font-weight:500;fill:var(--ink-subtle)}
 .rp .blip{cursor:pointer;transform-box:fill-box;transform-origin:center}
 .rp .blip circle.dot{stroke:transparent;stroke-width:2}
-.rp .blip text{font-family:var(--f-mono);font-size:11.5px;font-weight:600;pointer-events:none}
-.rp .blip:hover circle.dot,.rp .blip:focus-visible circle.dot,.rp .blip.hl circle.dot{stroke:#fff;stroke-width:2.5}
+.rp .blip text{font-family:var(--f-mono);font-size:8.5px;font-weight:600;pointer-events:none}
+.rp .blip:hover circle.dot,.rp .blip:focus-visible circle.dot,.rp .blip.hl circle.dot{stroke:#fff;stroke-width:1.75}
 .rp g.dim{opacity:.16;transition:opacity .25s}
 .rp .blip:focus{outline:none}
 .rp .tip{position:absolute;pointer-events:none;transform:translate(-50%,calc(-100% - 16px));background:#0B0D3A;color:#FFFFFF;font-size:13px;font-weight:500;padding:7px 11px;border-radius:8px;white-space:nowrap;box-shadow:var(--shadow);z-index:3}
@@ -89,7 +89,7 @@
 .rp .links path{fill:none;stroke-width:1.5;opacity:.85;stroke-linecap:round}
 .rp .links path.base{fill:none;stroke:var(--lc);stroke-width:2;opacity:.35;stroke-linejoin:round}
 .rp .links path.flow{fill:none;stroke:var(--lc);stroke-width:2.2;stroke-dasharray:2 12;stroke-linecap:round;opacity:.8}
-.rp .blip.link circle.dot{stroke:#fff;stroke-width:2.5}
+.rp .blip.link circle.dot{stroke:#fff;stroke-width:1.75}
 .rp #sweep{pointer-events:none}
 @media (prefers-reduced-motion:no-preference){.rp .rc{animation:dash 30s linear infinite}
 @keyframes dash{to{stroke-dashoffset:-200}}

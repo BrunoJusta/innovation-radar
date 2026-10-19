@@ -149,6 +149,8 @@ export interface Startup {
   nome: string; site: string; dominio: string;
   pais: string; cidade?: string; fundacao: number | null;
   fase: Fase; setor: string;
+  /** Cadeia de valor (anel do radar de startups), id de areas. */
+  cadeia?: string;
   descricao: string;     // o que faz, pt-PT
   porque: string;        // porque interessa à Sogrape
   relevancia: number;
@@ -316,6 +318,8 @@ export interface Deal {
   id: string; ref: string;
   nome: string; site: string; dominio: string; fundadores: string; descricao: string; pais: string;
   vertical: VerticalDF | ""; fase: FaseDF | "";
+  /** Cadeia de valor (id de areas). */
+  cadeia?: string;
   etapa: Etapa; etapaDesde: string;
   /** Interesse quando está no radar: investimento ou outro tipo de relação (piloto, parceria). */
   interesse: "investimento" | "outro";

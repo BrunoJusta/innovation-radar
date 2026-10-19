@@ -70,14 +70,14 @@ export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }
       </div>
 
       <div className="rev-g">
-        <section className="rev-c full">
+        <section className="rev-c">
           <div className="rev-h"><h2>Funil do dealflow</h2><span>Até que fase chegou cada startup (uma arquivada conta até onde estava).</span></div>
           <Funil lista={lista} setTip={setTip} k={ano} />
         </section>
-        <section className="rev-c full">
+        <section className="rev-c">
           <div className="rev-h"><h2>Startups por vertical</h2>
             <span className="rev-lg"><i style={{ background: COR_EST.investida }} />Investida<i style={{ background: COR_EST.curso }} />Em curso<i style={{ background: COR_EST.arquivada }} />Arquivada</span></div>
-          <Verticais lista={lista} setTip={setTip} />
+          <Verticais lista={lista} setTip={setTip} k={ano} />
         </section>
         <section className="rev-c full">
           <div className="rev-h"><h2>De onde vêm</h2><span>Quanto mais escuro, mais startups.</span></div>
@@ -108,42 +108,45 @@ const estado = (d: Deal) => d.etapa === "investida" ? "investida" : d.etapa === 
 
 const pos = (e: React.MouseEvent) => ({ x: e.clientX + 14, y: e.clientY + 14 });
 
+/** Funil na vertical: uma faixa que estreita de cima para baixo, com um patamar em cada fase. */
 function Funil({ lista, setTip, k }: { lista: Deal[]; setTip: (t: Tip) => void; k: string }) {
   const n = FUNIL.map((f) => lista.filter((d) => chegou(d) >= f.desde).length);
-  const W = 1000, H = 230, top = 70, Hmax = 120, cy = top + Hmax / 2, cols = FUNIL.length, step = W / cols, plat = step * 0.42;
-  const h = n.map((v) => (n[0] ? Math.max(v ? 6 : 1.5, (v / n[0]) * Hmax) : 1.5));
-  const x0 = (i: number) => i * step + (step - plat) / 2, x1 = (i: number) => x0(i) + plat;
-  // Faixa contínua: patamar em cada fase e curva suave entre fases
-  let d = `M ${x0(0)} ${cy - h[0] / 2}`;
-  for (let i = 0; i < cols; i++) {
-    d += ` L ${x1(i)} ${cy - h[i] / 2}`;
-    if (i < cols - 1) { const m = (x1(i) + x0(i + 1)) / 2; d += ` C ${m} ${cy - h[i] / 2}, ${m} ${cy - h[i + 1] / 2}, ${x0(i + 1)} ${cy - h[i + 1] / 2}`; }
+  const rows = FUNIL.length, W = 560, step = 66, top = 6, H = top + rows * step + 6;
+  const Wmax = 250, cx = 168 + Wmax / 2 + 10, plat = step * 0.46;
+  const w = n.map((v) => (n[0] ? Math.max(v ? 10 : 2, (v / n[0]) * Wmax) : 2));
+  const y0 = (i: number) => top + i * step + (step - plat) / 2, y1 = (i: number) => y0(i) + plat, yc = (i: number) => top + i * step + step / 2;
+  // Lado esquerdo de cima para baixo, base, lado direito de baixo para cima: a forma fecha sem ponta
+  let d = `M ${cx - w[0] / 2} ${y0(0)}`;
+  for (let i = 0; i < rows; i++) {
+    d += ` L ${cx - w[i] / 2} ${y1(i)}`;
+    if (i < rows - 1) { const m = (y1(i) + y0(i + 1)) / 2; d += ` C ${cx - w[i] / 2} ${m}, ${cx - w[i + 1] / 2} ${m}, ${cx - w[i + 1] / 2} ${y0(i + 1)}`; }
   }
-  for (let i = cols - 1; i >= 0; i--) {
-    d += ` L ${x0(i)} ${cy + h[i] / 2}`;
-    if (i > 0) { const m = (x1(i - 1) + x0(i)) / 2; d += ` C ${m} ${cy + h[i] / 2}, ${m} ${cy + h[i - 1] / 2}, ${x1(i - 1)} ${cy + h[i - 1] / 2}`; }
+  d += ` L ${cx + w[rows - 1] / 2} ${y1(rows - 1)}`;
+  for (let i = rows - 1; i >= 0; i--) {
+    d += ` L ${cx + w[i] / 2} ${y0(i)}`;
+    if (i > 0) { const m = (y1(i - 1) + y0(i)) / 2; d += ` C ${cx + w[i] / 2} ${m}, ${cx + w[i - 1] / 2} ${m}, ${cx + w[i - 1] / 2} ${y1(i - 1)}`; }
   }
   d += " Z";
   return (
     <div className="rev-fl">
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Funil: ${FUNIL.map((f, i) => `${f.nome} ${n[i]}`).join(", ")}`} key={k}>
         <defs>
-          <linearGradient id="rfg" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stopColor="#8B3D26" /><stop offset="0.45" stopColor="#B15533" /><stop offset="1" stopColor="#E3AB8F" /></linearGradient>
+          <linearGradient id="rfg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#8B3D26" /><stop offset="0.45" stopColor="#B15533" /><stop offset="1" stopColor="#E3AB8F" /></linearGradient>
           <clipPath id="rfc"><rect className="rev-grow" x="0" y="0" width={W} height={H} /></clipPath>
         </defs>
-        {FUNIL.map((_, i) => <line key={i} x1={x0(i) + plat / 2} x2={x0(i) + plat / 2} y1={top - 6} y2={top + Hmax + 6} className="rev-gl" />)}
+        {FUNIL.map((_, i) => i > 0 && <line key={i} x1={0} x2={W} y1={top + i * step} y2={top + i * step} className="rev-gl" />)}
         <path d={d} fill="url(#rfg)" clipPath="url(#rfc)" />
         {FUNIL.map((f, i) => {
-          const conv = i > 0 && n[i - 1] ? Math.round((n[i] / n[i - 1]) * 100) : null, perdeu = i > 0 ? n[i - 1] - n[i] : 0, cx = x0(i) + plat / 2;
+          const conv = i > 0 && n[i - 1] ? Math.round((n[i] / n[i - 1]) * 100) : null, perdeu = i > 0 ? n[i - 1] - n[i] : 0, yt = top + i * step;
           return (
             <g key={f.nome} className="rev-st" onMouseMove={(e) => setTip({ ...pos(e), t: `${f.nome}: ${n[i]}`, s: `${f.desc}${conv !== null ? ` Passaram ${conv}% das startups da fase anterior; ${perdeu} ficaram pelo caminho.` : ""}` })} onMouseLeave={() => setTip(null)}>
-              <rect x={i * step} y={0} width={step} height={H} fill="transparent" />
-              <text x={cx} y={30} textAnchor="middle" className="rev-fn">{n[i]}</text>
-              <text x={cx} y={52} textAnchor="middle" className="rev-fs">{f.nome}</text>
-              {conv !== null && <g transform={`translate(${i * step}, ${cy})`}>
+              <rect x={0} y={yt} width={W} height={step} fill="transparent" />
+              <text x={0} y={yc(i) - 3} className="rev-fn">{n[i]}</text>
+              <text x={0} y={yc(i) + 17} className="rev-fs">{f.nome}</text>
+              {conv !== null && <g transform={`translate(${cx}, ${yt})`}>
                 <rect x={-24} y={-12} width={48} height={24} rx={12} className="rev-pill" />
                 <text x={0} y={4.5} textAnchor="middle" className="rev-pt">{conv}%</text></g>}
-              {perdeu > 0 && <text x={i * step} y={top + Hmax + 28} textAnchor="middle" className="rev-lost">-{perdeu}</text>}
+              {perdeu > 0 && <text x={W - 4} y={yt + 4.5} textAnchor="end" className="rev-lost">-{perdeu}</text>}
             </g>
           );
         })}
@@ -152,21 +155,24 @@ function Funil({ lista, setTip, k }: { lista: Deal[]; setTip: (t: Tip) => void; 
   );
 }
 
-function Verticais({ lista, setTip }: { lista: Deal[]; setTip: (t: Tip) => void }) {
-  const ordem = { investida: 0, curso: 1, arquivada: 2 } as const;
+/** Barras na vertical: uma coluna por vertical, empilhada por estado (investida em baixo, arquivada em cima). */
+function Verticais({ lista, setTip, k }: { lista: Deal[]; setTip: (t: Tip) => void; k: string }) {
   const rows = [...VERTICAIS_DF.map((v) => ({ nome: v.nome, l: lista.filter((d) => d.vertical === v.id) })), { nome: "Sem vertical", l: lista.filter((d) => !d.vertical) }]
-    .filter((r) => r.nome !== "Sem vertical" || r.l.length > 0)
-    .map((r) => ({ ...r, l: [...r.l].sort((a, b) => ordem[estado(a)] - ordem[estado(b)]) }));
-  const total = Math.max(1, lista.length);
+    .filter((r) => r.nome !== "Sem vertical" || r.l.length > 0);
+  const total = Math.max(1, lista.length), max = Math.max(1, ...rows.map((r) => r.l.length));
   return (
-    <ol className="rev-u">
+    <ol className="rev-vb" key={k}>
       {rows.map((r, ri) => {
         const c = { investida: 0, curso: 0, arquivada: 0 }; r.l.forEach((d) => c[estado(d)]++);
         return (
           <li key={r.nome} onMouseMove={(e) => setTip({ ...pos(e), t: `${r.nome}: ${r.l.length}`, s: `${Math.round((r.l.length / total) * 100)}% do total. ${c.investida} ${c.investida === 1 ? "investida" : "investidas"}, ${c.curso} em curso, ${c.arquivada} ${c.arquivada === 1 ? "arquivada" : "arquivadas"}.` })} onMouseLeave={() => setTip(null)}>
-            <span className="ul">{r.nome}</span>
-            <span className="ud">{r.l.length ? r.l.map((d, k) => <i key={d.id} style={{ background: COR_EST[estado(d)], ["--k" as string]: Math.min(k, 40) + ri * 2 }} />) : <em>Nenhuma</em>}</span>
-            <span className="un"><b>{r.l.length}</b>{(c.investida > 0 || c.curso > 0) && <small>{c.investida > 0 ? `${c.investida} inv.` : ""}{c.investida > 0 && c.curso > 0 ? " · " : ""}{c.curso > 0 ? `${c.curso} em curso` : ""}</small>}</span>
+            <span className="vbn">{r.l.length}</span>
+            <span className="vbt">
+              <span className="vbb" style={{ height: `${(r.l.length / max) * 100}%`, ["--k" as string]: ri }}>
+                {(["arquivada", "curso", "investida"] as const).map((e) => c[e] > 0 && <i key={e} style={{ flexGrow: c[e], background: COR_EST[e] }} />)}
+              </span>
+            </span>
+            <span className="vbl">{r.nome}</span>
           </li>
         );
       })}

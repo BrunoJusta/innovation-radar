@@ -4,7 +4,8 @@ import { Pager, usePaged } from "@/components/Pager";
 import { Icon } from "@/components/Icon";
 import { approveStartup, purgeStartup, rejectStartup, restoreStartup, SSnapshot, startupBackToTriage } from "@/lib/startup-actions";
 import { agendarApagar, cancelarApagar } from "@/lib/purge";
-import { FASES, Fila, Sector, Startup } from "@/lib/types";
+import { Area, FASES, Fila, Sector, Startup } from "@/lib/types";
+import { AreaSelect, FaseSelect, SectorSelect } from "@/components/CatSelect";
 import { fdCurto, relLevel } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { Empty, Gauge } from "../ui";
@@ -24,13 +25,14 @@ const TITLES: Record<Fila, [string, string]> = {
   approved: ["Aprovadas", "Estas startups estão no radar de startups. As que passam para o Pipeline saem desta lista, mas continuam aprovadas e no radar."],
 };
 
-export function StartupsTriage({ status, onStatus, startups, sectors, loaded, search, adding, setAdding }: {
-  status: Fila; onStatus: (s: Fila) => void; startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
+export function StartupsTriage({ areas, status, onStatus, startups, sectors, loaded, search, adding, setAdding }: {
+  areas: Area[]; status: Fila; onStatus: (s: Fila) => void; startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
 }) {
   const { email } = useSession();
   const { dealOf } = useDeals();
   const [fSec, setFSec] = useState("all");
   const [fFase, setFFase] = useState("all");
+  const [fCad, setFCad] = useState("all");
   const [sort, setSort] = useState<"score" | "date">("score");
   const [viewS, setViewS] = useState<"cards" | "list">("cards");
   const view = viewS;
@@ -49,12 +51,18 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
     let l = startups.filter((s) => s.status === status);
     if (fSec !== "all") l = l.filter((s) => s.setor === fSec);
     if (fFase !== "all") l = l.filter((s) => s.fase === fFase);
+    if (fCad !== "all") l = l.filter((s) => s.cadeia === fCad);
     if (search) { const q = search.toLowerCase(); l = l.filter((s) => `${s.nome} ${s.dominio} ${s.descricao} ${s.pais} ${(s.investidores || []).join(" ")}`.toLowerCase().includes(q)); }
     return [...l].sort((a, b) => sort === "date" ? b.criadoEm.localeCompare(a.criadoEm) : b.relevancia - a.relevancia);
-  }, [startups, status, fSec, fFase, search, sort]);
+  }, [startups, status, fSec, fFase, fCad, search, sort]);
 
   // 40 por página; volta à 1.ª quando os filtros mudam
-  const pageKey = `${status}|${fSec}|${fFase}|${search}|${sort}`;
+  const pageKey = `${status}|${fSec}|${fFase}|${fCad}|${search}|${sort}`;
+  // Contagens de cada opção com os outros dois filtros aplicados
+  const doEstado = startups.filter((s) => s.status === status);
+  const nSec = (id: string) => doEstado.filter((s) => s.setor === id && (fFase === "all" || s.fase === fFase) && (fCad === "all" || s.cadeia === fCad)).length;
+  const nFase = (id: string) => doEstado.filter((s) => s.fase === id && (fSec === "all" || s.setor === fSec) && (fCad === "all" || s.cadeia === fCad)).length;
+  const nCad = (id: string) => doEstado.filter((s) => s.cadeia === id && (fSec === "all" || s.setor === fSec) && (fFase === "all" || s.fase === fFase)).length;
   const pg = usePaged(list, pageKey);
 
   /** Rejeitar: sai logo da vista e é apagada da base de dados quando o aviso com Anular desaparece. */
@@ -71,14 +79,9 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
       <div><h1>{TITLES[status][0]}</h1><p>{TITLES[status][1]}</p></div>
     </div>
     <div className="toolbar">
-      <div className="seg" role="group" aria-label="Setor">
-        <button aria-pressed={fSec === "all"} onClick={() => setFSec("all")}>Todos os setores</button>
-        {sectors.map((s) => <button key={s.id} aria-pressed={fSec === s.id} onClick={() => setFSec(s.id)}><Icon name={s.icone} />{s.nome}</button>)}
-      </div>
-      <div className="seg" role="group" aria-label="Fase">
-        <button aria-pressed={fFase === "all"} onClick={() => setFFase("all")}>Todas as fases</button>
-        {[...FASES].reverse().map((f) => <button key={f.id} aria-pressed={fFase === f.id} onClick={() => setFFase(f.id)}>{f.nome}</button>)}
-      </div>
+      <AreaSelect areas={areas} value={fCad} onChange={setFCad} counts={nCad} />
+      <SectorSelect sectors={sectors} value={fSec} onChange={setFSec} counts={nSec} />
+      <FaseSelect fases={[...FASES].reverse()} value={fFase} onChange={setFFase} counts={nFase} />
       <span className="sp" />
       {view === "cards" && <div className="seg" role="group" aria-label="Ordenar">
         <button aria-pressed={sort === "score"} onClick={() => setSort("score")}>Relevância</button>
@@ -117,6 +120,7 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
                 <div className="ctopg">
                   <div className="tags">
                     <span className="tg ar">{c?.nome || "Sem setor"}</span>
+                    {areas.find((a) => a.id === s.cadeia) && <span className="tg"><i className="cdot" style={{ background: areas.find((a) => a.id === s.cadeia)!.cor }} />{areas.find((a) => a.id === s.cadeia)!.nome}</span>}
                     <span className="tg">{fase?.nome}</span>
                     
                     {dealOf(s) && <span className="tg pipe" title={`No pipeline: ${nomeEtapa(dealOf(s)!.etapa)}`}><Icon name="kanban" />{dealOf(s)!.etapa === "arquivada" ? "Arquivada no pipeline" : nomeEtapa(dealOf(s)!.etapa)}</span>}
@@ -153,11 +157,11 @@ export function StartupsTriage({ status, onStatus, startups, sectors, loaded, se
     )}
 
     {open && (
-      <StartupDrawer s={open} list={list} sectors={sectors} onClose={() => setOpenId(null)} onNav={setOpenId} notify={(m) => notify(m)}
+      <StartupDrawer s={open} list={list} sectors={sectors} areas={areas} onClose={() => setOpenId(null)} onNav={setOpenId} notify={(m) => notify(m)}
         onApprove={() => act(approveStartup(open, email), `«${open.nome}» aprovada e no radar`, true)}
         onReason={(m) => act(rej(open, m), `«${open.nome}» rejeitada e apagada`, true)} onBack={() => act(startupBackToTriage(open), `«${open.nome}» voltou à triagem`, true)} />
     )}
-    {adding && <FindStartups mode="search" sectors={sectors} startups={startups} onClose={() => setAdding(false)}
+    {adding && <FindStartups mode="search" sectors={sectors} areas={areas} startups={startups} onClose={() => setAdding(false)}
       onDone={(msg) => { setAdding(false); onStatus("pending"); notify(msg); }} />}
     {toast && (
       <div className="toast" role="status"><span>{toast.msg}</span>

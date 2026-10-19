@@ -17,9 +17,9 @@ export interface ChartItem {
 // Com muitos anéis o expoente aproxima-se de 1, para os de fora não ficarem colados uns aos outros
 export const ringRadii = (n: number) => { const e = n >= 6 ? 0.86 : n >= 4 ? 0.78 : 0.7; return Array.from({ length: n }, (_, i) => RMAX * Math.pow((i + 1) / Math.max(n, 1), e)); };
 
-const BASE_R = 13; // raio normal do ponto
+const BASE_R = 9; // raio normal do ponto
 const MIN_S = 0.5; // escala mínima
-export const SHOW_NUM = 0.8; // abaixo desta escala o número deixa de caber e não é mostrado
+export const SHOW_NUM = 0.85; // abaixo desta escala o número deixa de caber e não é mostrado
 
 /** Número pseudoaleatório estável a partir de um texto: o radar fica igual sempre que se abre. */
 function seeded(txt: string) {
@@ -266,15 +266,15 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
           const stagger = (k * Math.min(1, 14 / Math.max(items.length, 1))).toFixed(2); // a entrada demora sempre menos de 1 s
           return (
             <g key={x.id} className={`bw${off ? " off" : ""}${!on ? " dim" : ""}${hits && !on ? " miss" : ""}${focus ? " focus" : ""}`} style={{ transform: `translate(${(x.x * K).toFixed(1)}px, ${(x.y * K).toFixed(1)}px)` }}>
-              {hit && <circle key={`h${scanKey}`} className="beacon" r={14 * sc} fill="none" stroke={c} strokeWidth={2.5} style={{ ["--d" as string]: `${((ang(x) / 360) * 1.1).toFixed(2)}s` }} />}
-              <circle className="rip" r={14 * sc} fill="none" stroke={c} strokeWidth={2} data-rip={x.id} />
+              {hit && <circle key={`h${scanKey}`} className="beacon" r={10 * sc} fill="none" stroke={c} strokeWidth={2.5} style={{ ["--d" as string]: `${((ang(x) / 360) * 1.1).toFixed(2)}s` }} />}
+              <circle className="rip" r={10 * sc} fill="none" stroke={c} strokeWidth={2} data-rip={x.id} />
               <g className={`blip${(fGroup !== "all" || hits) && on ? " link" : ""}${hit ? " hit" : ""}`} tabIndex={hits && !on ? -1 : 0} role="button" style={{ ["--i" as string]: stagger, ["--d" as string]: `${((ang(x) / 360) * 1.1).toFixed(2)}s` }}
                 aria-label={`${x.n}. ${x.titulo}`}
                 onMouseEnter={(e) => { showTip(e, x); onHover?.(x.id); }} onMouseLeave={() => { setTip(null); onHover?.(null); }} onFocus={(e) => showTip(e, x)} onBlur={() => setTip(null)}
                 onClick={() => onOpen(x.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(x.id); } }}>
-                <circle className="halo" r={20 * sc} fill={c} opacity={0.18} />
+                <circle className="halo" r={14 * sc} fill={c} opacity={0.18} />
                 <circle className="dot" r={BASE_R * sc} fill={c} filter={`url(#${P}glow)`} />
-                {sc >= SHOW_NUM && <text textAnchor="middle" y={4} fill="#fff">{x.n}</text>}
+                {sc >= SHOW_NUM && <text textAnchor="middle" y={3} fill="#fff">{x.n}</text>}
               </g>
             </g>
           );

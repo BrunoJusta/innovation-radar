@@ -6,7 +6,7 @@ import { Startup, StartupOrigem } from "./types";
 import { nowIso } from "./util";
 
 const ref = (id: string) => doc(db, "startups", id);
-export type StartupEdit = Pick<Startup, "nome" | "site" | "pais" | "cidade" | "fundacao" | "fase" | "setor" | "descricao" | "porque" | "relevancia" | "financiamento" | "investidores">;
+export type StartupEdit = Pick<Startup, "nome" | "site" | "pais" | "cidade" | "fundacao" | "fase" | "setor" | "cadeia" | "descricao" | "porque" | "relevancia" | "financiamento" | "investidores">;
 
 /** Campos anteriores para o botão Anular. */
 export type SSnapshot = { id: string; data: Record<string, any> };

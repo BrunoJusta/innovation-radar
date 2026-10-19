@@ -77,7 +77,7 @@ export function CatSelect({ cats, value, onChange, counts, total = null, allLabe
         <Icon name="caret-down" className="cdc" />
       </button>
       {value !== "all" && (
-        <button type="button" className="cdx" aria-label="Tirar filtro de tag" onClick={() => onChange("all")}><Icon name="x" /></button>
+        <button type="button" className="cdx" aria-label={`Tirar filtro: ${cur?.nome || ""}`} onClick={() => onChange("all")}><Icon name="x" /></button>
       )}
       {open && (
         <div className="cdp" onKeyDown={onKey}>
@@ -146,4 +146,16 @@ function Marca({ c }: { c: Category & { cor?: string } }) {
 export function AreaSelect({ areas, value, onChange, counts }: { areas: Area[]; value: string; onChange: (id: string) => void; counts?: (areaId: string) => number }) {
   const itens = areas.map((a) => ({ id: a.id, nome: a.nome, cor: a.cor, ordem: a.ordem, icone: "", descricao: a.descricao, palavrasChave: [] })) as (Category & { cor: string })[];
   return <CatSelect cats={itens} value={value} onChange={onChange} counts={counts} simples allLabel="Todas as cadeias de valor" procurar="Procurar cadeia de valor" />;
+}
+
+/** Filtro de setor das startups (ícone do setor), com o mesmo comportamento dos filtros de tags. */
+export function SectorSelect({ sectors, value, onChange, counts }: { sectors: { id: string; nome: string; icone: string; descricao: string; ordem: number }[]; value: string; onChange: (id: string) => void; counts?: (id: string) => number }) {
+  const itens = sectors.map((s) => ({ id: s.id, nome: s.nome, icone: s.icone || "briefcase", descricao: s.descricao, ordem: s.ordem, palavrasChave: [] })) as Category[];
+  return <CatSelect cats={itens} value={value} onChange={onChange} counts={counts} simples allLabel="Todos os setores" procurar="Procurar setor" />;
+}
+
+/** Filtro de fase das startups (bolinha com a cor da fase), da mais jovem para a mais madura. */
+export function FaseSelect({ fases, value, onChange, counts }: { fases: { id: string; nome: string; cor: string; descricao: string }[]; value: string; onChange: (id: string) => void; counts?: (id: string) => number }) {
+  const itens = fases.map((f, i) => ({ id: f.id, nome: f.nome, cor: f.cor, icone: "", descricao: f.descricao, ordem: i, palavrasChave: [] })) as (Category & { cor: string })[];
+  return <CatSelect cats={itens} value={value} onChange={onChange} counts={counts} simples allLabel="Todas as fases" procurar="Procurar fase" />;
 }

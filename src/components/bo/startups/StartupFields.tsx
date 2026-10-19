@@ -1,12 +1,12 @@
 "use client";
 import { useState } from "react";
-import { FASES, Sector } from "@/lib/types";
+import { Area, FASES, Sector } from "@/lib/types";
 import { StartupEdit } from "@/lib/startup-actions";
 import { relLabel } from "@/lib/util";
 import { Gauge } from "../ui";
 
 /** Edição total da ficha de uma startup. */
-export function StartupFields({ value: v, onChange, sectors }: { value: StartupEdit; onChange: (p: Partial<StartupEdit>) => void; sectors: Sector[] }) {
+export function StartupFields({ value: v, onChange, sectors, areas }: { value: StartupEdit; onChange: (p: Partial<StartupEdit>) => void; sectors: Sector[]; areas: Area[] }) {
   const [inv, setInv] = useState((v.investidores || []).join(", "));
   return (
     <div className="dform">
@@ -15,6 +15,9 @@ export function StartupFields({ value: v, onChange, sectors }: { value: StartupE
         <label className="fld"><span>Site</span><input autoComplete="off" type="url" spellCheck={false} value={v.site} onChange={(e) => onChange({ site: e.target.value })} /></label>
         <label className="fld"><span>Setor</span>
           <select value={v.setor} onChange={(e) => onChange({ setor: e.target.value })}>{sectors.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}</select></label>
+        <label className="fld"><span>Cadeia de valor</span>
+          <select value={v.cadeia || ""} onChange={(e) => onChange({ cadeia: e.target.value || undefined })}>
+            <option value="">Por atribuir</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}</select></label>
         <label className="fld"><span>Fase</span>
           <select value={v.fase} onChange={(e) => onChange({ fase: e.target.value as StartupEdit["fase"] })}>{FASES.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}</select></label>
         <label className="fld"><span>País</span><input autoComplete="off" value={v.pais} onChange={(e) => onChange({ pais: e.target.value })} /></label>

@@ -8,6 +8,10 @@ import { dCurta, Hl, SearchBox, ViewToggle } from "@/components/radar/SearchBits
 import { EmLabels, SearchResults, SearchSummary, where } from "@/components/radar/SearchResults";
 import { search, SearchDoc, snippet, terms } from "@/lib/search";
 import { approveStartup, rejectStartup, startupBackToTriage } from "@/lib/startup-actions";
+import { FaseSelect, SectorSelect } from "@/components/CatSelect";
+import { post } from "@/lib/api";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { Area, Category, FASES, Sector, Startup } from "@/lib/types";
 import { useSession } from "../AuthGate";
 import { StartupDrawer } from "./StartupDrawer";
@@ -17,16 +21,17 @@ type Ordem = "recentes" | "relevancia";
 const LS_VISTA = "startups:radar:vista";
 
 /** Como a pesquisa explica onde encontrou a startup. */
-const LABELS: EmLabels = { titulo: "nome", resumo: "descrição", entidades: "investidores", area: "setor", categoria: "fase", fontes: "origem" };
+const LABELS: EmLabels = { titulo: "nome", resumo: "descrição", entidades: "investidores", area: "cadeia de valor", categoria: "fase", fontes: "origem" };
 
 /**
- * Radar das startups aprovadas: anéis = setores (pela ordem definida), cor = setor; a fase é um filtro.
+ * Radar das startups aprovadas: anéis = cadeias de valor (como no radar das notícias), cor = cadeia; o setor e a fase são filtros.
  * Igual ao radar das notícias: pesquisa que acende os resultados no radar, vista em lista e paginação.
  */
-export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[]; sectors: Sector[]; loaded: boolean }) {
+export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { areas: Area[]; startups: Startup[]; sectors: Sector[]; loaded: boolean }) {
   const { email } = useSession();
   const [fRing, setFRing] = useState<string | null>(null);
   const [fFase, setFFase] = useState("all");
+  const [fSec, setFSec] = useState("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const [view, setViewS] = useState<Vista>("radar");
@@ -43,22 +48,40 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
   }, []);
   const setView = (v: Vista) => { setViewS(v); try { localStorage.setItem(LS_VISTA, v); } catch { /* sem armazenamento */ } };
 
-  // Os setores fazem de anéis e as fases de "categorias" (para reaproveitar a pesquisa e a lista do radar das notícias)
-  const rings = useMemo(() => sectors.map((x) => ({ id: x.id, nome: x.nome, cor: x.cor })), [sectors]);
-  const areas: Area[] = useMemo(() => sectors.map((x) => ({ id: x.id, nome: x.nome, cor: x.cor, descricao: x.descricao, ordem: x.ordem })), [sectors]);
+  // As cadeias de valor fazem de anéis e as fases de "categorias" (para reaproveitar a pesquisa e a lista do radar das notícias)
+  const rings = useMemo(() => cadeias.map((x) => ({ id: x.id, nome: x.nome, cor: x.cor })), [cadeias]);
+  const areas: Area[] = cadeias;
   const fases: Category[] = useMemo(() => FASES.map((f, i) => ({ id: f.id, nome: f.nome, icone: "chart-line", descricao: f.descricao, ordem: i, palavrasChave: [] })), []);
   const area = useCallback((id: string) => areas.find((a) => a.id === id), [areas]);
   const fase = useCallback((id: string) => fases.find((f) => f.id === id), [fases]);
 
-  const approved = useMemo(() => startups.filter((s) => s.status === "approved"), [startups]);
+  const aprovadas = useMemo(() => startups.filter((s) => s.status === "approved"), [startups]);
+  // Só entram no radar as que têm cadeia de valor; as outras ficam à espera de serem classificadas
+  const approved = useMemo(() => aprovadas.filter((s) => cadeias.some((a) => a.id === s.cadeia)), [aprovadas, cadeias]);
+  const semCadeia = useMemo(() => aprovadas.filter((s) => !cadeias.some((a) => a.id === s.cadeia)), [aprovadas, cadeias]);
+  const [classificando, setClassificando] = useState(false);
+  const classificar = async () => {
+    setClassificando(true);
+    try {
+      let feitas = 0;
+      for (let i = 0; i < semCadeia.length; i += 80) {
+        const lote = semCadeia.slice(i, i + 80).map((s) => ({ id: s.id, nome: s.nome, descricao: s.descricao, setor: sectors.find((x) => x.id === s.setor)?.nome || "" }));
+        const j = await post<{ cadeias: Record<string, string> }>("/api/startups/cadeias", { startups: lote });
+        await Promise.all(Object.entries(j.cadeias).map(([id, cadeia]) => updateDoc(doc(db, "startups", id), { cadeia })));
+        feitas += Object.keys(j.cadeias).length;
+      }
+      flash(`Cadeia de valor atribuída a ${feitas} ${feitas === 1 ? "startup" : "startups"}`);
+    } catch (e) { flash((e as Error).message || "Não foi possível classificar. Tenta outra vez."); }
+    setClassificando(false);
+  };
   const items: RadarItem[] = useMemo(() => layout(rings, approved.map((s) => {
-    const sec = sectors.find((x) => x.id === s.setor), f = FASES.find((x) => x.id === s.fase);
+    const sec = sectors.find((x) => x.id === s.setor), f = FASES.find((x) => x.id === s.fase), cad = cadeias.find((x) => x.id === s.cadeia);
     return {
-      id: s.id, ring: s.setor, area: s.setor, cat: s.fase, group: s.fase, color: sec?.cor || "#94A3B8",
-      titulo: s.nome, sub: `${sec?.nome || ""}, ${f?.nome || ""}`, resumo: [s.descricao, s.porque].filter(Boolean).join("\n\n"),
+      id: s.id, ring: s.cadeia!, area: s.cadeia!, cat: s.fase, group: s.fase, color: cad?.cor || "#94A3B8",
+      titulo: s.nome, sub: [sec?.nome, f?.nome].filter(Boolean).join(", "), resumo: [s.descricao, s.porque].filter(Boolean).join("\n\n"),
       entidades: s.investidores || [], fontes: [], data: s.aprovadoEm || s.criadoEm, relevancia: s.relevancia, destaque: s.destaque,
     };
-  })), [approved, sectors, rings]);
+  })), [approved, sectors, rings, cadeias]);
   const byId = useMemo(() => new Map(approved.map((s) => [s.id, s])), [approved]);
 
   // Pesquisa (nome, descrição, investidores, país, setor e fase)
@@ -67,20 +90,24 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
   const docs: SearchDoc[] = useMemo(() => items.map((x) => {
     const s = byId.get(x.id);
     return { id: x.id, titulo: x.titulo, resumo: `${x.resumo} ${s?.pais || ""} ${s?.cidade || ""} ${s?.financiamento || ""}`, entidades: x.entidades,
-      fontes: [{ titulo: s?.dominio || "" }], areaNome: area(x.area)?.nome || "", catNome: fase(x.cat)?.nome || "", relevancia: x.relevancia, data: x.data };
-  }), [items, byId, area, fase]);
+      fontes: [{ titulo: s?.dominio || "" }], areaNome: `${area(x.area)?.nome || ""} ${sectors.find((y) => y.id === s?.setor)?.nome || ""}`, catNome: fase(x.cat)?.nome || "", relevancia: x.relevancia, data: x.data };
+  }), [items, byId, area, fase, sectors]);
   const hits = useMemo(() => (searching ? search(docs, dq) : []), [docs, dq, searching]);
   const hitsById = useMemo(() => new Map(hits.map((h) => [h.id, h])), [hits]);
   const hitSet = useMemo(() => (searching ? new Set(hits.map((h) => h.id)) : null), [hits, searching]);
   const itemById = useMemo(() => new Map(items.map((x) => [x.id, x])), [items]);
-  const passa = useCallback((x: RadarItem) => (!fRing || x.area === fRing) && (fFase === "all" || x.cat === fFase), [fRing, fFase]);
+  const secOf = useCallback((x: RadarItem) => byId.get(x.id)?.setor || "", [byId]);
+  /** Setor e fase (os filtros em dropdown); o anel filtra-se à parte. */
+  const passaSF = useCallback((x: RadarItem) => (fFase === "all" || x.cat === fFase) && (fSec === "all" || secOf(x) === fSec), [fFase, fSec, secOf]);
+  const passa = useCallback((x: RadarItem) => (!fRing || x.area === fRing) && passaSF(x), [fRing, passaSF]);
+  const temFiltroSF = fFase !== "all" || fSec !== "all";
   const hitItems = useMemo(() => hits.map((h) => itemById.get(h.id)!).filter(Boolean), [hits, itemById]);
   const results = useMemo(() => hitItems.filter(passa), [hitItems, passa]);
   const byArea = useMemo(() => {
     const o: Record<string, number> = {};
-    hitItems.filter((x) => fFase === "all" || x.cat === fFase).forEach((x) => { o[x.area] = (o[x.area] || 0) + 1; });
+    hitItems.filter(passaSF).forEach((x) => { o[x.area] = (o[x.area] || 0) + 1; });
     return o;
-  }, [hitItems, fFase]);
+  }, [hitItems, passaSF]);
   const related = useMemo(() => {
     if (!searching) return [];
     const n = new Map<string, number>();
@@ -93,12 +120,12 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
   const examples = useMemo(() => {
     const n = new Map<string, number>();
     approved.forEach((s) => [...(s.investidores || []), s.pais].filter(Boolean).forEach((e) => n.set(e, (n.get(e) || 0) + 1)));
-    return [...[...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([e]) => e), ...sectors.slice(0, 3).map((s) => s.nome)];
-  }, [approved, sectors]);
+    return [...[...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([e]) => e), ...cadeias.slice(0, 3).map((s) => s.nome)];
+  }, [approved, cadeias]);
   const suggestions: { label: string; icon?: string }[] = useMemo(() => [
-    ...sectors.slice(0, 4).map((s) => ({ label: s.nome, icon: s.icone })),
+    ...cadeias.slice(0, 4).map((a) => ({ label: a.nome })),
     ...examples.slice(0, 5).map((e) => ({ label: e })),
-  ], [sectors, examples]);
+  ], [cadeias, examples]);
 
   // Lista: filtros, ordem e paginação
   const ordem = searching ? ordemS : ordemL, setOrdem = searching ? setOrdemS : setOrdemL;
@@ -107,11 +134,11 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
     if (ordem === "recentes") return [...l].sort((a, b) => b.data.localeCompare(a.data));
     return searching ? l : [...l].sort((a, b) => b.relevancia - a.relevancia || b.data.localeCompare(a.data));
   }, [searching, results, items, passa, ordem]);
-  const pgL = usePaged(rows, `${dq}|${fRing}|${fFase}|${ordem}`);
-  const pgR = usePaged(results, `${dq}|${fRing}|${fFase}`);
+  const pgL = usePaged(rows, `${dq}|${fRing}|${fFase}|${fSec}|${ordem}`);
+  const pgR = usePaged(results, `${dq}|${fRing}|${fFase}|${fSec}`);
 
   const nav = view === "lista" ? pgL.items : pgR.items;
-  useEffect(() => setActive(0), [dq, fRing, fFase, view, ordem, pgL.page, pgR.page]);
+  useEffect(() => setActive(0), [dq, fRing, fFase, fSec, view, ordem, pgL.page, pgR.page]);
   useEffect(() => {
     if (!searching) return;
     const el = document.getElementById(`sr-${nav[active]?.id}`);
@@ -132,20 +159,20 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
   };
   const focusId = hover ?? (searching ? nav[active]?.id ?? null : null);
 
-  const counts = (rid: string) => items.filter((x) => x.ring === rid && (fFase === "all" || x.group === fFase)).length;
-  const faseCount = (fid: string) => items.filter((x) => x.cat === fid && (!fRing || x.area === fRing)).length;
+  const counts = (rid: string) => items.filter((x) => x.ring === rid && passaSF(x)).length;
+  const faseCount = (fid: string) => items.filter((x) => x.cat === fid && (!fRing || x.area === fRing) && (fSec === "all" || secOf(x) === fSec)).length;
+  const secCount = (sid: string) => items.filter((x) => secOf(x) === sid && (!fRing || x.area === fRing) && (fFase === "all" || x.cat === fFase)).length;
   const open = openId ? startups.find((s) => s.id === openId) || null : null;
   const drawerList = (view === "lista" ? rows : searching ? results : items).map((x) => byId.get(x.id)!).filter(Boolean);
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 2600); };
 
-  const faseChips = (
-    <div className="cats" role="group" aria-label="Filtrar por fase">
-      <button className="chip" aria-pressed={fFase === "all"} onClick={() => setFFase("all")}>Todas as fases</button>
-      {[...FASES].reverse().map((f) => (
-        <button key={f.id} className="chip" aria-pressed={fFase === f.id} onClick={() => setFFase(f.id)} style={{ ["--sc" as string]: f.cor }}>
-          <span className="scdot" />{f.nome}<span className="cn">{faseCount(f.id)}</span></button>
-      ))}
-    </div>
+  const filtros = (<>
+    <SectorSelect sectors={sectors} value={fSec} onChange={setFSec} counts={secCount} />
+    <FaseSelect fases={[...FASES].reverse()} value={fFase} onChange={setFFase} counts={faseCount} />
+  </>);
+  const aviso = semCadeia.length > 0 && (
+    <div className="notice warn scad"><span>{semCadeia.length} {semCadeia.length === 1 ? "startup aprovada ainda não tem" : "startups aprovadas ainda não têm"} cadeia de valor e não {semCadeia.length === 1 ? "aparece" : "aparecem"} no radar.</span>
+      <button className="btn" onClick={classificar} disabled={classificando}>{classificando ? <><span className="spin" aria-hidden="true" />A classificar…</> : <><Icon name="sparkle" />Atribuir com a Gemini</>}</button></div>
   );
   const summary = (
     <SearchSummary q={dq} n={results.length} total={hits.length} byArea={byArea} areas={areas} fRing={fRing} setFRing={setFRing}
@@ -155,12 +182,12 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
   const empty = searching ? (
     <>
       <b>Nenhuma startup para «{dq.trim()}»</b>
-      <span>{hits.length ? "Há resultados noutros setores ou fases. Tira os filtros para os veres." : "Experimenta outra palavra, um investidor ou um país."}</span>
-      {hits.length ? <button className="chip" onClick={() => { setFRing(null); setFFase("all"); }}>Tirar filtros</button>
+      <span>{hits.length ? "Há resultados noutras cadeias de valor, setores ou fases. Tira os filtros para os veres." : "Experimenta outra palavra, um investidor ou um país."}</span>
+      {hits.length ? <button className="chip" onClick={() => { setFRing(null); setFFase("all"); setFSec("all"); }}>Tirar filtros</button>
         : <div className="ssc">{suggestions.slice(0, 6).map((s) => <button key={s.label} className="chip" onClick={() => setQ(s.label)}>{s.icon && <Icon name={s.icon} />}{s.label}</button>)}</div>}
     </>
   ) : (
-    <><b>Sem startups com estes filtros</b><span>Tira os filtros de setor e fase.</span></>
+    <><b>Sem startups com estes filtros</b><span>Tira os filtros de cadeia de valor, setor e fase.</span></>
   );
 
   return (<>
@@ -184,18 +211,19 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
                 </div>
               ) : (
                 <>
-                  <div className={`legend${fRing ? " filtering" : ""}`} role="group" aria-label="Filtrar por setor">
-                    {sectors.map((a) => (
+                  <div className={`legend${fRing ? " filtering" : ""}`} role="group" aria-label="Filtrar por cadeia de valor">
+                    {cadeias.map((a) => (
                       <button key={a.id} className="lg" style={{ ["--c" as string]: a.cor }} aria-pressed={fRing === a.id} onClick={() => setFRing(fRing === a.id ? null : a.id)}>
                         <span className="sw" /><b>{a.nome}</b><span className="n">{counts(a.id)}</span>
                       </button>
                     ))}
                   </div>
-                  {faseChips}
+                  <div className="fline">{filtros}</div>
+                  {aviso}
                 </>
               )}
             </div>
-            <RadarChart rings={rings} items={items} fRing={fRing} fGroup={fFase} regrowKey={searching ? "search" : ""} onOpen={setOpenId}
+            <RadarChart rings={rings} items={items} fRing={fRing} fGroup={temFiltroSF ? "sf" : "all"} pass={temFiltroSF ? (x) => passaSF(x as RadarItem) : undefined} regrowKey={searching ? "search" : ""} onOpen={setOpenId}
               state={loaded ? "ok" : "loading"} idPrefix="s" hits={hitSet} focusId={focusId} scanKey={searching ? dq : ""} onHover={setHover}
               center={searching ? { n: results.length, label: results.length === 1 ? "startup" : "startups" } : null}
               emptyTitle="Ainda sem startups aprovadas" emptyText="Aprova startups na triagem e elas aparecem aqui." ariaLabel="Radar das startups aprovadas" />
@@ -204,17 +232,18 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
           <div className="lv">
             {searching ? summary : (
               <div className="lbar">
-                <div className="lareas" role="group" aria-label="Filtrar por setor">
-                  <button className="chip" aria-pressed={!fRing} onClick={() => setFRing(null)}>Todos os setores</button>
-                  {sectors.map((a) => (
+                <div className="lareas" role="group" aria-label="Filtrar por cadeia de valor">
+                  <button className="chip" aria-pressed={!fRing} onClick={() => setFRing(null)}>Todas as cadeias</button>
+                  {cadeias.map((a) => (
                     <button key={a.id} className="chip achip" style={{ ["--c" as string]: a.cor }} aria-pressed={fRing === a.id} onClick={() => setFRing(fRing === a.id ? null : a.id)}>
                       <span className="cdot" />{a.nome}<span className="cn">{counts(a.id)}</span>
                     </button>
                   ))}
                 </div>
-                {faseChips}
+                <div className="fline">{filtros}</div>
               </div>
             )}
+            {aviso}
             <div className="lctl">
               <span className="lcount"><b>{rows.length}</b> {rows.length === 1 ? "startup" : "startups"}</span>
               <span className="sp" />
@@ -242,6 +271,7 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
                             <span className="lres"><Hl text={searching ? snippet(s?.descricao || x.resumo, ts, 220) : s?.descricao || x.resumo} ts={ts} /></span>
                             <span className="lmeta">
                               <span className="lar"><i />{a?.nome}</span>
+                              {sectors.find((y) => y.id === s?.setor) && <span className="lca">{sectors.find((y) => y.id === s?.setor)!.nome}</span>}
                               {f && <span className="lca"><span className="scdot" style={{ ["--sc" as string]: f.cor }} />{f.nome}</span>}
                               {s?.pais && <span className="lca"><Icon name="globe" />{s.pais}</span>}
                               {s?.financiamento && <span className="lca">{s.financiamento}</span>}
@@ -263,7 +293,7 @@ export function StartupRadar({ startups, sectors, loaded }: { startups: Startup[
       </section>
     </div>
     {open && (
-      <StartupDrawer s={open} list={drawerList} sectors={sectors} onClose={() => setOpenId(null)} onNav={setOpenId} notify={flash}
+      <StartupDrawer s={open} list={drawerList} sectors={sectors} areas={cadeias} onClose={() => setOpenId(null)} onNav={setOpenId} notify={flash}
         onApprove={() => approveStartup(open, email).then(() => flash("Aprovada"))}
         onReason={(m) => rejectStartup(open, m).then(() => { setOpenId(null); flash("Rejeitada"); })} onBack={() => startupBackToTriage(open).then(() => { setOpenId(null); flash(`«${open.nome}» voltou à triagem`); })} />
     )}

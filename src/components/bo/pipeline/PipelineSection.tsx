@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { dealsCsv } from "@/lib/deal-actions";
 import { VEZES, Vez } from "@/lib/types";
 import { Icon } from "@/components/Icon";
 import { useSession } from "../AuthGate";
@@ -11,6 +10,7 @@ import { PipelineBoard, prazoEstado } from "./PipelineBoard";
 import { PipelineTable } from "./PipelineTable";
 import { DealDrawer } from "./DealDrawer";
 import { PipelineCalendar } from "./PipelineCalendar";
+import { ImportDealflow } from "./ImportDealflow";
 
 type Estado = "ativas" | "arquivadas";
 type Vista = "quadro" | "lista" | "calendario";
@@ -30,6 +30,7 @@ export function PipelineSection({ search }: { search: string }) {
   const [minhas, setMinhas] = useState(false);
   const [atrasadas, setAtrasadas] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [importando, setImportando] = useState(false);
   const { flash, el } = useFlash();
 
   const ativas = deals.filter((d) => d.etapa !== "arquivada"), arq = deals.filter((d) => d.etapa === "arquivada");
@@ -45,12 +46,6 @@ export function PipelineSection({ search }: { search: string }) {
   const pessoas = useMemo(() => Array.from(new Set([email, ...deals.map((d) => d.responsavel).filter(Boolean)])).sort(), [deals, email]);
   const late = ativas.filter((d) => prazoEstado(d) === "atrasado").length;
   const open = deals.find((d) => d.id === openId);
-
-  const exportar = () => {
-    const blob = new Blob([dealsCsv(deals)], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `pipeline-sogrape-ventures-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  };
 
   return (<>
     <div className="head">
@@ -72,7 +67,7 @@ export function PipelineSection({ search }: { search: string }) {
         </div>
       </>}
       <span className="sp" />
-      <button className="btn" onClick={exportar} disabled={!deals.length}><Icon name="download-simple" />Exportar</button>
+      <button className="btn" onClick={() => setImportando(true)} disabled={!loaded || !!erro}><Icon name="upload-simple" />Importar Excel</button>
       {!arquivadas && <div className="seg" role="group" aria-label="Vista">
         <button aria-pressed={vista === "quadro"} onClick={() => setVista("quadro")} title="Quadro"><Icon name="kanban" />Quadro</button>
         <button aria-pressed={vista === "lista"} onClick={() => setVista("lista")} title="Lista"><Icon name="list-bullets" />Lista</button>
@@ -80,12 +75,13 @@ export function PipelineSection({ search }: { search: string }) {
     </div>
     {!loaded ? <div className="loading">A carregar…</div>
       : erro ? <Empty title="Sem acesso ao pipeline" text={erro} />
-      : !deals.length ? <Empty title="O pipeline está vazio" text="Para começar o seguimento de uma startup, abre-a na Triagem ou nas Aprovadas e carrega em «Pôr no pipeline»." />
+      : !deals.length ? <Empty title="O pipeline está vazio" text="Para começar o seguimento de uma startup, abre-a na Triagem ou nas Aprovadas e carrega em «Pôr no pipeline», ou importa o Excel do dealflow." />
       : !arquivadas && vista === "calendario" ? <PipelineCalendar deals={filtradas} onOpen={setOpenId} />
       : !arquivadas && vista === "quadro" ? <PipelineBoard deals={filtradas} onOpen={setOpenId} notify={flash} />
       : !filtradas.length ? <Empty title="Nada encontrado" text="Muda a pesquisa ou os filtros." />
       : <PipelineTable key={`${estado}-${vista}`} deals={filtradas} arquivadas={arquivadas} onOpen={setOpenId} />}
     {open && <DealDrawer d={open} list={filtradas} origens={origens} pessoas={pessoas} onClose={() => setOpenId(null)} onNav={setOpenId} notify={flash} />}
+    {importando && <ImportDealflow deals={deals} email={email} onClose={() => setImportando(false)} onDone={(m) => { setImportando(false); flash(m); }} />}
     {el}
   </>);
 }

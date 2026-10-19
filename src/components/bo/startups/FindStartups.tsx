@@ -4,7 +4,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { post as postApi } from "@/lib/api";
 import { createStartup, StartupEdit } from "@/lib/startup-actions";
-import { FASES, Sector, Startup, STARTUP_SITES } from "@/lib/types";
+import { Area, FASES, Sector, Startup, STARTUP_SITES } from "@/lib/types";
 import { nowIso } from "@/lib/util";
 import { Icon } from "@/components/Icon";
 import { useSession } from "../AuthGate";
@@ -15,12 +15,12 @@ type Cand = StartupEdit & { id: string; dominio: string; fonte: { titulo: string
 
 const post = <T,>(path: string, body: unknown) => postApi<T>(path, body,
   "A pesquisa demorou demasiado e foi interrompida. Tenta outra vez ou usa uma pesquisa mais concreta (tema + tipo de empresa).");
-const toEdit = (c: Cand): StartupEdit => ({ nome: c.nome, site: c.site, pais: c.pais, cidade: c.cidade || "", fundacao: c.fundacao, fase: c.fase, setor: c.setor,
+const toEdit = (c: Cand): StartupEdit => ({ nome: c.nome, site: c.site, pais: c.pais, cidade: c.cidade || "", fundacao: c.fundacao, fase: c.fase, setor: c.setor, cadeia: c.cadeia,
   descricao: c.descricao, porque: c.porque, relevancia: c.relevancia, financiamento: c.financiamento, investidores: c.investidores });
 
 /** Procurar startups online ou adicionar uma pelo site. Nada é gravado sem confirmação. */
-export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
-  mode: "search" | "site"; sectors: Sector[]; startups: Startup[]; onClose: () => void; onDone: (msg: string) => void;
+export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDone }: {
+  mode: "search" | "site"; sectors: Sector[]; areas: Area[]; startups: Startup[]; onClose: () => void; onDone: (msg: string) => void;
 }) {
   const { email } = useSession();
   const [mode, setMode] = useState(m0);
@@ -164,7 +164,7 @@ export function FindStartups({ mode: m0, sectors, startups, onClose, onDone }: {
           </>) : (<>
             {ficha.c.siteOk === false && <div className="notice warn"><Icon name="warning-circle" /><span>O site não respondeu. Confirma o endereço.</span></div>}
             {exists(ficha.c.id) && <div className="notice warn"><Icon name="warning-circle" /><span>Esta startup já existe. Se gravares, só junto esta origem à ficha que existe.</span></div>}
-            <StartupFields value={ficha.e} onChange={(p) => setFicha({ ...ficha, e: { ...ficha.e, ...p } })} sectors={sectors} />
+            <StartupFields value={ficha.e} onChange={(p) => setFicha({ ...ficha, e: { ...ficha.e, ...p } })} sectors={sectors} areas={areas} />
           </>)}
           {erro && <p className="gerr" role="alert">{erro}</p>}
         </div>
