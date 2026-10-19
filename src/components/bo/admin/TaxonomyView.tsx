@@ -25,12 +25,15 @@ export function TaxonomyView({ areas, cats }: { areas: Area[]; cats: Category[] 
     if (!ce || !ce.nome.trim()) return flash("Indica o nome da categoria.");
     const { _new, id, kw, ...rest } = ce;
     const palavrasChave = kw.split(/[,\n]/).map((k) => k.trim().toLowerCase()).filter(Boolean);
-    try { await setDoc(doc(db, "categories", _new ? slug(ce.nome) : id), { ...rest, palavrasChave }, { merge: true }); setCe(null); flash("Categoria guardada"); }
+    try { await setDoc(doc(db, "categories", _new ? slug(ce.nome) : id), { ...rest, area: rest.area || null, palavrasChave }, { merge: true }); setCe(null); flash("Categoria guardada"); }
     catch (e) { flash(errMsg(e)); }
   };
 
+  const ring = (c: Category) => areas.find((a) => a.id === c.area);
+  const ringIdx = (c: Category) => { const i = areas.findIndex((a) => a.id === c.area); return i < 0 ? 99 : i; };
+
   return (<>
-    <AdmHead title="Áreas e categorias" text="As áreas são os anéis do radar. As categorias são os temas acompanhados e valem para todas as áreas; as palavras-chave decidem que artigos chegam à Gemini." />
+    <AdmHead title="Áreas e categorias" text="As áreas são os anéis do radar. Cada categoria pode pertencer a um anel (sem anel, vale para todos); as palavras-chave decidem que artigos chegam à Gemini." />
 
     <section className="adm-sec">
       <div className="gh"><h2>Áreas</h2><span>{areas.length}</span><span className="sp" />
@@ -58,11 +61,12 @@ export function TaxonomyView({ areas, cats }: { areas: Area[]; cats: Category[] 
 
     <section className="adm-sec">
       <div className="gh"><h2>Categorias</h2><span>{cats.length}</span><span className="sp" />
-        <button type="button" className="btn" onClick={() => setCe({ id: "", nome: "", icone: "sparkle", descricao: "", ordem: cats.length + 1, kw: "", _new: true })}><Icon name="plus" />Nova categoria</button></div>
-      <div className="rows">{cats.map((c) => (
+        <button type="button" className="btn" onClick={() => setCe({ id: "", nome: "", icone: "sparkle", descricao: "", ordem: cats.length + 1, kw: "", area: null, _new: true })}><Icon name="plus" />Nova categoria</button></div>
+      <div className="rows">{[...cats].sort((a, b) => ringIdx(a) - ringIdx(b) || a.ordem - b.ordem).map((c) => (
         <div className="row" key={c.id}>
           <span className="cic"><Icon name={c.icone} size={18} /></span>
           <div className="rmain"><b>{c.nome}</b><span>{(c.palavrasChave || []).slice(0, 8).join(", ")}{(c.palavrasChave || []).length > 8 ? "…" : ""}</span></div>
+          {ring(c) ? <span className="tg"><span className="dot" style={{ background: ring(c)!.cor, width: 8, height: 8 }} />{ring(c)!.nome}</span> : <span className="tg">Todos os anéis</span>}
           <span className="tg mn">{(c.palavrasChave || []).length} palavras</span>
           <button type="button" className="btn icon" title="Editar" aria-label="Editar" onClick={() => setCe({ ...c, kw: (c.palavrasChave || []).join(", ") })}><Icon name="pencil-simple" /></button>
           <DangerBtn onConfirm={() => deleteDoc(doc(db, "categories", c.id)).then(() => flash("Categoria removida")).catch((e) => flash(errMsg(e)))} />
@@ -72,6 +76,11 @@ export function TaxonomyView({ areas, cats }: { areas: Area[]; cats: Category[] 
           <div className="fgrid">
             <label className="fld"><span>Nome</span><input autoComplete="off" value={ce.nome} onChange={(e) => setCe({ ...ce, nome: e.target.value })} /></label>
             <label className="fld"><span>Ordem</span><input type="number" min={1} value={ce.ordem} onChange={(e) => setCe({ ...ce, ordem: +e.target.value })} /></label>
+            <label className="fld"><span>Anel</span>
+              <select value={ce.area || ""} onChange={(e) => setCe({ ...ce, area: e.target.value || null })}>
+                <option value="">Todos os anéis</option>
+                {areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+              </select></label>
             <div className="fld wide"><span>Ícone</span><div className="icons">{CATEGORY_ICONS.map((n) => (
               <button type="button" key={n} className="ico" aria-pressed={ce.icone === n} aria-label={n} onClick={() => setCe({ ...ce, icone: n })}><Icon name={n} size={18} /></button>))}</div></div>
             <label className="fld full"><span>Descrição para a Gemini</span><textarea rows={3} value={ce.descricao} onChange={(e) => setCe({ ...ce, descricao: e.target.value })} /></label>
