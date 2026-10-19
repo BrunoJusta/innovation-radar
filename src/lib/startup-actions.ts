@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { deleteField, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import { Startup, StartupOrigem } from "./types";
 import { nowIso } from "./util";
@@ -27,6 +27,18 @@ export async function startupBackToTriage(s: Startup) {
   const prev = snap(s);
   await updateDoc(ref(s.id), { status: "pending", motivoRejeicao: deleteField(), atualizadoEm: nowIso() });
   return prev;
+}
+/**
+ * Apaga da base de dados uma startup rejeitada, com as análises. Fica só uma marca em startupSeen
+ * (nome, site e motivo) para a recolha semanal não a voltar a propor. Uma startup ligada ao pipeline não é apagada.
+ */
+export async function purgeStartup(s: Pick<Startup, "id" | "nome" | "site" | "dealId">, motivo: string) {
+  if (s.dealId) return;
+  // Se a marca já existir (foi rejeitada antes), fica a que estava
+  await setDoc(doc(db, "startupSeen", s.id), { nome: s.nome, site: s.site || "", motivo: `rejeitada: ${motivo}`, visto: nowIso() }).catch(() => {});
+  const an = await getDocs(collection(db, "startups", s.id, "analises"));
+  await Promise.all(an.docs.map((d) => deleteDoc(d.ref)));
+  await deleteDoc(ref(s.id));
 }
 export const toggleStartupStar = (s: Startup) => updateDoc(ref(s.id), { destaque: !s.destaque, atualizadoEm: nowIso() });
 export const restoreStartup = (p: SSnapshot) => updateDoc(ref(p.id), { ...p.data, atualizadoEm: nowIso() });

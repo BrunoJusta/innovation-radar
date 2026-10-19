@@ -1,4 +1,6 @@
 export type Status = "pending" | "approved" | "rejected";
+/** Separadores de triagem do backoffice. As rejeitadas são apagadas, por isso não têm separador. */
+export type Fila = "pending" | "approved";
 export type Role = "admin" | "editor";
 
 export interface Fonte {
@@ -15,8 +17,12 @@ export interface Fonte {
 export interface Publicado {
   titulo: string;
   resumo: string;
+  /** Cadeia de valor (anel). */
   area: string;
-  categoria: string;
+  /** Temáticas, tecnologias e canais (ids de categories). */
+  tags?: string[];
+  /** Antes da taxonomia v2 havia uma só categoria. */
+  categoria?: string;
   entidades: string[];
   fontes: { titulo: string; url: string }[];
   dataPublicacao: string;
@@ -31,8 +37,12 @@ export interface Signal {
   resumo: string;
   porque: string;
   entidades: string[];
+  /** Cadeia de valor (anel): uma só. */
   area: string;
-  categoria: string;
+  /** Temáticas, tecnologias e canais (ids de categories): pelo menos uma temática. */
+  tags?: string[];
+  /** Antes da taxonomia v2 havia uma só categoria. */
+  categoria?: string;
   relevancia: number;
   destaque: boolean;
   fontes: Fonte[];
@@ -49,13 +59,25 @@ export interface Signal {
   criadoPor?: string;
 }
 
+/** Cadeia de valor: um anel do radar. */
 export interface Area { id: string; nome: string; descricao: string; cor: string; ordem: number; }
+export type TipoTag = "tematica" | "tecnologia" | "canal";
+export const TIPOS_TAG: { id: TipoTag; nome: string; plural: string }[] = [
+  { id: "tematica", nome: "Temática", plural: "Temáticas" }, { id: "tecnologia", nome: "Tecnologia", plural: "Tecnologias" }, { id: "canal", nome: "Canal", plural: "Canais" },
+];
+/** Tag de uma notícia: temática, tecnologia ou canal. */
 export interface Category {
   id: string; nome: string; icone: string; descricao: string; ordem: number;
   palavrasChave: string[];
-  /** Anel (área) a que a categoria pertence. Sem anel, vale para todos. */
+  tipo?: TipoTag;
+  /** Taxonomia antiga: anel a que a categoria pertencia. */
   area?: string | null;
 }
+/** Tags de uma notícia (ou da versão publicada), com as antigas de uma só categoria. */
+export const tagsDe = (x: { tags?: string[]; categoria?: string } | null | undefined): string[] =>
+  x?.tags?.length ? x.tags : x?.categoria ? [x.categoria] : [];
+/** Tipo de uma tag (as categorias antigas, sem tipo, contam como temática). */
+export const tipoDe = (c: Pick<Category, "tipo"> | undefined): TipoTag => c?.tipo || "tematica";
 export interface Source {
   id: string; nome: string; tipo: "rss" | "wp-api"; url: string; lingua: "pt" | "en"; ativo: boolean;
   /** Onde a fonte é usada: recolha diária de notícias (por defeito) ou recolha semanal de startups. */
@@ -71,6 +93,8 @@ export interface Settings {
   sitesStartups?: string[];
   /** A recolha semanal faz a análise de investimento às startups novas com relevância igual ou acima deste valor (0 desliga). */
   corteAnalise?: number;
+  /** Versão da taxonomia instalada (2 = cadeias de valor e tags). */
+  taxonomia?: number;
 }
 /** Sites de referência para a pesquisa de startups, usados enquanto não forem editados nas Definições. */
 export const STARTUP_SITES = [
@@ -88,7 +112,9 @@ export interface RunSource {
   sourceId: string; nome: string; lidos: number; jaVistos: number; filtro: number;
   relevantes: number; novos: number; fundidos: number; erros: string[];
 }
-export interface Run { id: string; tipo?: "startups"; inicio: string; fim?: string; estado: "ok" | "erro" | "a correr"; fontes: RunSource[]; erroGeral?: string; }
+export interface Run { id: string; tipo?: "startups"; inicio: string; fim?: string; estado: "ok" | "erro" | "a correr"; fontes: RunSource[]; erroGeral?: string;
+  /** Migração para a taxonomia v2: notícias reclassificadas nesta execução. */
+  reclassificacao?: { feitas: number; tentadas: number; faltam: number; erros: string[] }; rejeitadasApagadas?: number; }
 
 export const DEFAULT_SETTINGS: Settings = { corteRelevancia: 50, janelaDias: 90, corteStartups: 50, sitesStartups: STARTUP_SITES, corteAnalise: 75 };
 export const REJECT_REASONS = ["Fora de tema", "Pouco relevante", "Duplicada", "Fonte pouco fiável"];

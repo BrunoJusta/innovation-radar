@@ -1,14 +1,14 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { addDoc, collection, deleteField, doc, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, deleteField, doc, setDoc, Timestamp, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
-import { Fonte, Publicado, Signal } from "./types";
+import { Fonte, Publicado, Signal, tagsDe } from "./types";
 import { nowIso } from "./util";
 
 export function buildPublicado(s: Signal, over: Partial<Signal> = {}): Publicado {
   const x = { ...s, ...over };
   return {
-    titulo: x.titulo, resumo: x.resumo, area: x.area, categoria: x.categoria, entidades: x.entidades || [],
+    titulo: x.titulo, resumo: x.resumo, area: x.area, tags: tagsDe(x), entidades: x.entidades || [],
     fontes: (x.fontes || []).map((f) => ({ titulo: f.tituloOriginal, url: f.url })),
     dataPublicacao: x.dataPublicacao, relevancia: x.relevancia, destaque: !!x.destaque,
   };
@@ -21,7 +21,7 @@ export type Snapshot = { id: string; data: Record<string, any> };
 const snap = (s: Signal, keys: (keyof Signal)[]): Snapshot => ({
   id: s.id, data: Object.fromEntries(keys.map((k) => [k, s[k] === undefined ? deleteField() : s[k]])),
 });
-const KEYS: (keyof Signal)[] = ["status", "noRadar", "publicado", "motivoRejeicao", "flagNovaFonte", "aprovadoEm", "aprovadoPor", "destaque", "titulo", "resumo", "area", "categoria"];
+const KEYS: (keyof Signal)[] = ["status", "noRadar", "publicado", "motivoRejeicao", "flagNovaFonte", "aprovadoEm", "aprovadoPor", "destaque", "titulo", "resumo", "area", "categoria", "tags"];
 
 export async function approve(s: Signal, by: string): Promise<Snapshot> {
   const prev = snap(s, KEYS);
@@ -38,6 +38,9 @@ export async function reject(s: Signal, motivo: string): Promise<Snapshot> {
   return prev;
 }
 
+/** Apaga da base de dados uma notícia rejeitada (as regras só deixam apagar rejeitadas). */
+export const purgeSignal = (id: string) => deleteDoc(ref(id));
+
 export async function backToTriage(s: Signal): Promise<Snapshot> {
   const prev = snap(s, KEYS);
   await updateDoc(ref(s.id), { status: "pending", noRadar: false, publicado: null, motivoRejeicao: deleteField(), atualizadoEm: nowIso() });
@@ -51,10 +54,12 @@ export async function toggleStar(s: Signal) {
   await updateDoc(ref(s.id), upd);
 }
 
-export type EditFields = Pick<Signal, "titulo" | "resumo" | "porque" | "entidades" | "area" | "categoria" | "relevancia" | "dataPublicacao">;
+export type EditFields = Pick<Signal, "titulo" | "resumo" | "porque" | "entidades" | "area" | "relevancia" | "dataPublicacao"> & { tags: string[] };
 
 export async function saveEdit(s: Signal, f: Partial<EditFields>) {
   const upd: Record<string, any> = { ...f, atualizadoEm: nowIso() };
+  // Com tags novas, a categoria antiga (taxonomia v1) deixa de fazer falta
+  if (f.tags) upd.categoria = deleteField();
   // Só uma notícia aprovada atualiza logo o radar; as pendentes esperam pela aprovação
   if (s.status === "approved") upd.publicado = buildPublicado(s, f);
   await updateDoc(ref(s.id), upd);
