@@ -255,7 +255,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                     <div className={`legend${fRing ? " filtering" : ""}`} role="group" aria-label="Filtrar por área">
                       {areas.map((a) => (
                         <button key={a.id} className="lg" style={{ ["--c" as string]: a.cor }} aria-pressed={fRing === a.id} onClick={() => setFRing(fRing === a.id ? null : a.id)}>
-                          <span className="sw" /><b>{a.nome}</b><span className="n">{counts(a.id)}</span><span className="d">{a.descricao}</span>
+                          <span className="sw" /><b>{a.nome}</b><span className="n">{counts(a.id)}</span>
                         </button>
                       ))}
                     </div>
