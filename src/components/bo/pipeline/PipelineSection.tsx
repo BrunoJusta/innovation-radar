@@ -63,7 +63,7 @@ export function PipelineSection({ search }: { search: string }) {
       </div>
       {!arquivadas && <>
         <div className="seg" role="group" aria-label="De quem é a vez">
-          <button aria-pressed={!vez} onClick={() => setVez("")}>Todas as vezes</button>
+          <button aria-pressed={!vez} onClick={() => setVez("")}>Todos</button>
           {VEZES.map((v) => <button key={v.id} aria-pressed={vez === v.id} onClick={() => setVez(vez === v.id ? "" : v.id)}>{v.curto}</button>)}
         </div>
         <div className="seg" role="group" aria-label="Filtros">
