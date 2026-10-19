@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pager, usePaged } from "@/components/Pager";
-import { passaTags, SEM_FILTRO, TagFilters, TagFiltro, temFiltro } from "@/components/CatSelect";
+import { AreaSelect, passaTags, SEM_FILTRO, TagFilters, TagFiltro, temFiltro } from "@/components/CatSelect";
 import { Icon } from "@/components/Icon";
 import { approve, backToTriage, EditFields, purgeSignal, reject, restore, saveEdit, Snapshot } from "@/lib/bo-actions";
 import { agendarApagar, cancelarApagar } from "@/lib/purge";
@@ -46,6 +46,8 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
   // Contagens do dropdown: notícias deste separador (e da cadeia de valor escolhida) com cada tag
   // Contagem de cada tag com os outros filtros aplicados (o próprio tipo não conta, para se poder trocar)
   const base = useMemo(() => signals.filter((s) => s.status === status && (fArea === "all" || s.area === fArea)), [signals, status, fArea]);
+  // Notícias de cada cadeia de valor com os filtros de tags aplicados
+  const areaCount = (id: string) => signals.filter((s) => s.status === status && s.area === id && passaTags(tagsDe(s), fTags)).length;
   const catCount = (id: string, tp: TipoTag) => base.filter((s) => { const t = tagsDe(s); return t.includes(id) && passaTags(t, fTags, tp); }).length;
 
   const list = useMemo(() => {
@@ -109,12 +111,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
         <div><h1>{TITLES[status][0]}</h1><p>{TITLES[status][1]}</p></div>
       </div>
       <div className="toolbar">
-        <label className={`fsel${fArea !== "all" ? " on" : ""}`}>
-          {fArea !== "all" && <i className="dot" style={{ background: area(fArea)?.cor }} aria-hidden="true" />}
-          <select value={fArea} onChange={(e) => setFArea(e.target.value)} aria-label="Cadeia de valor">
-            <option value="all">Todas as cadeias de valor</option>
-            {areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
-          </select><Icon name="caret-down" /></label>
+        <AreaSelect areas={areas} value={fArea} onChange={setFArea} counts={areaCount} />
         <TagFilters cats={cats} value={fTags} onChange={setFTags} counts={catCount} />
         <span className="sp" />
         {view === "cards" && <div className="seg" role="group" aria-label="Ordenar">
