@@ -33,7 +33,7 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   const [fRing, setFRing] = useState<string | null>(null);
   const [fFase, setFFase] = useState("all");
   const [fSec, setFSec] = useState("all");
-  const [fAno, setFAno] = useState("all");
+  const [fAno, setFAno] = useState(String(new Date().getFullYear()));
   const { deals } = useDeals();
   const [openId, setOpenId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
@@ -106,7 +106,8 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
     approved.forEach((st) => { const d = deals.find((x) => x.id === st.dealId || x.startupId === st.id); m.set(st.id, (d?.entrada || st.criadoEm || "").slice(0, 4)); });
     return m;
   }, [approved, deals]);
-  const anos = useMemo(() => [...new Set([...anoDe.values()].filter((a) => /^\d{4}$/.test(a)))].sort().reverse(), [anoDe]);
+  // O ano atual aparece sempre (é o filtro por defeito), mesmo sem startups
+  const anos = useMemo(() => [...new Set([String(new Date().getFullYear()), ...[...anoDe.values()].filter((a) => /^\d{4}$/.test(a))])].sort().reverse(), [anoDe]);
   /** Setor e fase (os filtros em dropdown); o anel filtra-se à parte. */
   const passaSF = useCallback((x: RadarItem) => (fFase === "all" || x.cat === fFase) && (fSec === "all" || secOf(x) === fSec) && (fAno === "all" || anoDe.get(x.id) === fAno), [fFase, fSec, fAno, secOf, anoDe]);
   const passa = useCallback((x: RadarItem) => (!fRing || x.area === fRing) && passaSF(x), [fRing, passaSF]);
@@ -180,12 +181,12 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   const filtros = (<>
     <SectorSelect sectors={sectors} value={fSec} onChange={setFSec} counts={secCount} />
     <FaseSelect fases={[...FASES].reverse()} value={fFase} onChange={setFFase} counts={faseCount} />
-    {anos.length > 0 && <label className="periodo">
+    <label className="periodo">
       <span>Ano</span>
       <select value={fAno} onChange={(e) => setFAno(e.target.value)} aria-label="Ano">
         <option value="all">Todos os anos</option>{anos.map((a) => <option key={a} value={a}>{a}</option>)}
       </select>
-    </label>}
+    </label>
   </>);
   const aviso = semCadeia.length > 0 && (
     <div className="notice warn scad"><span>{semCadeia.length} {semCadeia.length === 1 ? "startup aprovada ainda não tem" : "startups aprovadas ainda não têm"} cadeia de valor e não {semCadeia.length === 1 ? "aparece" : "aparecem"} no radar.</span>

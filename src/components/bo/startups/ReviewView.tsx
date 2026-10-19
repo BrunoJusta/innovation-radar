@@ -30,9 +30,10 @@ export function ReviewView() {
 }
 
 export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }) {
-  const anos = useMemo(() => [...new Set(deals.map((d) => (d.entrada || d.criadoEm || "").slice(0, 4)).filter((a) => /^\d{4}$/.test(a)))].sort().reverse(), [deals]);
-  const [ano, setAno] = useState<string>("");
-  useEffect(() => { if (!ano && anos.length) setAno(anos[0]); }, [anos, ano]);
+  // Por defeito, o ano atual (aparece sempre na lista, mesmo sem startups)
+  const anoAtual = String(new Date().getFullYear());
+  const anos = useMemo(() => [...new Set([anoAtual, ...deals.map((d) => (d.entrada || d.criadoEm || "").slice(0, 4)).filter((a) => /^\d{4}$/.test(a))])].sort().reverse(), [deals, anoAtual]);
+  const [ano, setAno] = useState<string>(anoAtual);
   const lista = useMemo(() => deals.filter((d) => ano === "all" || (d.entrada || d.criadoEm || "").startsWith(ano)), [deals, ano]);
   const [tip, setTip] = useState<Tip>(null);
 
