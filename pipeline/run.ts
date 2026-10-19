@@ -10,6 +10,7 @@ import { fetchRss, fetchWp, FeedItem, FetchError } from "./lib/feeds";
 import { extractArticle, htmlToText, matchKeywords } from "./lib/text";
 import { normalizeUrl, urlHash } from "./lib/url";
 import { classify, confirmAndMerge, embed } from "./lib/gemini";
+import { migrarEstrutura, Reclass, reclassificar } from "./lib/migracao";
 import { cosine, lisbon } from "./lib/math";
 import type { Area, Category, Fonte, RunSource, Settings, Signal, Source } from "../src/lib/types";
 import { DEFAULT_SETTINGS } from "../src/lib/types";
@@ -33,18 +34,21 @@ async function main() {
     if (today.docs.some((d) => d.data().estado !== "erro" && d.data().tipo !== "startups")) { log(`Já houve uma recolha hoje (${L.day}).`); return; }
   }
 
+  // Taxonomia v2 (cadeias de valor e tags): instala-se uma vez, antes de ler a estrutura
+  await migrarEstrutura(db, log, DRY);
+
   const [areasS, catsS, srcS, setS] = await Promise.all([
     db.collection("areas").get(), db.collection("categories").get(),
     db.collection("sources").where("ativo", "==", true).get(), db.doc("settings/geral").get(),
   ]);
-  const areas = areasS.docs.map((d) => ({ id: d.id, ...d.data() }) as Area);
+  const areas = areasS.docs.map((d) => ({ id: d.id, ...d.data() }) as Area).sort((a, b) => a.ordem - b.ordem);
   const cats = catsS.docs.map((d) => ({ id: d.id, ...d.data() }) as Category);
   // As fontes das startups são lidas pela recolha semanal (startups-run.ts)
   const sources = srcS.docs.map((d) => ({ id: d.id, ...d.data() }) as Source).filter((s) => s.para !== "startups");
   const settings: Settings = { ...DEFAULT_SETTINGS, ...(setS.data() || {}) };
   if (!areas.length || !cats.length) throw new Error("Não há áreas ou categorias. Corre primeiro o seed.");
   const keywords = [...new Set(cats.flatMap((c) => c.palavrasChave || []))];
-  log(`${sources.length} fontes, ${areas.length} áreas, ${cats.length} categorias, ${keywords.length} palavras-chave, corte ${settings.corteRelevancia}`);
+  log(`${sources.length} fontes, ${areas.length} cadeias de valor, ${cats.length} tags, ${keywords.length} palavras-chave, corte ${settings.corteRelevancia}`);
 
   const runRef = db.collection("runs").doc();
   const run = { inicio: now(), dia: lisbon().day, estado: "a correr", fontes: [] as RunSource[], dryRun: DRY || undefined };
@@ -119,6 +123,8 @@ async function main() {
               fontes: FieldValue.arrayUnion(fonte), relevancia: Math.max(s.relevancia, c.relevancia), atualizadoEm: now(),
               ...(m.titulo_pt ? { titulo: m.titulo_pt } : {}), ...(m.resumo_pt ? { resumo: m.resumo_pt } : {}),
               ...(m.porque_pt ? { porque: m.porque_pt } : {}), ...(m.entidades?.length ? { entidades: m.entidades.slice(0, 6) } : {}),
+              // A fonte nova pode trazer tags que a notícia ainda não tinha (a cadeia de valor fica a que estava)
+              ...(c.tags.length ? { tags: FieldValue.arrayUnion(...c.tags) } : {}),
             };
             // Aprovada recebe fonte nova: volta à triagem, mas o radar mantém a versão publicada até nova aprovação
             if (s.status === "approved") { upd.status = "pending"; upd.flagNovaFonte = true; }
@@ -132,7 +138,7 @@ async function main() {
             const ref = db.collection("signals").doc();
             const sig: Omit<Signal, "id"> = {
               status: "pending", titulo: c.titulo_pt, resumo: c.resumo_pt, porque: c.porque_pt, entidades: c.entidades.slice(0, 6),
-              area: c.area, categoria: c.categoria, relevancia: c.relevancia, destaque: false, fontes: [fonte],
+              area: c.area, tags: c.tags, relevancia: c.relevancia, destaque: false, fontes: [fonte],
               dataPublicacao: it.date, criadoEm: now(), atualizadoEm: now(), noRadar: false, publicado: null,
             };
             if (!DRY) {
@@ -153,6 +159,11 @@ async function main() {
       if (!DRY) await runRef.update({ fontes: run.fontes });
     }
 
+    // Notícias da taxonomia antiga: a Gemini dá-lhes cadeia de valor e tags (aos poucos, até acabarem)
+    let reclass: Reclass | undefined;
+    try { const rc = await reclassificar(db, areas, cats, log, DRY); if (rc.tentadas) reclass = { ...rc, erros: rc.erros.slice(0, 20) }; }
+    catch (e) { log("Reclassificação falhou", (e as Error).message); }
+
     // Limpeza: registos de "já visto" expirados
     let apagados = 0;
     if (!DRY) for (;;) {
@@ -160,8 +171,27 @@ async function main() {
       if (old.empty) break;
       const b = db.batch(); old.docs.forEach((d) => b.delete(d.ref)); await b.commit(); apagados += old.size;
     }
+    // Limpeza: rejeitadas que ficaram na base de dados (a página fechou antes de o BO as apagar, ou são de antes desta regra)
+    let rejApagadas = 0;
+    if (!DRY) {
+      const rs = await db.collection("signals").where("status", "==", "rejected").get();
+      for (let i = 0; i < rs.docs.length; i += 400) {
+        const b = db.batch(); rs.docs.slice(i, i + 400).forEach((d) => b.delete(d.ref)); await b.commit();
+      }
+      rejApagadas += rs.size;
+      const rst = await db.collection("startups").where("status", "==", "rejected").get();
+      for (const d of rst.docs) {
+        const s = d.data();
+        if (s.dealId) continue; // ligada ao pipeline: fica
+        // Marca para a recolha semanal não a voltar a propor (fica a que já existir)
+        await db.doc(`startupSeen/${d.id}`).create({ nome: s.nome || "", site: s.site || "", motivo: `rejeitada: ${s.motivoRejeicao || ""}`, visto: now() }).catch(() => {});
+        await db.recursiveDelete(d.ref); // apaga também as análises
+        rejApagadas++;
+      }
+      if (rejApagadas) log(`Rejeitadas apagadas: ${rejApagadas}`);
+    }
     const fim = now();
-    if (!DRY) await runRef.update({ estado: "ok", fim, fontes: run.fontes, seenApagados: apagados });
+    if (!DRY) await runRef.update({ estado: "ok", fim, fontes: run.fontes, seenApagados: apagados, rejeitadasApagadas: rejApagadas, ...(reclass ? { reclassificacao: reclass } : {}) });
     log("Concluída.", JSON.stringify(run.fontes.map(({ nome, lidos, novos, fundidos, erros }) => ({ nome, lidos, novos, fundidos, erros: erros.length }))));
   } catch (e) {
     if (!DRY) await runRef.update({ estado: "erro", fim: now(), fontes: run.fontes, erroGeral: (e as Error).message });

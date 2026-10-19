@@ -1,30 +1,16 @@
 /**
- * Prepara a base de dados: áreas, categorias, fontes, definições e o primeiro administrador.
+ * Prepara a base de dados: cadeias de valor, tags, fontes, definições e o primeiro administrador.
  * Não cria notícias. Pode correr-se várias vezes: só cria o que ainda não existe.
  */
 import { adminDb } from "./lib/admin";
+import { AREAS_V2, TAGS_V2 } from "../src/lib/taxonomia";
 
 const ADMIN = (process.env.SEED_ADMIN || "bruno.justa@sogrape.pt").toLowerCase();
 
 const DATA: Record<string, Record<string, object>> = {
-  areas: {
-    "consumo-mercado": { nome: "Consumo e mercado", cor: "#7C3AED", ordem: 1,
-      descricao: "Comportamento do consumidor, tendências de consumo, lançamentos de produtos e marcas, retalho, distribuição, preços, dados de mercado e regulação." },
-    tecnologia: { nome: "Tecnologia", cor: "#0EA5DE", ordem: 2,
-      descricao: "Ferramentas e tecnologias: IA, dados, automação, processos de produção (incluindo desalcoolização), embalagem, digital e startups tecnológicas." },
-  },
-  categories: {
-    "no-alcohol": { nome: "No Alcohol", icone: "wine", ordem: 1,
-      descricao: "Vinhos e bebidas sem álcool ou com baixo teor alcoólico (no/low), desalcoolização, moderação e alternativas ao álcool.",
-      palavrasChave: ["sem álcool", "0,0", "0.0", "zero álcool", "baixo teor alcoólico", "baixo álcool", "desalcoolizado", "desalcoolizada", "desalcoolização", "moderação", "bebidas funcionais",
-        "non-alcoholic", "nonalcoholic", "alcohol-free", "alcohol free", "no-alcohol", "no alcohol", "low-alcohol", "low alcohol", "no and low", "no/low", "nolo", "no-lo",
-        "dealcoholised", "dealcoholized", "de-alcoholised", "de-alcoholized", "dealcoholisation", "dealcoholization", "zero-proof", "zero proof", "mocktail", "mocktails", "sober curious", "moderation", "functional drinks"] },
-    ia: { nome: "IA", icone: "sparkle", ordem: 2,
-      descricao: "Inteligência artificial aplicada a bebidas, vinho, retalho e consumo: IA generativa, machine learning, automação inteligente, agentes e visão computacional.",
-      palavrasChave: ["inteligência artificial", "ia", "ia generativa", "aprendizagem automática", "algoritmo", "algoritmos", "automação", "visão computacional", "agente de ia", "agentes de ia", "chatbot",
-        "artificial intelligence", "ai", "ai-powered", "ai-driven", "generative ai", "genai", "machine learning", "deep learning", "llm", "chatgpt", "openai", "gemini", "copilot",
-        "computer vision", "predictive analytics", "ai agent", "ai agents", "agentic", "automation", "algorithm"] },
-  },
+  // Taxonomia v2: cadeias de valor (anéis) e tags (temáticas, tecnologias e canais)
+  areas: AREAS_V2,
+  categories: TAGS_V2,
   sources: {
     // Notícias (recolha diária). Testadas em outubro de 2026.
     "grande-consumo": { nome: "Grande Consumo", tipo: "rss", url: "https://grandeconsumo.com/feed/", lingua: "pt", ativo: true, grupo: "Tendências de consumo e inovação de produto" },
