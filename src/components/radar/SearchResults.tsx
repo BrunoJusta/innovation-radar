@@ -6,25 +6,28 @@ import { Area, Category } from "@/lib/types";
 import type { RadarItem } from "./RadarApp";
 import { dCurta, Hl } from "./SearchBits";
 
-const EM_LABEL: Record<SearchHit["em"][number], string> = {
+export type EmLabels = Record<SearchHit["em"][number], string>;
+const EM_LABEL: EmLabels = {
   titulo: "título", resumo: "resumo", entidades: "entidades", area: "área", categoria: "categoria", fontes: "fontes",
 };
 
 /** Onde foi encontrada (sem repetir as entidades, que já aparecem marcadas). */
-export const where = (h: SearchHit) => h.em.filter((f) => f !== "entidades" || !h.entidades.length).map((f) => EM_LABEL[f]).join(", ");
+export const where = (h: SearchHit, labels: EmLabels = EM_LABEL) => h.em.filter((f) => f !== "entidades" || !h.entidades.length).map((f) => labels[f]).join(", ");
 
 /** Resumo da pesquisa: quantos, em que áreas (barra clicável) e entidades relacionadas para afinar. */
-export function SearchSummary({ q, n, total, byArea, areas, fRing, setFRing, cat, clearCat, related, setQ, compact = false }: {
+export function SearchSummary({ q, n, total, byArea, areas, fRing, setFRing, cat, clearCat, related, setQ, compact = false, noun = ["sinal", "sinais"] }: {
   q: string; n: number; total: number; byArea: Record<string, number>; areas: Area[];
   fRing: string | null; setFRing: (id: string | null) => void; cat?: Category; clearCat: () => void;
   related: string[]; setQ: (q: string) => void; compact?: boolean;
+  /** Nome do que se procura, no singular e no plural. */
+  noun?: [string, string];
 }) {
   const sum = Object.values(byArea).reduce((a, b) => a + b, 0) || 1;
   return (
     <div className={`ssum${compact ? " compact" : ""}`} aria-live="polite">
       <div className="ssn">
         <b key={`${q}|${n}`}>{n}</b>
-        <span>{n === 1 ? "sinal" : "sinais"} para <q>{q.trim()}</q>{total > n && <em> · {total} sem os filtros</em>}</span>
+        <span>{n === 1 ? noun[0] : noun[1]} para <q>{q.trim()}</q>{total > n && <em> · {total} sem os filtros</em>}</span>
       </div>
       {total > 0 && (
         <>
@@ -57,10 +60,11 @@ export function SearchSummary({ q, n, total, byArea, areas, fRing, setFRing, cat
 }
 
 /** Lista de resultados ao lado do radar. Passar o rato acende o ponto correspondente. */
-export function SearchResults({ results, hitsById, ts, area, cat, active, setHover, onOpen, empty }: {
+export function SearchResults({ results, hitsById, ts, area, cat, active, setHover, onOpen, empty, labels }: {
   results: RadarItem[]; hitsById: Map<string, SearchHit>; ts: string[];
   area: (id: string) => Area | undefined; cat: (id: string) => Category | undefined;
   active: number; setHover: (id: string | null) => void; onOpen: (id: string) => void; empty: React.ReactNode;
+  labels?: EmLabels;
 }) {
   const ref = useRef<HTMLOListElement>(null);
   const first = results[0]?.id;
@@ -83,7 +87,7 @@ export function SearchResults({ results, hitsById, ts, area, cat, active, setHov
                 {h && (
                   <span className="sem">
                     {h.entidades.slice(0, 3).map((e) => <span key={e} className="sent"><Hl text={e} ts={ts} /></span>)}
-                    {where(h) && <span className="swhere">em {where(h)}</span>}
+                    {where(h, labels) && <span className="swhere">em {where(h, labels)}</span>}
                   </span>
                 )}
               </span>

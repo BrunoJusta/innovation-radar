@@ -23,7 +23,9 @@ export const mesLabel = (iso: string) => { const t = F_MES.format(new Date(iso))
 export const SearchBox = forwardRef<HTMLInputElement, {
   q: string; setQ: (q: string) => void; examples: string[]; suggestions: { label: string; icon?: string; color?: string }[];
   onKey: (e: React.KeyboardEvent<HTMLInputElement>) => void; busy: boolean; activeId?: string;
-}>(function SearchBox({ q, setQ, examples, suggestions, onKey, busy, activeId }, ref) {
+  /** Mostra o atalho de teclado (só onde o atalho existe). */
+  kbd?: boolean; placeholder?: string;
+}>(function SearchBox({ q, setQ, examples, suggestions, onKey, busy, activeId, kbd = true, placeholder = "Pesquisar sinais" }, ref) {
   const [ex, setEx] = useState(0);
   const [focus, setFocus] = useState(false);
   const [mac, setMac] = useState(false);
@@ -40,7 +42,7 @@ export const SearchBox = forwardRef<HTMLInputElement, {
       <span className="sic" aria-hidden="true"><Icon name="magnifying-glass" size={18} />{busy && <i className="spin" />}</span>
       <input ref={ref} type="search" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey}
         onFocus={() => setFocus(true)} onBlur={() => setTimeout(() => setFocus(false), 120)}
-        placeholder="Pesquisar sinais" aria-label="Pesquisar notícias" autoComplete="off" spellCheck={false}
+        placeholder={placeholder} aria-label="Pesquisar notícias" autoComplete="off" spellCheck={false}
         role="combobox" aria-expanded={!!q} aria-controls="sres" aria-activedescendant={activeId ? `sr-${activeId}` : undefined} />
       {/* Exemplo animado por cima da caixa vazia (o placeholder real fica para os leitores de ecrã) */}
       {!q && examples.length > 0 && (
@@ -51,7 +53,7 @@ export const SearchBox = forwardRef<HTMLInputElement, {
       {q ? (
         <button className="sclr" aria-label="Limpar pesquisa" onMouseDown={(e) => e.preventDefault()} onClick={() => setQ("")}><Icon name="x" size={14} /></button>
       ) : (
-        <kbd className="skbd" aria-hidden="true">{mac ? "⌘K" : "/"}</kbd>
+        kbd && <kbd className="skbd" aria-hidden="true">{mac ? "⌘K" : "/"}</kbd>
       )}
       {showSug && (
         <div className="ssug" role="listbox" aria-label="Pesquisas sugeridas">
