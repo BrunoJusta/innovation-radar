@@ -17,7 +17,7 @@ import { Empty, Gauge } from "./ui";
 const TITLES: Record<Status, [string, string]> = {
   pending: ["Triagem", "Notícias novas à espera de decisão. Abre um cartão para ler o resumo completo e as fontes."],
   approved: ["Aprovadas", "Estas notícias estão visíveis no radar."],
-  rejected: ["Rejeitadas", "Ficam guardadas com o motivo, para afinar a classificação."],
+  rejected: ["Arquivo", "Notícias rejeitadas. Ficam guardadas com o motivo, para afinar a classificação."],
 };
 
 export function SignalsView({ status, signals, areas, cats, loaded, search }: {
@@ -27,7 +27,9 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
   const [fArea, setFArea] = useState("all");
   const [fCat, setFCat] = useState("all");
   const [sort, setSort] = useState<"score" | "date">("score");
-  const [view, setViewS] = useState<"cards" | "list">("cards");
+  const [viewS, setViewS] = useState<"cards" | "list">("cards");
+  // No Arquivo (rejeitadas) é sempre lista, como nas startups
+  const view = status === "rejected" ? "list" : viewS;
   useEffect(() => setViewS(readView()), []);
   const setView = (v: "cards" | "list") => { setViewS(v); setPicked(new Set()); try { localStorage.setItem(VIEW_KEY, v); } catch { /* sem armazenamento */ } };
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -126,10 +128,10 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
         {view === "cards" && status === "pending" && list.length > 0 && (
           <button className="txtbtn" onClick={() => setPicked(picked.size ? new Set() : new Set(list.map((s) => s.id)))}>{picked.size ? "Limpar seleção" : "Selecionar todas"}</button>
         )}
-        <div className="seg" role="group" aria-label="Vista">
+        {status !== "rejected" && <div className="seg" role="group" aria-label="Vista">
           <button aria-pressed={view === "cards"} onClick={() => setView("cards")} title="Cartões"><Icon name="squares-four" />Cartões</button>
           <button aria-pressed={view === "list"} onClick={() => setView("list")} title="Lista"><Icon name="list-bullets" />Lista</button>
-        </div>
+        </div>}
       </div>
 
       {!loaded ? <div className="loading">A carregar…</div> : list.length === 0 ? (
