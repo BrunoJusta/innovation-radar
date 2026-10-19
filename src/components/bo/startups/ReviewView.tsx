@@ -5,7 +5,8 @@ import { lerPais } from "@/lib/paises";
 import { useDeals } from "../pipeline/DealsLookup";
 
 /** Azul sequencial (claro = pouco, escuro = muito). O 250 é o mais claro que ainda se distingue do fundo. */
-const AZUL = ["#b7d3f6", "#86b6ef", "#5598e7", "#2a78d6", "#1c5cab"];
+/** Escala em ferrugem (a cor da Sogrape, #B15533): claro = poucas startups, escuro = muitas. */
+const AZUL = ["#F2D6C8", "#E3AB8F", "#CC7D5A", "#B15533", "#7F3A22"];
 const ZERO = "#ECECEC";
 
 const idx = (e: string | null | undefined) => Math.max(0, ETAPAS.findIndex((x) => x.id === e));
@@ -102,7 +103,7 @@ function Conta({ n }: { n: number }) {
 }
 
 /** Estados para o gráfico das verticais (o cinzento das arquivadas é de propósito: recua). */
-const COR_EST = { investida: "#104281", curso: "#5598e7", arquivada: "#D4D4D4" };
+const COR_EST = { investida: "#7F3A22", curso: "#D8906D", arquivada: "#D4D4D4" };
 const estado = (d: Deal) => d.etapa === "investida" ? "investida" : d.etapa === "arquivada" ? "arquivada" : "curso";
 
 const pos = (e: React.MouseEvent) => ({ x: e.clientX + 14, y: e.clientY + 14 });
@@ -127,7 +128,7 @@ function Funil({ lista, setTip, k }: { lista: Deal[]; setTip: (t: Tip) => void; 
     <div className="rev-fl">
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Funil: ${FUNIL.map((f, i) => `${f.nome} ${n[i]}`).join(", ")}`} key={k}>
         <defs>
-          <linearGradient id="rfg" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stopColor="#1c5cab" /><stop offset="1" stopColor="#86b6ef" /></linearGradient>
+          <linearGradient id="rfg" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stopColor="#8B3D26" /><stop offset="0.45" stopColor="#B15533" /><stop offset="1" stopColor="#E3AB8F" /></linearGradient>
           <clipPath id="rfc"><rect className="rev-grow" x="0" y="0" width={W} height={H} /></clipPath>
         </defs>
         {FUNIL.map((_, i) => <line key={i} x1={x0(i) + plat / 2} x2={x0(i) + plat / 2} y1={top - 6} y2={top + Hmax + 6} className="rev-gl" />)}
