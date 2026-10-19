@@ -1095,3 +1095,24 @@
   .bo .sg-pulse,.bo .sg-ping{display:none}
   .bo .sg-dot{opacity:.7}
 }
+
+/* ---------- Quadro do pipeline: sem scroll horizontal e com altura de quadro ---------- */
+/* Todas as fases cabem na largura (colunas iguais, sem largura mínima) */
+.bo .board{grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);grid-template-columns:none;gap:8px;overflow-x:visible;scroll-snap-type:none;padding-bottom:24px}
+/* As colunas ocupam a altura do ecrã mesmo com poucas startups */
+.bo .bcol{min-height:max(440px,calc(100dvh - 300px));padding:10px 8px;min-width:0}
+.bo .bcol header{padding:4px 4px 10px}
+.bo .bcol header b{overflow-wrap:anywhere}
+.bo .dcard{padding:10px}
+.bo .dc1{flex-wrap:wrap;gap:6px}
+.bo .dc1 b{overflow-wrap:anywhere;word-break:normal}
+.bo .bempty{padding:32px 0}
+/* Ecrãs mais estreitos: as fases passam para várias linhas em vez de fugirem para o lado */
+@media (max-width:1100px){
+  .bo .board{grid-auto-flow:row;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));grid-auto-columns:auto}
+  .bo .bcol{min-height:240px}
+}
+@media (max-width:760px){
+  .bo .board{grid-auto-columns:auto;grid-template-columns:minmax(0,1fr)}
+  .bo .bcol{min-height:0}
+}
