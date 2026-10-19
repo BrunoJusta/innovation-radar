@@ -33,6 +33,8 @@ export function RunsView() {
             </tr>
             {open === r.id && <tr className="sub"><td colSpan={10}>
               {r.erroGeral && <p className="gerr">{r.erroGeral}</p>}
+              {r.reclassificacao && <p className="hint">Taxonomia nova: {r.reclassificacao.feitas} de {r.reclassificacao.tentadas} notícias reclassificadas{r.reclassificacao.faltam ? `, faltam ${r.reclassificacao.faltam}` : ", todas feitas"}.{r.reclassificacao.erros.length ? ` Erros: ${r.reclassificacao.erros.join(" · ")}` : ""}</p>}
+              {!!r.rejeitadasApagadas && <p className="hint">Rejeitadas apagadas da base de dados: {r.rejeitadasApagadas}.</p>}
               <table><tbody>{(r.fontes || []).map((f) => (
                 <tr key={f.sourceId}><td>{f.nome}</td><td className="n">{f.lidos}</td><td className="n">{f.jaVistos}</td><td className="n">{f.filtro}</td><td className="n">{f.relevantes}</td><td className="n">{f.novos}</td><td className="n">{f.fundidos}</td>
                   <td className="note">{f.erros?.length ? f.erros.join(" · ") : "Sem erros"}</td></tr>))}</tbody></table>

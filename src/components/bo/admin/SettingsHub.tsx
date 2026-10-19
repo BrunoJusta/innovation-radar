@@ -14,7 +14,7 @@ type Sec = "sources" | "taxonomy" | "newsRules" | "sectors" | "startupSources" |
 const GROUPS: { titulo: string; itens: { id: Sec; label: string; icon: string }[] }[] = [
   { titulo: "Notícias", itens: [
     { id: "sources", label: "Fontes", icon: "rss" },
-    { id: "taxonomy", label: "Áreas e categorias", icon: "stack" },
+    { id: "taxonomy", label: "Cadeias de valor e tags", icon: "stack" },
     { id: "newsRules", label: "Regras da recolha", icon: "funnel" },
   ] },
   { titulo: "Startups", itens: [
