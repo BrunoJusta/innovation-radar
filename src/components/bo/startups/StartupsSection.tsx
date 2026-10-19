@@ -9,10 +9,11 @@ import { StartupRadar } from "./StartupRadar";
 import { SearchField } from "../ui";
 import { DealsLookup, useDeals } from "../pipeline/DealsLookup";
 import { PipelineSection } from "../pipeline/PipelineSection";
+import { ReviewView } from "./ReviewView";
 import { useSession } from "../AuthGate";
 
 /** Secção Startups do backoffice: Triagem, Aprovadas, (admins) Pipeline e Radar. As rejeitadas são apagadas. */
-type Page = Fila | "radar" | "pipeline";
+type Page = Fila | "radar" | "pipeline" | "review";
 export function StartupsSection({ initial = "pending" }: { initial?: Page }) {
   return <DealsLookup><Section initial={initial} /></DealsLookup>;
 }
@@ -20,7 +21,7 @@ export function StartupsSection({ initial = "pending" }: { initial?: Page }) {
 function Section({ initial }: { initial: Page }) {
   const { deals } = useDeals();
   const { canPipeline } = useSession();
-  const [page, setPage] = useState<Page>(initial === "pipeline" && !canPipeline ? "approved" : initial);
+  const [page, setPage] = useState<Page>((initial === "pipeline" || initial === "review") && !canPipeline ? "approved" : initial);
   const [startups, setStartups] = useState<Startup[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -49,15 +50,16 @@ function Section({ initial }: { initial: Page }) {
         {TABS.map((t) => Tab({ t }))}
         {canPipeline && <button aria-current={page === "pipeline"} onClick={() => setPage("pipeline")}><Icon name="kanban" />Pipeline<PipeCount /></button>}
         <button aria-current={page === "radar"} onClick={() => setPage("radar")}><Icon name="globe" />Radar</button>
+        {canPipeline && <button aria-current={page === "review"} onClick={() => setPage("review")}><Icon name="chart-line" />Review</button>}
       </nav>
-      {page !== "radar" && (
+      {page !== "radar" && page !== "review" && (
         <div className="pageact">
           <SearchField value={search} onChange={setSearch} placeholder={page === "pipeline" ? "Pesquisar no pipeline" : "Pesquisar startups"} />
           {page !== "pipeline" && <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" />Adicionar startups</button>}
         </div>
       )}
     </div>
-    {page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage status={page as Fila} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
+    {page === "review" ? <ReviewView /> : page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage status={page as Fila} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar startups={startups} sectors={sectors} loaded={loaded} />}
   </>);
 }
 
