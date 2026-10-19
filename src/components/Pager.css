@@ -1,0 +1,16 @@
+/* Paginação das listas (radar público e backoffice). Usa as cores de cada página (.rp ou .bo). */
+.pgr{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap;padding:20px 0 8px}
+.pgr .pgi{font-size:13px;color:var(--ink-subtle);font-variant-numeric:tabular-nums}
+.pgr .pgb{display:flex;align-items:center;gap:4px}
+.pgr button{min-width:34px;height:34px;padding:0 10px;border-radius:999px;border:1px solid var(--hairline-strong);background:var(--surface-1,#fff);color:var(--ink-muted);font:inherit;font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums;display:inline-grid;place-items:center;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.bo .pgr button{border:0;box-shadow:var(--ring);height:34px}
+.bo .pgr button[aria-current="page"]{box-shadow:none;color:var(--canvas)}
+.pgr button svg.i{width:14px;height:14px}
+.pgr button:hover:not(:disabled):not([aria-current="page"]){border-color:var(--ink-tertiary);color:var(--ink)}
+.pgr button[aria-current="page"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.pgr button:disabled{opacity:.35;cursor:default}
+.pgr .pge{min-width:20px;text-align:center;color:var(--ink-tertiary)}
+.pgr-top{padding-top:0}
+.pgr-anchor{scroll-margin-top:16px}
+.bo .pgr-anchor{scroll-margin-top:80px}
+@media (max-width:640px){.pgr{justify-content:center}.pgr .pgi{width:100%;text-align:center}}
