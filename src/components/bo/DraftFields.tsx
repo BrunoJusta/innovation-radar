@@ -24,7 +24,14 @@ export function DraftFields({ value: v, onChange, areas, cats, withSource = fals
         <label className="fld"><span>Área</span>
           <select value={v.area} onChange={(e) => onChange({ area: e.target.value })}>{areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}</select></label>
         <label className="fld"><span>Categoria</span>
-          <select value={v.categoria} onChange={(e) => onChange({ categoria: e.target.value })}>{cats.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></label>
+          <select value={v.categoria} onChange={(e) => onChange({ categoria: e.target.value })}>
+            {/* Primeiro as categorias do anel escolhido, depois as restantes */}
+            {cats.some((c) => c.area === v.area) && <optgroup label={areas.find((a) => a.id === v.area)?.nome || "Deste anel"}>
+              {cats.filter((c) => c.area === v.area || !c.area).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</optgroup>}
+            {cats.some((c) => c.area === v.area)
+              ? <optgroup label="Outros anéis">{cats.filter((c) => c.area && c.area !== v.area).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</optgroup>
+              : cats.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select></label>
         <label className="fld"><span>Data de publicação</span>
           <input type="date" value={toDate(v.dataPublicacao)} onChange={(e) => onChange({ dataPublicacao: fromDate(e.target.value, v.dataPublicacao) })} /></label>
         <div className="fld"><span>Relevância</span>

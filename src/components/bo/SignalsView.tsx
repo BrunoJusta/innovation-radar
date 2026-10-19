@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CatSelect } from "@/components/CatSelect";
 import { Icon } from "@/components/Icon";
 import { approve, backToTriage, EditFields, reject, restore, saveEdit, Snapshot } from "@/lib/bo-actions";
 import { DraftFields } from "./DraftFields";
@@ -38,6 +39,19 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
 
   const area = (id: string) => areas.find((a) => a.id === id);
   const cat = (id: string) => cats.find((c) => c.id === id);
+
+  // Contagens do dropdown: notícias deste separador (e da área escolhida) em cada categoria
+  const catCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    signals.forEach((s) => { if (s.status === status && (fArea === "all" || s.area === fArea)) m.set(s.categoria, (m.get(s.categoria) || 0) + 1); });
+    return m;
+  }, [signals, status, fArea]);
+  const catCount = (id: string) => catCounts.get(id) || 0;
+  // Ao trocar de área, a categoria escolhida sai se pertencer a outro anel
+  useEffect(() => {
+    const c = cats.find((x) => x.id === fCat);
+    if (c && fArea !== "all" && c.area && c.area !== fArea) setFCat("all");
+  }, [fArea, fCat, cats]);
 
   const list = useMemo(() => {
     let l = signals.filter((s) => s.status === status);
@@ -96,10 +110,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
           <button aria-pressed={fArea === "all"} onClick={() => setFArea("all")}>Todas as áreas</button>
           {areas.map((a) => <button key={a.id} aria-pressed={fArea === a.id} onClick={() => setFArea(a.id)}>{a.nome}</button>)}
         </div>
-        <div className="seg" role="group" aria-label="Categoria">
-          <button aria-pressed={fCat === "all"} onClick={() => setFCat("all")}>Todas</button>
-          {cats.map((c) => <button key={c.id} aria-pressed={fCat === c.id} onClick={() => setFCat(c.id)}><Icon name={c.icone} />{c.nome}</button>)}
-        </div>
+        <CatSelect cats={cats} areas={areas} value={fCat} onChange={setFCat} area={fArea === "all" ? null : fArea} counts={catCount} />
         <span className="sp" />
         {view === "cards" && <div className="seg" role="group" aria-label="Ordenar">
           <button aria-pressed={sort === "score"} onClick={() => setSort("score")}>Relevância</button>
