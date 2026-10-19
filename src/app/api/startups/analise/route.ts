@@ -15,7 +15,9 @@ type Body = {
   etapa?: "perfil" | "avaliar"; parte?: ParteId;
   startup?: { nome?: string; site?: string; setor?: string; descricao?: string };
   partes?: ParteResultado[];
+  documentos?: { nome?: string; mime?: string; texto?: string; base64?: string }[];
 };
+const MIMES = ["application/pdf", "image/png", "image/jpeg", "image/webp", "text/plain"];
 
 export async function POST(req: Request) {
   if (!(await memberFromRequest(req))) return fail("Sem sessão ou sem acesso ao backoffice.", 401);
@@ -34,7 +36,17 @@ export async function POST(req: Request) {
       if (!Array.isArray(b.partes) || !b.partes.length) return fail("Falta o perfil.");
       const { perfil, fontes } = juntaPerfil(b.partes.slice(0, 2));
       const guidelines = await readTextField(req, "config/investimento", "texto");
-      const a = await avaliar(st, perfil, fontes, guidelines, { fast: true, timeoutMs: 52000 });
+      // Documentos juntados (até 8): texto até 60 mil caracteres cada; PDF e imagens até ~3 MB no total
+      let bin = 0;
+      type Doc = { nome: string; mime: string; texto?: string; base64?: string };
+      const docs: Doc[] = [];
+      for (const d of (Array.isArray(b.documentos) ? b.documentos : []).slice(0, 8)) {
+        const mime = String(d?.mime || ""), nome = String(d?.nome || "documento").slice(0, 120);
+        if (!MIMES.includes(mime)) continue;
+        if (d.base64) { bin += d.base64.length; if (bin <= 4_200_000) docs.push({ nome, mime, base64: String(d.base64) }); }
+        else if (d.texto) docs.push({ nome, mime: "text/plain", texto: String(d.texto).slice(0, 60000) });
+      }
+      const a = await avaliar(st, perfil, fontes, guidelines, { fast: true, timeoutMs: 55000 }, docs);
       return NextResponse.json({ analise: a, comGuidelines: !!guidelines });
     }
     return fail("Etapa desconhecida.");

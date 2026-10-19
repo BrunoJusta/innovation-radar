@@ -39,6 +39,12 @@ async function lerEntrada(buf: ArrayBuffer, e: Entrada): Promise<string> {
   return await new Response(stream).text();
 }
 
+/** Abre um ficheiro zip (docx, pptx, xlsx): lista os ficheiros de dentro e lê cada um como texto. */
+export function abrirZip(buf: ArrayBuffer) {
+  const ent = entradas(buf);
+  return { nomes: ent.map((e) => e.nome), ler: async (nome: string) => { const e = ent.find((x) => x.nome === nome); return e ? lerEntrada(buf, e) : ""; } };
+}
+
 const xml = (t: string) => new DOMParser().parseFromString(t, "application/xml");
 const filhos = (el: Element | Document, tag: string) => Array.from(el.getElementsByTagNameNS("*", tag));
 

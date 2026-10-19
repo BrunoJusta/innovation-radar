@@ -1281,3 +1281,14 @@
 .bo .impp i{display:block;height:100%;background:#B15533;border-radius:999px;transition:width .4s ease}
 .bo .scad{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap;margin:14px 0 0;font-size:13px}
 .bo .scad span{flex:1;min-width:220px}
+/* Análise: documentos a juntar */
+.bo .an-docs{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:12px;background:var(--surface-2);margin-top:12px}
+.bo .an-docs-h{display:flex;gap:14px;align-items:flex-start}
+.bo .an-docs-h b{display:block;font-size:15px;margin-bottom:4px}
+.bo .an-docs-h p{margin:0;font-size:13.5px;color:var(--ink-muted);line-height:1.5}
+.bo .an-docs .impf{background:var(--surface-1)}
+.bo .an-dl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.bo .an-dl li{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 12px;border-radius:8px;background:var(--surface-1);box-shadow:var(--ring);font-size:13.5px;min-height:36px}
+.bo .an-dl li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bo .an-dl li em{font-style:normal;font-size:12px;color:var(--ink-subtle);white-space:nowrap}
+.bo .an-dl .btn.icon{width:28px;height:28px}

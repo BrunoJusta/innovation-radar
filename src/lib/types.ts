@@ -254,6 +254,8 @@ export interface Analise {
   followOn: boolean; followOnRacional: string;
   encaixe: string; proximosPassos: string[];
   fontes: AnaliseFonte[];
+  /** Documentos juntados à análise (só os nomes; o conteúdo não fica guardado). */
+  documentos?: string[];
 }
 export interface AnaliseResumo { decisao: Analise["decisao"]; ticket: Ticket | null; desafio: string; positivos: number; feitaEm: string; negativos?: CriterioId[]; incertos?: CriterioId[] }
 

@@ -11,6 +11,11 @@ import { PipelineTable } from "./PipelineTable";
 import { DealDrawer } from "./DealDrawer";
 import { PipelineCalendar } from "./PipelineCalendar";
 import { ImportDealflow } from "./ImportDealflow";
+import { CatSelect } from "@/components/CatSelect";
+import type { Category } from "@/lib/types";
+
+/** Opções do filtro "de quem é a vez", no formato do dropdown das tags. */
+const VEZ_OPC = VEZES.map((v, i) => ({ id: v.id, nome: v.nome, icone: ({ sogrape: "wine", startup: "lightbulb", beta: "briefcase", reuniao: "calendar-blank" } as Record<string, string>)[v.id] || "users", descricao: "", ordem: i, palavrasChave: [] })) as Category[];
 
 type Estado = "ativas" | "arquivadas";
 type Vista = "quadro" | "lista" | "calendario";
@@ -57,10 +62,8 @@ export function PipelineSection({ search }: { search: string }) {
         <button aria-pressed={arquivadas} onClick={() => setEstado("arquivadas")}>Arquivadas<span className="sc">{arq.length}</span></button>
       </div>
       {!arquivadas && <>
-        <div className="seg" role="group" aria-label="De quem é a vez">
-          <button aria-pressed={!vez} onClick={() => setVez("")}>Todos</button>
-          {VEZES.map((v) => <button key={v.id} aria-pressed={vez === v.id} onClick={() => setVez(vez === v.id ? "" : v.id)}>{v.curto}</button>)}
-        </div>
+        <CatSelect cats={VEZ_OPC} value={vez || "all"} onChange={(id) => setVez(id === "all" ? "" : (id as Vez))} simples
+          counts={(id) => ativas.filter((d) => d.vez === id).length} total={ativas.length} allLabel="De quem é a vez: todos" procurar="Procurar" />
         <div className="seg" role="group" aria-label="Filtros">
           <button aria-pressed={minhas} onClick={() => setMinhas(!minhas)}><Icon name="users" />As minhas</button>
           <button aria-pressed={atrasadas} onClick={() => setAtrasadas(!atrasadas)} disabled={!late && !atrasadas}><Icon name="clock" />Atrasadas{late ? <span className="sc warn">{late}</span> : null}</button>

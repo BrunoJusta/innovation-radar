@@ -20,10 +20,11 @@ async function call(path: string, body: unknown, tries = 4, timeoutMs = 90000): 
   }
 }
 
-export async function json<T>(system: string, user: string, schema: object, sp: Speed = {}): Promise<T> {
+/** `extra`: partes adicionais do pedido (por exemplo documentos PDF em inline_data). */
+export async function json<T>(system: string, user: string, schema: object, sp: Speed = {}, extra: object[] = []): Promise<T> {
   const res = await call(`${MODEL()}:generateContent`, {
     systemInstruction: { parts: [{ text: system }] },
-    contents: [{ role: "user", parts: [{ text: user }] }],
+    contents: [{ role: "user", parts: [{ text: user }, ...extra] }],
     generationConfig: { temperature: 0.2, responseMimeType: "application/json", responseSchema: schema, thinkingConfig: { thinkingBudget: sp.think ?? 0 },
       ...(sp.maxTokens ? { maxOutputTokens: sp.maxTokens } : {}) },
   }, sp.fast ? 1 : 4, sp.timeoutMs ?? (sp.fast ? 15000 : 90000));

@@ -4,6 +4,7 @@ import { db } from "./firebase";
 import { post } from "./api";
 import { Analise, AnaliseFonte, AnaliseResumo } from "./types";
 import { nowIso } from "./util";
+import type { DocAnalise } from "./doc-text";
 
 /** O que se analisa: uma startup do radar (startups/{id}) ou uma do pipeline (deals/{id}). */
 export type AlvoAnalise = { path: string; nome: string; site: string; dominio: string; descricao: string; setor: string; /** Outro documento que também guarda o resumo (ex.: o do pipeline). */ alsoResumo?: string };
@@ -42,7 +43,7 @@ export class AnaliseErro extends Error { constructor(m: string, public partes: P
  * Corre a análise em três pedidos curtos (empresa e equipa em paralelo, depois a avaliação) e guarda-a.
  * Em caso de erro, devolve as partes já feitas para se tentar outra vez só o que falhou.
  */
-export async function runAnalise(alvo: AlvoAnalise, email: string, onStep: (p: Passos) => void = () => {}, jaTem: Partial<Record<ParteId, Parte>> = {}) {
+export async function runAnalise(alvo: AlvoAnalise, email: string, onStep: (p: Passos) => void = () => {}, jaTem: Partial<Record<ParteId, Parte>> = {}, docs: DocAnalise[] = []) {
   const startup = { nome: alvo.nome, site: alvo.site, setor: alvo.setor, descricao: alvo.descricao };
   const st: Passos = { empresa: jaTem.empresa ? "ok" : "a correr", equipa: jaTem.equipa ? "ok" : "a correr", avaliar: "espera" };
   onStep({ ...st });
@@ -57,7 +58,7 @@ export async function runAnalise(alvo: AlvoAnalise, email: string, onStep: (p: P
   st.avaliar = "a correr"; onStep({ ...st });
   try {
     const r = await post<{ analise: Omit<Analise, "feitaEm" | "por" | "modelo">; comGuidelines: boolean }>("/api/startups/analise",
-      { etapa: "avaliar", startup, partes: [got.empresa, got.equipa] }, MSG504);
+      { etapa: "avaliar", startup, partes: [got.empresa, got.equipa], documentos: docs }, MSG504);
     const a: Analise = { ...r.analise, feitaEm: new Date().toISOString(), por: email, modelo: "gemini" };
     const id = await saveAnalise(alvo.path, a, alvo.alsoResumo);
     st.avaliar = "ok"; onStep({ ...st });

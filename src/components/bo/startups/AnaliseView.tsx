@@ -7,6 +7,7 @@ import { useAnaliseQueue } from "../AnaliseQueue";
 import { Analise, CRITERIOS, GRUPOS_CRITERIOS, MATRIZ, TICKETS, VEREDICTOS, Veredicto } from "@/lib/types";
 import { fdLongo } from "@/lib/util";
 import { useSession } from "../AuthGate";
+import { ACEITES, DocAnalise, lerDocumento, MAX_BINARIO } from "@/lib/doc-text";
 
 const PASSOS: { id: ParteId | "avaliar"; nome: string; desc: string }[] = [
   { id: "empresa", nome: "Empresa e negócio", desc: "Produto, clientes, modelo de negócio, tração e tecnologia" },
@@ -34,6 +35,25 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
   const [partes, setPartes] = useState<Partial<Record<ParteId, Parte>>>({});
   const [erro, setErro] = useState("");
   const busy = !!passos && Object.values(passos).includes("a correr");
+  // Documentos para juntar à análise (pergunta-se antes de fazer ou refazer)
+  const [pedir, setPedir] = useState(false);
+  const [docs, setDocs] = useState<DocAnalise[]>([]);
+  const [lendo, setLendo] = useState(false);
+  const [erroDoc, setErroDoc] = useState("");
+  const juntar = async (fs: FileList | null) => {
+    if (!fs?.length) return;
+    setLendo(true); setErroDoc("");
+    const novos: DocAnalise[] = [], erros: string[] = [];
+    for (const f of Array.from(fs)) {
+      try { novos.push(await lerDocumento(f)); } catch (e) { erros.push((e as Error).message); }
+    }
+    const todos = [...docs.filter((d) => !novos.some((n) => n.nome === d.nome)), ...novos].slice(0, 8);
+    const bin = todos.filter((d) => d.base64).reduce((n, d) => n + (d.base64!.length * 3) / 4, 0);
+    if (bin > MAX_BINARIO) erros.push("Os PDF e as imagens passam de 3 MB no total. Tira algum ou junta uma versão mais leve.");
+    else setDocs(todos);
+    setErroDoc(erros.join(" "));
+    setLendo(false);
+  };
 
   useEffect(() => { if (!emFundo) loadAnalises(alvo.path).then(setHist).catch(() => setHist([])); }, [alvo.path, emFundo]);
   useEffect(() => {
@@ -43,16 +63,16 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
   }, [busy, onClose]);
 
   const run = useCallback(async (jaTem: Partial<Record<ParteId, Parte>> = {}) => {
-    setErro("");
+    setErro(""); setPedir(false);
     try {
-      const r = await runAnalise(alvo, email, setPassos, jaTem);
+      const r = await runAnalise(alvo, email, setPassos, jaTem, docs);
       setHist((h) => [r.analise, ...(h || [])]); setIdx(0); setPassos(null); setPartes({});
       notify(r.comGuidelines ? "Análise feita e guardada" : "Análise feita sem as guidelines completas. Cola-as em Definições › Startups › Critérios de investimento.");
     } catch (e) {
       setErro((e as Error).message);
       if (e instanceof AnaliseErro) setPartes(e.partes);
     }
-  }, [alvo, email, notify]);
+  }, [alvo, email, notify, docs]);
 
   const a = hist?.[idx];
   const copiar = async () => {
@@ -92,21 +112,38 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
           </div>
         )}
 
-        {a && !passos && <AnaliseReport a={a} />}
+        {!emFundo && hist !== null && !passos && (pedir || !a) && (
+          <div className="an-docs">
+            <div className="an-docs-h"><Icon name="stack" size={20} /><div><b>Queres juntar documentos à análise?</b>
+              <p>Deck, business plan, financeiras ou outro material da startup. A Gemini usa-os como evidência além da informação pública. Podes juntar até 8 (PDF, Word, PowerPoint, Excel, texto ou imagem; PDF e imagens até 3 MB no total). Não ficam guardados, só os nomes.</p></div></div>
+            <label className="impf">
+              <input type="file" multiple accept={ACEITES} onChange={(e) => { juntar(e.target.files); e.target.value = ""; }} disabled={lendo} />
+              <Icon name="plus" /><span>{lendo ? "A ler os documentos…" : docs.length ? "Juntar mais documentos" : "Escolher documentos"}</span>
+            </label>
+            {docs.length > 0 && <ul className="an-dl">{docs.map((d) => (
+              <li key={d.nome}><Icon name="stack" size={14} /><span>{d.nome}</span><em>{d.base64 ? `${Math.round((d.base64.length * 3) / 4 / 1024)} KB` : ((d.texto || "").length < 1000 ? `${(d.texto || "").length} caracteres` : `${Math.round((d.texto || "").length / 1000)} mil caracteres`)}</em>
+                <button type="button" className="btn icon" aria-label={`Tirar ${d.nome}`} onClick={() => setDocs(docs.filter((x) => x.nome !== d.nome))}><Icon name="x" /></button></li>))}</ul>}
+            {erroDoc && <p className="gerr" role="alert">{erroDoc}</p>}
+          </div>
+        )}
+        {a && !passos && !pedir && <AnaliseReport a={a} />}
       </div>
 
       <div className="mdl-f">
-        {a && !passos && <>
+        {a && !passos && !pedir && <>
           <span className="an-meta">{fdLongo(a.feitaEm)}{a.por ? ` · ${a.por === "recolha" ? "recolha semanal" : a.por}` : ""}</span>
           {hist && hist.length > 1 && <select className="an-hist" value={idx} onChange={(e) => setIdx(+e.target.value)} aria-label="Análises anteriores">
             {hist.map((h, i) => <option key={h.id || i} value={i}>{i === 0 ? "Mais recente" : fdLongo(h.feitaEm)}</option>)}</select>}
         </>}
         <span className="sp" />
-        {a && !passos && <button className="btn" onClick={copiar}><Icon name="copy" />Copiar relatório</button>}
+        {a && !passos && !pedir && <button className="btn" onClick={copiar}><Icon name="copy" />Copiar relatório</button>}
         {passos && erro && !busy && <button className="txtbtn" onClick={() => { setPassos(null); setErro(""); setPartes({}); }}>Cancelar</button>}
         {busy ? <button className="btn primary" disabled><span className="spin" aria-hidden="true" />A analisar…</button>
           : passos && erro ? <button className="btn primary" onClick={() => run(partes)}><Icon name="arrows-clockwise" />Tentar outra vez</button>
-          : !emFundo && hist !== null && <button className={`btn${a ? "" : " primary"}`} onClick={() => run()}><Icon name={a ? "arrows-clockwise" : "sparkle"} />{a ? "Refazer análise" : "Fazer análise"}</button>}
+          : !emFundo && hist !== null && (pedir || !a)
+            ? <>{pedir && <button className="txtbtn" onClick={() => { setPedir(false); setErroDoc(""); }}>Cancelar</button>}
+              <button className="btn primary" onClick={() => run()} disabled={lendo}><Icon name={a ? "arrows-clockwise" : "sparkle"} />{docs.length ? `${a ? "Refazer" : "Fazer"} análise com ${docs.length} ${docs.length === 1 ? "documento" : "documentos"}` : `${a ? "Refazer" : "Fazer"} análise sem documentos`}</button></>
+          : !emFundo && hist !== null && <button className="btn" onClick={() => setPedir(true)}><Icon name="arrows-clockwise" />Refazer análise</button>}
       </div>
     </div>
   </>);
@@ -221,6 +258,10 @@ export function AnaliseReport({ a }: { a: Analise }) {
             </div>
           </section>
 
+          {!!a.documentos?.length && <section className="an-sec">
+            <h3>Documentos juntados</h3>
+            <ul className="an-dl">{a.documentos.map((d) => <li key={d}><Icon name="stack" size={14} /><span>{d}</span></li>)}</ul>
+          </section>}
           {a.fontes.length > 0 && <section className="an-sec">
             <h3>Fontes</h3>
             <ul className="an-fontes">{a.fontes.map((f) => <li key={f.url}><a href={f.url} target="_blank" rel="noopener noreferrer"><span>{f.titulo}</span><em>{host(f.url)}</em><Icon name="arrow-up-right" size={12} /></a></li>)}</ul>
