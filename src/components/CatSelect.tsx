@@ -8,8 +8,9 @@ import { Area, Category, TIPOS_TAG, TipoTag, tipoDe } from "@/lib/types";
  * Filtro de tags em dropdown: agrupado em temáticas, tecnologias e canais, com pesquisa, contagens e teclado.
  * Usado no radar público e nas listas de notícias do backoffice.
  */
-export function CatSelect({ cats, value, onChange, counts, total = null, allLabel = "Todas as tags", className = "", tipo }: {
+export function CatSelect({ cats, value, onChange, counts, total = null, allLabel = "Todas as tags", className = "", tipo, simples = false, procurar = "Procurar tag" }: {
   /** Só as tags deste tipo (sem cabeçalhos de grupo). */ tipo?: TipoTag;
+  /** Uma lista simples, pela ordem (para as cadeias de valor, que mostram a cor em vez do ícone). */ simples?: boolean; procurar?: string;
   cats: Category[]; areas?: Area[]; value: string; onChange: (id: string) => void;
   counts?: (catId: string) => number; /** Número de notícias sem filtro de tag (uma notícia pode ter várias tags). */ total?: number | null; allLabel?: string; className?: string;
 }) {
@@ -29,12 +30,13 @@ export function CatSelect({ cats, value, onChange, counts, total = null, allLabe
     const f = fold(q.trim());
     const match = (c: Category) => !f || fold(c.nome).includes(f);
     const out: { key: string; nome: string; cor?: string; items: Category[] }[] = [];
+    if (simples) { const items = visiveis.filter(match).sort((a, b) => a.ordem - b.ordem); return items.length ? [{ key: "_", nome: "", items }] : out; }
     for (const tp of TIPOS_TAG) {
       const items = visiveis.filter((c) => tipoDe(c) === tp.id && match(c)).sort((a, b) => a.ordem - b.ordem);
       if (items.length) out.push({ key: tp.id, nome: tipo ? "" : tp.plural, items });
     }
     return out;
-  }, [visiveis, q]);
+  }, [visiveis, q, simples]);
   const flat = useMemo(() => [...(q.trim() ? [] : ["all"]), ...groups.flatMap((g) => g.items.map((c) => c.id))], [groups, q]);
 
   const cur = cats.find((c) => c.id === value);
@@ -69,7 +71,7 @@ export function CatSelect({ cats, value, onChange, counts, total = null, allLabe
       <button type="button" className="cdt" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${uid}l`}
         onClick={() => (open ? close() : setOpen(true))}
         onKeyDown={(e) => { if (!open && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) { e.preventDefault(); setOpen(true); } }}>
-        {cur ? <Icon name={cur.icone} /> : <Icon name="funnel" />}
+        {cur ? <Marca c={cur} /> : <Icon name="funnel" />}
         <span className="cdl">{cur ? cur.nome : allLabel}</span>
         {cur && counts && <span className="cdn">{counts(cur.id)}</span>}
         <Icon name="caret-down" className="cdc" />
@@ -82,7 +84,7 @@ export function CatSelect({ cats, value, onChange, counts, total = null, allLabe
           {visiveis.length > 6 && (
             <div className="cds-q">
               <Icon name="magnifying-glass" />
-              <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Procurar tag" aria-label="Procurar tag"
+              <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder={procurar} aria-label={procurar}
                 role="combobox" aria-expanded aria-controls={`${uid}l`} aria-activedescendant={flat[hi] ? `${uid}-${flat[hi]}` : undefined} />
             </div>
           )}
@@ -101,7 +103,7 @@ export function CatSelect({ cats, value, onChange, counts, total = null, allLabe
                   return (
                     <button type="button" role="option" key={c.id} id={`${uid}-${c.id}`} data-i={k} aria-selected={value === c.id}
                       className={`cdi${hi === k ? " hi" : ""}${n === 0 ? " zero" : ""}`} onMouseEnter={() => setHi(k)} onClick={() => pick(c.id)}>
-                      <Icon name={c.icone} /><span>{c.nome}</span>{n !== undefined && <em>{n}</em>}{value === c.id && <Icon name="check" className="cdk" />}
+                      <Marca c={c} /><span>{c.nome}</span>{n !== undefined && <em>{n}</em>}{value === c.id && <Icon name="check" className="cdk" />}
                     </button>
                   );
                 })}
@@ -133,4 +135,15 @@ export function TagFilters({ cats, value, onChange, counts }: {
     <CatSelect key={k} tipo={k} cats={cats} value={value[k]} onChange={(id) => onChange({ ...value, [k]: id })}
       counts={counts ? (id) => counts(id, k) : undefined} allLabel={TODAS[k]} />
   ))}</>;
+}
+
+/** Ícone da tag, ou a bolinha com a cor (cadeias de valor). */
+function Marca({ c }: { c: Category & { cor?: string } }) {
+  return c.cor ? <i className="cdot" style={{ background: c.cor }} aria-hidden="true" /> : <Icon name={c.icone} />;
+}
+
+/** Filtro da cadeia de valor, com o mesmo comportamento dos filtros de tags. */
+export function AreaSelect({ areas, value, onChange, counts }: { areas: Area[]; value: string; onChange: (id: string) => void; counts?: (areaId: string) => number }) {
+  const itens = areas.map((a) => ({ id: a.id, nome: a.nome, cor: a.cor, ordem: a.ordem, icone: "", descricao: a.descricao, palavrasChave: [] })) as (Category & { cor: string })[];
+  return <CatSelect cats={itens} value={value} onChange={onChange} counts={counts} simples allLabel="Todas as cadeias de valor" procurar="Procurar cadeia de valor" />;
 }

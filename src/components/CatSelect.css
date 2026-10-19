@@ -39,3 +39,7 @@
 .cds .cdi[aria-selected="true"]{color:var(--ink);font-weight:600}
 .cds .cdi .cdk{color:var(--accent)}
 .cds .cde{padding:14px 10px;color:var(--ink-subtle);font-size:13.5px}
+
+/* Bolinha com a cor (cadeias de valor) */
+.cds .cdot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block;margin:0 3px}
+.cds.on .cdt .cdot{box-shadow:0 0 0 1.5px rgba(255,255,255,.85)}
