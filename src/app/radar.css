@@ -426,3 +426,20 @@
 .rp .scdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--sc);flex:none}
 .rp .chip .cn{font-family:var(--f-mono);font-size:12px;color:var(--ink-subtle);margin-left:2px}
 .rp .ltit .ldom{margin-left:10px;font-family:var(--f-mono);font-size:12px;font-weight:400;color:var(--ink-tertiary);letter-spacing:0}
+/* Várias tags na ficha da notícia */
+.rp .kick{flex-wrap:wrap;row-gap:4px}
+.rp .kick .kt{display:inline-flex;gap:10px;align-items:center}
+
+/* Radar maior e filtros mais compactos (7 cadeias de valor) */
+@media (min-width:981px){
+  .rp .hero{grid-template-columns:minmax(260px,320px) minmax(0,1fr);column-gap:40px;align-content:start;min-height:0;padding-block:20px 48px;row-gap:12px}
+  .rp .hero h1{font-size:clamp(30px,3.2vw,42px)}
+  .rp .tools{margin-top:0;align-self:start;width:min(100%,520px)}
+  .rp .rbox{max-width:min(780px,calc(100dvh - 190px));justify-self:center;margin-top:-8px}
+}
+.rp .hleg .legend{margin-top:4px}
+.rp .lg{padding:7px 8px 7px 4px;gap:2px 10px;grid-template-columns:10px minmax(0,1fr) auto}
+.rp .lg .sw{width:9px;height:9px}
+.rp .lg b{font-size:14px;font-weight:500}
+.rp .lg .n{font-size:12px}
+.rp .fline{margin-top:14px;gap:8px 14px}
