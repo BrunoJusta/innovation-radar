@@ -2,13 +2,14 @@
 import "./CatSelect.css";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { Area, Category, TIPOS_TAG, tipoDe } from "@/lib/types";
+import { Area, Category, TIPOS_TAG, TipoTag, tipoDe } from "@/lib/types";
 
 /**
  * Filtro de tags em dropdown: agrupado em temáticas, tecnologias e canais, com pesquisa, contagens e teclado.
  * Usado no radar público e nas listas de notícias do backoffice.
  */
-export function CatSelect({ cats, value, onChange, counts, total = null, allLabel = "Todas as tags", className = "" }: {
+export function CatSelect({ cats, value, onChange, counts, total = null, allLabel = "Todas as tags", className = "", tipo }: {
+  /** Só as tags deste tipo (sem cabeçalhos de grupo). */ tipo?: TipoTag;
   cats: Category[]; areas?: Area[]; value: string; onChange: (id: string) => void;
   counts?: (catId: string) => number; /** Número de notícias sem filtro de tag (uma notícia pode ter várias tags). */ total?: number | null; allLabel?: string; className?: string;
 }) {
@@ -21,7 +22,7 @@ export function CatSelect({ cats, value, onChange, counts, total = null, allLabe
   const uid = useId();
 
   const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-  const visiveis = cats;
+  const visiveis = useMemo(() => (tipo ? cats.filter((c) => tipoDe(c) === tipo) : cats), [cats, tipo]);
 
   // Grupos por tipo: temáticas, tecnologias e canais
   const groups = useMemo(() => {
@@ -30,7 +31,7 @@ export function CatSelect({ cats, value, onChange, counts, total = null, allLabe
     const out: { key: string; nome: string; cor?: string; items: Category[] }[] = [];
     for (const tp of TIPOS_TAG) {
       const items = visiveis.filter((c) => tipoDe(c) === tp.id && match(c)).sort((a, b) => a.ordem - b.ordem);
-      if (items.length) out.push({ key: tp.id, nome: tp.plural, items });
+      if (items.length) out.push({ key: tp.id, nome: tipo ? "" : tp.plural, items });
     }
     return out;
   }, [visiveis, q]);
@@ -112,4 +113,24 @@ export function CatSelect({ cats, value, onChange, counts, total = null, allLabe
       )}
     </div>
   );
+}
+
+/** Filtro de tags em três: temática, tecnologia e canal (combinam-se: a notícia tem de ter as três escolhidas). */
+export type TagFiltro = Record<TipoTag, string>;
+export const SEM_FILTRO: TagFiltro = { tematica: "all", tecnologia: "all", canal: "all" };
+const TIPOS: TipoTag[] = ["tematica", "tecnologia", "canal"];
+const TODAS: Record<TipoTag, string> = { tematica: "Todas as temáticas", tecnologia: "Todas as tecnologias", canal: "Todos os canais" };
+export const passaTags = (tags: string[], f: TagFiltro, ignora?: TipoTag) => TIPOS.every((k) => k === ignora || f[k] === "all" || tags.includes(f[k]));
+export const temFiltro = (f: TagFiltro) => TIPOS.some((k) => f[k] !== "all");
+/** Tags escolhidas nos três filtros. */
+export const escolhidas = (f: TagFiltro) => TIPOS.map((k) => f[k]).filter((x) => x !== "all");
+
+export function TagFilters({ cats, value, onChange, counts }: {
+  cats: Category[]; value: TagFiltro; onChange: (f: TagFiltro) => void;
+  /** Quantas notícias têm esta tag, com os outros filtros aplicados (o próprio tipo não conta). */ counts?: (catId: string, tipo: TipoTag) => number;
+}) {
+  return <>{TIPOS.filter((k) => cats.some((c) => tipoDe(c) === k)).map((k) => (
+    <CatSelect key={k} tipo={k} cats={cats} value={value[k]} onChange={(id) => onChange({ ...value, [k]: id })}
+      counts={counts ? (id) => counts(id, k) : undefined} allLabel={TODAS[k]} />
+  ))}</>;
 }
