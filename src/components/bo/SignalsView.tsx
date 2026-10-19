@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Pager, usePaged } from "@/components/Pager";
 import { CatSelect } from "@/components/CatSelect";
 import { Icon } from "@/components/Icon";
 import { approve, backToTriage, EditFields, reject, restore, saveEdit, Snapshot } from "@/lib/bo-actions";
@@ -94,9 +95,15 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
 
   const allCount = signals.length;
 
+  // Cartões: 40 por página; os grupos de relevância são feitos com os cartões da página
+  const pageKey = `${status}|${fArea}|${fCat}|${search}|${sort}`;
+  const pg = usePaged(list, pageKey);
+  const pl = pg.items;
   const groups: [string, Signal[], string?][] =
-    sort !== "score" || status === "rejected" ? [["", list]]
-              : [["Relevância alta", list.filter((s) => s.relevancia >= 85), "var(--g-ok)"], ["Relevância média", list.filter((s) => s.relevancia >= 65 && s.relevancia < 85), "var(--g-mid)"], ["Relevância baixa", list.filter((s) => s.relevancia < 65), "var(--g-low)"]];
+    sort !== "score" || status === "rejected" ? [["", pl]]
+              : [["Relevância alta", pl.filter((s) => s.relevancia >= 85), "var(--g-ok)"], ["Relevância média", pl.filter((s) => s.relevancia >= 65 && s.relevancia < 85), "var(--g-mid)"], ["Relevância baixa", pl.filter((s) => s.relevancia < 65), "var(--g-low)"]];
+  // Total de cada grupo em toda a lista (o cabeçalho mostra o total, não só o da página)
+  const gTotal = (t: string) => t === "Relevância alta" ? list.filter((s) => s.relevancia >= 85).length : t === "Relevância média" ? list.filter((s) => s.relevancia >= 65 && s.relevancia < 85).length : list.filter((s) => s.relevancia < 65).length;
 
   const open = signals.find((s) => s.id === openId) || null;
 
@@ -132,7 +139,7 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
             ? <Empty icon={<Icon name="tray" size={22} />} title="Ainda sem notícias" text="Assim que o pipeline diário correr, as notícias novas aparecem aqui para decidires." />
             : <Empty icon={<Icon name="magnifying-glass" size={22} />} title="Sem resultados" text="Nenhuma notícia corresponde a este filtro." />
       ) : view === "list" ? (
-        <SignalsTable list={list} areas={areas} cats={cats} onOpen={setOpenId}
+        <SignalsTable list={list} areas={areas} cats={cats} onOpen={setOpenId} pageKey={`${status}|${fArea}|${fCat}|${search}`}
           onApprove={(s) => doApprove(s)} onReject={(s, m) => doReject(s, m)} onBack={(s) => doBack(s)}
           onBulk={async (ids, acao, motivo) => {
             const items = list.filter((s) => ids.includes(s.id));
@@ -141,9 +148,11 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
               notify(`${items.length} ${acao === "approve" ? "aprovadas" : acao === "reject" ? `rejeitadas: ${motivo}` : "de volta à triagem"}`, snaps);
             } catch (e) { fail(e); }
           }} />
-      ) : groups.filter((g) => g[1].length).map(([t, l, c]) => (
+      ) : (<>
+        <div ref={pg.top} className="pgr-anchor" />
+        {groups.filter((g) => g[1].length).map(([t, l, c]) => (
         <section className="group" key={t || "all"}>
-          {t && <div className="gh">{c && <i style={{ background: c }} />}<h2>{t}</h2><span>{l.length}</span></div>}
+          {t && <div className="gh">{c && <i style={{ background: c }} />}<h2>{t}</h2><span>{gTotal(t)}</span></div>}
           <div className={`grid${picked.size ? " picking" : ""}`}>
             {l.map((s) => (
               <Card key={s.id} s={s} area={area(s.area)} cat={cat(s.categoria)} picked={picked.has(s.id)} rejecting={rejectCard === s.id}
@@ -152,7 +161,9 @@ export function SignalsView({ status, signals, areas, cats, loaded, search }: {
             ))}
           </div>
         </section>
-      ))}
+        ))}
+        <Pager {...pg} label="notícias" />
+      </>)}
 
       {view === "cards" && picked.size > 0 && status === "pending" && (
         <div className="bulk"><span>{picked.size} selecionada{picked.size > 1 ? "s" : ""}</span>
