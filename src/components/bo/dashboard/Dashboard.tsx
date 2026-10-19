@@ -10,7 +10,7 @@ import { useSession } from "../AuthGate";
 import { estadoPrazo } from "../pipeline/PipelineBoard";
 import { itensComPrazo } from "../pipeline/PipelineCalendar";
 
-export type DashGo = { view: "news"; st: "pending" | "approved" | "rejected" | "radar" } | { view: "startups"; page: "pending" | "approved" | "rejected" | "radar" | "pipeline" };
+export type DashGo = { view: "news"; st: "pending" | "approved" | "radar" } | { view: "startups"; page: "pending" | "approved" | "radar" | "pipeline" };
 
 const addDays = (s: string, n: number) => { const d = new Date(`${s}T12:00:00`); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const saudacao = () => { const h = new Date().getHours(); return h < 13 ? "Bom dia" : h < 20 ? "Boa tarde" : "Boa noite"; };
