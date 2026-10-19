@@ -1116,3 +1116,4 @@
   .bo .board{grid-auto-columns:auto;grid-template-columns:minmax(0,1fr)}
   .bo .bcol{min-height:0}
 }
+.bo .rp-embed .lctl{background:var(--canvas)}
