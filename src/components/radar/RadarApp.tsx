@@ -1,11 +1,11 @@
 "use client";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Pager, usePaged } from "@/components/Pager";
-import { CatSelect } from "@/components/CatSelect";
+import { escolhidas, passaTags, SEM_FILTRO, TagFilters, TagFiltro, temFiltro } from "@/components/CatSelect";
 import { Icon } from "@/components/Icon";
 import { loadPublished, loadStructure } from "@/lib/data";
 import { search, SearchDoc, terms } from "@/lib/search";
-import { Area, Category, Settings, Signal, tagsDe, tipoDe } from "@/lib/types";
+import { Area, Category, Settings, Signal, tagsDe, TipoTag, tipoDe } from "@/lib/types";
 import { quarterKey, quarterLabel } from "@/lib/util";
 import { NewsList, Ordem } from "./NewsList";
 import { ChartItem, layout, RadarChart, ringRadii } from "./RadarChart";
@@ -31,7 +31,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
   const [signals, setSignals] = useState<Signal[]>([]);
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   const [fRing, setFRing] = useState<string | null>(null);
-  const [fCat, setFCat] = useState<string>("all");
+  const [fTags, setFTags] = useState<TagFiltro>(SEM_FILTRO);
   const [period, setPeriod] = useState<string>("recent");
   const [openId, setOpenId] = useState<string | null>(null);
   const [view, setViewState] = useState<Vista>("radar");
@@ -138,7 +138,8 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
   const hitsById = useMemo(() => new Map(hits.map((h) => [h.id, h])), [hits]);
   const hitSet = useMemo(() => (searching ? new Set(hits.map((h) => h.id)) : null), [hits, searching]);
   const byId = useMemo(() => new Map(items.map((x) => [x.id, x])), [items]);
-  const temTag = useCallback((x: RadarItem) => fCat === "all" || (x.tags || [x.cat]).includes(fCat), [fCat]);
+  const temTag = useCallback((x: RadarItem) => passaTags(x.tags || [x.cat], fTags), [fTags]);
+  const fKey = `${fTags.tematica}.${fTags.tecnologia}.${fTags.canal}`;
   const passa = useCallback((x: RadarItem) => (!fRing || x.area === fRing) && temTag(x), [fRing, temTag]);
   const hitItems = useMemo(() => hits.map((h) => byId.get(h.id)!).filter(Boolean), [hits, byId]);
   const results = useMemo(() => hitItems.filter(passa), [hitItems, passa]);
@@ -182,10 +183,10 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
   }, [searching, results, items, passa, ordem]);
 
   // 40 por página na lista e nos resultados ao lado do radar
-  const pgL = usePaged(rows, `${dq}|${fRing}|${fCat}|${period}|${ordem}`);
-  const pgR = usePaged(results, `${dq}|${fRing}|${fCat}`);
+  const pgL = usePaged(rows, `${dq}|${fRing}|${fKey}|${period}|${ordem}`);
+  const pgR = usePaged(results, `${dq}|${fRing}|${fKey}`);
   const nav = view === "lista" ? pgL.items : pgR.items;
-  useEffect(() => setActive(0), [dq, fRing, fCat, view, ordem, pgL.page, pgR.page]);
+  useEffect(() => setActive(0), [dq, fRing, fKey, view, ordem, pgL.page, pgR.page]);
   useEffect(() => {
     if (!searching) return;
     const el = document.getElementById(`sr-${nav[active]?.id}`);
@@ -208,21 +209,23 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
   const focusId = hover ?? (searching ? nav[active]?.id ?? null : null);
 
   const counts = (aid: string) => items.filter((x) => x.area === aid && temTag(x)).length;
-  const catCount = (cid: string) => items.filter((x) => (x.tags || [x.cat]).includes(cid) && (!fRing || x.area === fRing)).length;
-  const catTotal = items.filter((x) => !fRing || x.area === fRing).length;
+  // Contagem de cada tag com a cadeia de valor e os outros dois filtros aplicados
+  const catCount = (cid: string, tp: TipoTag) => items.filter((x) => { const t = x.tags || [x.cat]; return t.includes(cid) && (!fRing || x.area === fRing) && passaTags(t, fTags, tp); }).length;
+  const tagSel = <TagFilters cats={cats} value={fTags} onChange={setFTags} counts={catCount} />;
+  const limpaTags = () => setFTags(SEM_FILTRO);
   const open = items.find((x) => x.id === openId) || null;
-  const cur = cat(fCat);
+  const cur = cat(escolhidas(fTags)[0] || "");
 
   const summary = (
     <SearchSummary q={dq} n={results.length} total={hits.length} byArea={byArea} areas={areas} fRing={fRing} setFRing={setFRing}
-      cat={fCat !== "all" ? cur : undefined} clearCat={() => setFCat("all")} related={related} setQ={setQ} compact={view === "lista"} />
+      cat={temFiltro(fTags) ? cur : undefined} clearCat={limpaTags} related={related} setQ={setQ} compact={view === "lista"} />
   );
   const empty = searching ? (
     <>
       <b>Nada no radar para «{dq.trim()}»</b>
       <span>{hits.length ? "Há resultados noutras cadeias de valor ou tags. Tira os filtros para os veres." : "Experimenta outra palavra ou um destes temas:"}</span>
       {hits.length ? (
-        <button className="chip" onClick={() => { setFRing(null); setFCat("all"); }}>Tirar filtros</button>
+        <button className="chip" onClick={() => { setFRing(null); limpaTags(); }}>Tirar filtros</button>
       ) : (
         <div className="ssc">{suggestions.slice(0, 6).map((s) => <button key={s.label} className="chip" onClick={() => setQ(s.label)}>{s.icon && <Icon name={s.icon} />}{s.label}</button>)}</div>
       )}
@@ -265,7 +268,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                       ))}
                     </div>
                     <div className="fline">
-                      <CatSelect cats={cats} value={fCat} onChange={setFCat} counts={catCount} total={catTotal} />
+                      {tagSel}
                       <label className="periodo">
                         <span>Período</span>
                         <select value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Período">
@@ -276,14 +279,14 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                   </>
                 )}
               </div>
-              <RadarChart rings={areas} items={items} fRing={fRing} fGroup={fCat} regrowKey={searching ? "search" : period} onOpen={setOpenId} state={state}
+              <RadarChart rings={areas} items={items} fRing={fRing} fGroup={temFiltro(fTags) ? "tags" : "all"} pass={temFiltro(fTags) ? (x) => temTag(x as RadarItem) : undefined} regrowKey={searching ? "search" : period} onOpen={setOpenId} state={state}
                 hits={hitSet} focusId={focusId} scanKey={searching ? dq : ""} onHover={setHover}
                 center={searching ? { n: results.length, label: results.length === 1 ? "sinal" : "sinais" } : null}
                 emptyTitle="Ainda sem sinais neste período" emptyText="Assim que a equipa de Inovação aprovar notícias, elas aparecem aqui." ariaLabel="Radar com os sinais do período" />
             </>
           ) : (
             <NewsList rows={pgL.items} allRows={rows} pager={<Pager {...pgL} label="notícias" />} topRef={pgL.top} ts={ts} searching={searching} hitsById={hitsById} areas={areas} cats={cats} fRing={fRing} setFRing={setFRing}
-              fCat={fCat} setFCat={setFCat} counts={counts} catCount={catCount} catTotal={catTotal} period={period} setPeriod={setPeriod} periodOptions={periodOptions}
+              tagSel={tagSel} counts={counts} period={period} setPeriod={setPeriod} periodOptions={periodOptions}
               ordem={ordem} setOrdem={setOrdem} active={searching ? active : -1}
               onOpen={setOpenId} setHover={() => {}} summary={summary}
               empty={state === "loading" ? <span>A carregar as notícias…</span> : state === "error" ? <><b>Não foi possível carregar as notícias</b><span>Atualiza a página dentro de alguns minutos.</span></> : empty} />

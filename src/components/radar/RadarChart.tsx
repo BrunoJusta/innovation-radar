@@ -83,8 +83,9 @@ export function layout<T extends { id: string; ring: string; relevancia: number 
   return out;
 }
 
-export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, state, emptyTitle, emptyText, ariaLabel, idPrefix = "r", hits = null, focusId = null, scanKey = "", center = null, onHover }: {
+export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, state, emptyTitle, emptyText, ariaLabel, idPrefix = "r", hits = null, focusId = null, scanKey = "", center = null, onHover, pass }: {
   rings: Ring[]; items: ChartItem[]; fRing: string | null; fGroup: string; regrowKey: string;
+  /** Filtro próprio (por exemplo, vários filtros de tags); com ele, `fGroup` só diz se há filtro ativo ("all" = não). */ pass?: (x: ChartItem) => boolean;
   onOpen: (id: string) => void; state: "loading" | "ok" | "error"; emptyTitle: string; emptyText: string; ariaLabel: string; idPrefix?: string;
   /** Pesquisa: só estes itens ficam acesos (os outros apagam-se e os acesos ficam ligados entre si). */
   hits?: Set<string> | null;
@@ -100,7 +101,7 @@ export function RadarChart({ rings, items, fRing, fGroup, regrowKey, onOpen, sta
   useEffect(() => setStill(prefersReduced()), []);
   const [tip, setTip] = useState<{ x: number; y: number; t: string; s: string } | null>(null);
   const R = useMemo(() => ringRadii(rings.length), [rings.length]);
-  const match = (x: ChartItem) => (!fRing || x.ring === fRing) && (fGroup === "all" || (x.groups ? x.groups.includes(fGroup) : x.group === fGroup)) && (!hits || hits.has(x.id));
+  const match = (x: ChartItem) => (!fRing || x.ring === fRing) && (pass ? pass(x) : fGroup === "all" || (x.groups ? x.groups.includes(fGroup) : x.group === fGroup)) && (!hits || hits.has(x.id));
   const P = idPrefix;
 
   // O círculo entra sempre a crescer: escala menor sem transição e depois o tamanho final
