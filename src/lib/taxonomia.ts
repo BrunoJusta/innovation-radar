@@ -12,19 +12,19 @@ type TagSeed = { nome: string; tipo: TipoTag; icone: string; ordem: number; desc
 
 /** Cadeias de valor, do centro do radar para fora. */
 export const AREAS_V2: Record<string, AreaSeed> = {
-  viticultura: { nome: "Viticultura", cor: "#16A34A", ordem: 1,
+  viticultura: { nome: "Viticultura", cor: "#4F7A3A", ordem: 1,
     descricao: "Vinha e uva: plantação, castas, clima na vinha, solo, rega, pragas e doenças, vindima e trabalho no campo." },
-  enologia: { nome: "Enologia", cor: "#7C3AED", ordem: 2,
+  enologia: { nome: "Enologia", cor: "#7A2338", ordem: 2,
     descricao: "Fazer o vinho: fermentação, leveduras, estágio, lotes, desalcoolização, análises e qualidade do vinho." },
-  producao: { nome: "Produção", cor: "#0EA5DE", ordem: 3,
+  producao: { nome: "Produção", cor: "#B15533", ordem: 3,
     descricao: "Adega e fábrica: engarrafamento, linhas de enchimento, embalagem na linha, energia, água, manutenção e operações industriais." },
-  marketing: { nome: "Marketing", cor: "#E7A912", ordem: 4,
+  marketing: { nome: "Marketing", cor: "#B07A12", ordem: 4,
     descricao: "Marcas e comunicação: posicionamento, lançamentos de marca, campanhas, rótulos e design, patrocínios e social media." },
-  "vendas-distribuicao": { nome: "Vendas e distribuição", cor: "#EA580C", ordem: 5,
+  "vendas-distribuicao": { nome: "Vendas e distribuição", cor: "#2F6B73", ordem: 5,
     descricao: "Levar o produto ao mercado: distribuidores, importadores, retalho, restauração, preços, exportação, logística comercial e canais de venda." },
-  consumidor: { nome: "Consumidor", cor: "#DB2777", ordem: 6,
+  consumidor: { nome: "Consumidor", cor: "#9B4D6B", ordem: 6,
     descricao: "Quem bebe: comportamentos, tendências e ocasiões de consumo, gerações, saúde e moderação, estudos e dados de consumo." },
-  adjacencias: { nome: "Adjacências", cor: "#64748B", ordem: 7,
+  adjacencias: { nome: "Adjacências", cor: "#5E6B7A", ordem: 7,
     descricao: "O que está à volta do vinho: outras bebidas (cerveja, espirituosos, RTD, sem álcool), hotelaria, turismo, alimentação, regulação e economia." },
 };
 
@@ -101,3 +101,9 @@ export const TAGS_V2: Record<string, TagSeed> = {
 
 /** As cadeias de valor como lista (para quando a coleção «areas» ainda não carregou). */
 export const AREAS_LISTA = Object.entries(AREAS_V2).map(([id, v]) => ({ id, ...v }));
+
+/** Paleta terrosa da Sogrape para as cadeias de valor (a ferrugem #B15533 é a cor da marca). */
+export const PALETA_CADEIAS: Record<string, string> = {
+  viticultura: "#4F7A3A", enologia: "#7A2338", producao: "#B15533", marketing: "#B07A12",
+  "vendas-distribuicao": "#2F6B73", consumidor: "#9B4D6B", adjacencias: "#5E6B7A",
+};

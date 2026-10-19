@@ -4,6 +4,7 @@ import { deleteDoc, doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { AREA_COLORS, Area, Category, TIPOS_TAG, TipoTag, tipoDe } from "@/lib/types";
 import { slug } from "@/lib/util";
+import { PALETA_CADEIAS } from "@/lib/taxonomia";
 import { CATEGORY_ICONS, Icon } from "@/components/Icon";
 import { AdmHead, DangerBtn, errMsg, FormModal, useFlash } from "./common";
 
@@ -37,6 +38,7 @@ export function TaxonomyView({ areas, cats, parte }: { areas: Area[]; cats: Cate
 
     {parte === "areas" && <section className="adm-sec">
       <div className="gh"><h2>Cadeias de valor</h2><span>{areas.length}</span><span className="sp" />
+        {areas.some((a) => PALETA_CADEIAS[a.id] && PALETA_CADEIAS[a.id] !== a.cor) && <button className="btn" onClick={() => Promise.all(areas.filter((a) => PALETA_CADEIAS[a.id]).map((a) => setDoc(doc(db, "areas", a.id), { cor: PALETA_CADEIAS[a.id] }, { merge: true }))).then(() => flash("Paleta Sogrape aplicada")).catch((e) => flash(errMsg(e)))}><Icon name="sparkle" />Aplicar paleta Sogrape</button>}
         <button className="btn" onClick={() => setAe({ id: "", nome: "", descricao: "", cor: AREA_COLORS[areas.length % AREA_COLORS.length], ordem: areas.length + 1, _new: true })}><Icon name="plus" />Nova cadeia de valor</button></div>
       <div className="rows">{areas.map((a) => (
         <div className="row" key={a.id}>
@@ -51,7 +53,7 @@ export function TaxonomyView({ areas, cats, parte }: { areas: Area[]; cats: Cate
           <div className="fgrid">
             <label className="fld"><span>Nome</span><input autoComplete="off" value={ae.nome} onChange={(e) => setAe({ ...ae, nome: e.target.value })} /></label>
             <label className="fld"><span>Ordem (anel, 1 = centro)</span><input type="number" min={1} value={ae.ordem} onChange={(e) => setAe({ ...ae, ordem: +e.target.value })} /></label>
-            <div className="fld wide"><span>Cor</span><div className="swatches">{AREA_COLORS.map((c) => (
+            <div className="fld wide"><span>Cor</span><div className="swatches">{[...new Set([...Object.values(PALETA_CADEIAS), ...AREA_COLORS])].map((c) => (
               <button type="button" key={c} className="sw" aria-pressed={ae.cor === c} style={{ background: c }} aria-label={c} onClick={() => setAe({ ...ae, cor: c })} />))}
               <input type="color" value={ae.cor} onChange={(e) => setAe({ ...ae, cor: e.target.value.toUpperCase() })} aria-label="Outra cor" /></div></div>
             <label className="fld full"><span>Descrição para a Gemini</span><textarea rows={3} value={ae.descricao} onChange={(e) => setAe({ ...ae, descricao: e.target.value })} placeholder="Que notícias e que startups pertencem a esta cadeia de valor." /></label>
