@@ -32,12 +32,19 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
   const [archiving, setArchiving] = useState(false);
   const [motivo, setMotivo] = useState<MotivoArquivo | "">("");
   const [notaArq, setNotaArq] = useState("");
+  // Editar o motivo de uma startup já arquivada
+  const [editArq, setEditArq] = useState<NonNullable<Deal["arquivo"]> | null>(null);
+  const guardarArq = () => {
+    if (!editArq) return;
+    const a = { ...editArq, nota: editArq.nota.trim() };
+    act(saveDeal(d, { arquivo: a }).then(() => addInteracao(d.id, { data: hojeLocal(), tipo: "nota", texto: `Motivo de arquivo alterado: ${nm(MOTIVOS_ARQUIVO, a.motivo)}${a.nota ? `. ${a.nota}` : ""}`, por: email })).then(() => setEditArq(null)), "Motivo de arquivo guardado");
+  };
   const [analise, setAnalise] = useState(false);
   const [saving, setSaving] = useState(false);
   const [ints, setInts] = useState<Interacao[] | null>(null);
   const [nova, setNova] = useState<{ tipo: TipoInteracao; data: string; texto: string; participantes: string } | null>(null);
 
-  useEffect(() => { setEditing(false); setArchiving(false); setNova(null); setF(pickDeal(d)); }, [d.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setEditing(false); setArchiving(false); setEditArq(null); setNova(null); setF(pickDeal(d)); }, [d.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => onSnapshot(query(collection(db, "deals", d.id, "interacoes"), orderBy("data", "desc")),
     (s) => setInts(s.docs.map((x) => ({ id: x.id, ...x.data() }) as Interacao)), () => setInts([])), [d.id]);
   useEffect(() => {
@@ -88,10 +95,25 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
             ))}
           </div>
         ) : (
+          editArq ? (
+            <div className="reasons arqed">
+              <div className="rh">Motivo de arquivo<button className="txtbtn" onClick={() => setEditArq(null)}>Cancelar</button></div>
+              <div className="rgrid">{MOTIVOS_ARQUIVO.map((m) => <button key={m.id} aria-pressed={editArq.motivo === m.id} onClick={() => setEditArq({ ...editArq, motivo: m.id })}>{m.nome}</button>)}</div>
+              <label className="fld"><span>Nota</span><textarea rows={3} value={editArq.nota} onChange={(e) => setEditArq({ ...editArq, nota: e.target.value })} placeholder="O que foi comunicado à startup" /></label>
+              <div className="fgrid">
+                <label className="fld"><span>Arquivada em</span><input type="date" value={editArq.em || ""} onChange={(e) => setEditArq({ ...editArq, em: e.target.value })} /></label>
+                <label className="fld"><span>Estava em</span><select value={editArq.etapaAnterior || ""} onChange={(e) => setEditArq({ ...editArq, etapaAnterior: (e.target.value || null) as Etapa | null })}>
+                  <option value="">Sem registo</option>{ETAPAS_ATIVAS.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
+              </div>
+              <div className="arqf"><span className="sp" /><button className="btn primary" onClick={guardarArq}><Icon name="check" />Guardar</button></div>
+            </div>
+          ) : (
           <div className="arqbox"><Icon name="prohibit" />
             <div><b>Arquivada{d.arquivo?.em ? ` em ${fdLongo(d.arquivo.em)}` : ""}: {nm(MOTIVOS_ARQUIVO, d.arquivo?.motivo)}</b>
               {d.arquivo?.nota && <p>{d.arquivo.nota}</p>}
-              {d.arquivo?.etapaAnterior && <span>Estava em {nm(ETAPAS, d.arquivo.etapaAnterior)}</span>}</div></div>
+              {d.arquivo?.etapaAnterior && <span>Estava em {nm(ETAPAS, d.arquivo.etapaAnterior)}</span>}</div>
+            <button className="txtbtn arqe" onClick={() => setEditArq({ motivo: d.arquivo?.motivo || "sem-registo", nota: d.arquivo?.nota || "", em: d.arquivo?.em || hojeLocal(), etapaAnterior: d.arquivo?.etapaAnterior || null })}><Icon name="pencil-simple" />Editar</button></div>
+          )
         )}
         <p className="since">{ativa ? `Em ${nm(ETAPAS, d.etapa)} há ${nDias(diasDesde(d.etapaDesde))} · ` : ""}Entrou em {fdLongo(d.entrada)}</p>
 

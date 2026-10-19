@@ -1292,3 +1292,7 @@
 .bo .an-dl li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bo .an-dl li em{font-style:normal;font-size:12px;color:var(--ink-subtle);white-space:nowrap}
 .bo .an-dl .btn.icon{width:28px;height:28px}
+.bo .arqbox>div{flex:1;min-width:0}
+.bo .arqbox .arqe{flex:none;align-self:flex-start;color:var(--ink-muted)}
+.bo .arqed{margin:16px 0 4px;border:0;border-radius:12px;padding:14px 16px;gap:12px}
+.bo .arqed .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
