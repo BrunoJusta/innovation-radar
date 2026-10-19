@@ -411,3 +411,13 @@
 /* Legenda só com o nome de cada anel e a contagem */
 .rp .lg{padding:12px 10px 12px 4px}
 .rp .lg .n{grid-row:auto}
+
+/* Paginação dos resultados ao lado do radar: compacta, por baixo da lista */
+.rp .pgr-s{padding:10px 0 0}
+.rp .pgr-s .pgi{font-size:12.5px}
+.rp .pgr-s button{min-width:30px;height:30px;font-size:13px}
+/* Ao mudar de página, o início da lista fica por baixo da barra presa no topo */
+.rp .pgr-anchor{scroll-margin-top:72px}
+/* Números com 3 dígitos cabem no círculo */
+.rp .num{width:auto;min-width:24px;padding:0 4px;border-radius:999px}
+.rp .lrow .num{width:auto;min-width:28px}
