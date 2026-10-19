@@ -4,7 +4,7 @@
  */
 import type { Celula } from "./xlsx-lite";
 import { dataExcel } from "./xlsx-lite";
-import type { Deal, Etapa, FaseDF, Interacao, MotivoArquivo, OrigemTipo, Vez, VerticalDF } from "./types";
+import type { Deal, Etapa, Fase, FaseDF, Interacao, MotivoArquivo, OrigemTipo, Startup, Vez, VerticalDF } from "./types";
 
 /** Uma linha do Excel já convertida (ainda sem site nem cadeia de valor, que vêm da pesquisa). */
 export type LinhaDF = {
@@ -164,4 +164,29 @@ export function historicoDaLinha(l: LinhaDF): Omit<Interacao, "id">[] {
   if (l.arquivo?.nota) h.push({ data: l.arquivo.em, tipo: "etapa", texto: `Arquivada: ${l.arquivo.nota}`, por: "Excel" });
   if (l.notas) h.push({ data: l.entrada, tipo: "nota", texto: l.notas, por: "Excel" });
   return h;
+}
+
+/** Cadeia de valor pela vertical do Excel, quando a Gemini não conseguiu classificar (garante que nenhuma fica sem cadeia). */
+const CADEIA_DA_VERTICAL: Record<string, string> = {
+  viticultura: "viticultura", enologia: "enologia", producao: "producao", distribuicao: "vendas-distribuicao",
+  "produtos-vinho": "adjacencias", "servicos-vinho": "consumidor", "outro-estrategico": "adjacencias", "fora-ambito": "adjacencias",
+};
+export const cadeiaPorDefeito = (l: Pick<LinhaDF, "vertical">) => CADEIA_DA_VERTICAL[l.vertical] || "adjacencias";
+
+const FASE_RADAR: Record<string, Fase> = { ideia: "ideia", "pre-seed": "seed", seed: "seed", "serie-a": "serie-a", "scale-up": "crescimento", crescimento: "crescimento", turnaround: "crescimento" };
+const slugId = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+/** Id da ficha no radar de startups: pelo domínio (como a recolha) ou, sem site, pelo nome. */
+export const startupIdDe = (nome: string, dominio: string) => dominio ? dominio.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") : `xl-${slugId(nome)}`;
+
+/** Ficha no radar de startups para uma startup importada (aprovada e já ligada ao pipeline), para aparecer no anel da sua cadeia de valor. */
+export function startupDaLinha(l: LinhaDF, extra: { site: string; dominio: string; cadeia: string }, dealId: string, por: string, agora: string): Omit<Startup, "id"> {
+  const r = l.ronda, eur = (n: number | null) => n == null ? "" : n >= 1e6 ? `${(n / 1e6).toLocaleString("pt-PT", { maximumFractionDigits: 2 })} M€` : `${Math.round(n / 1e3)} mil €`;
+  return {
+    status: "approved", nome: l.nome, site: extra.site, dominio: extra.dominio, pais: l.pais, fundacao: null,
+    fase: FASE_RADAR[l.fase] || "seed", setor: "", cadeia: extra.cadeia, descricao: l.descricao, porque: "",
+    relevancia: 50, financiamento: r.valor ? `Ronda de ${eur(r.valor)}` : "", investidores: [],
+    origens: [{ tipo: "manual", titulo: "Excel do dealflow da Sogrape Ventures", url: extra.site, data: agora }],
+    destaque: false, manual: true, criadoPor: por, criadoEm: agora, atualizadoEm: agora, aprovadoEm: agora, aprovadoPor: por,
+    dealId, pipelineEm: agora,
+  };
 }

@@ -2,9 +2,10 @@
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import { Deal, FASES_DF, ORIGENS_DF, VERTICAIS_DF } from "@/lib/types";
+import { AREAS_LISTA } from "@/lib/taxonomia";
 
-export type DealEdit = Pick<Deal, "nome" | "site" | "fundadores" | "descricao" | "pais" | "vertical" | "fase" | "interesse" | "entrada" | "ronda" | "origem" | "documentos">;
-export const pickDeal = (d: Omit<Deal, "id">): DealEdit => ({ nome: d.nome, site: d.site, fundadores: d.fundadores, descricao: d.descricao, pais: d.pais, vertical: d.vertical, fase: d.fase,
+export type DealEdit = Pick<Deal, "nome" | "site" | "fundadores" | "descricao" | "pais" | "vertical" | "cadeia" | "fase" | "interesse" | "entrada" | "ronda" | "origem" | "documentos">;
+export const pickDeal = (d: Omit<Deal, "id">): DealEdit => ({ nome: d.nome, site: d.site, fundadores: d.fundadores, descricao: d.descricao, pais: d.pais, vertical: d.vertical, cadeia: d.cadeia, fase: d.fase,
   interesse: d.interesse, entrada: d.entrada, ronda: { ...d.ronda, coinvestidores: [...(d.ronda?.coinvestidores || [])] }, origem: { ...d.origem }, documentos: [...(d.documentos || [])] });
 
 /** Lê valores como "1,5 M", "350k", "€ 200 K" ou "2000000" (euros). */
@@ -38,6 +39,8 @@ export function DealFields({ value: v, onChange, origens }: { value: DealEdit; o
         <label className="fld"><span>País</span><input autoComplete="off" value={v.pais} onChange={(e) => onChange({ pais: e.target.value })} /></label>
         <label className="fld"><span>Vertical</span><select value={v.vertical} onChange={(e) => onChange({ vertical: e.target.value as DealEdit["vertical"] })}>
           <option value="">Por definir</option>{VERTICAIS_DF.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
+        <label className="fld"><span>Cadeia de valor</span><select value={v.cadeia || ""} onChange={(e) => onChange({ cadeia: e.target.value || undefined })}>
+          <option value="">Por definir</option>{AREAS_LISTA.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
         <label className="fld"><span>Fase</span><select value={v.fase} onChange={(e) => onChange({ fase: e.target.value as DealEdit["fase"] })}>
           <option value="">Por definir</option>{FASES_DF.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
         <label className="fld"><span>Interesse</span><select value={v.interesse} onChange={(e) => onChange({ interesse: e.target.value as DealEdit["interesse"] })}>

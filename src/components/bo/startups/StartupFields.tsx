@@ -14,7 +14,7 @@ export function StartupFields({ value: v, onChange, sectors, areas }: { value: S
         <label className="fld"><span>Nome</span><input autoComplete="off" value={v.nome} onChange={(e) => onChange({ nome: e.target.value })} /></label>
         <label className="fld"><span>Site</span><input autoComplete="off" type="url" spellCheck={false} value={v.site} onChange={(e) => onChange({ site: e.target.value })} /></label>
         <label className="fld"><span>Setor</span>
-          <select value={v.setor} onChange={(e) => onChange({ setor: e.target.value })}>{sectors.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}</select></label>
+          <select value={v.setor} onChange={(e) => onChange({ setor: e.target.value })}><option value="">Sem setor</option>{sectors.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}</select></label>
         <label className="fld"><span>Cadeia de valor</span>
           <select value={v.cadeia || ""} onChange={(e) => onChange({ cadeia: e.target.value || undefined })}>
             <option value="">Por atribuir</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}</select></label>

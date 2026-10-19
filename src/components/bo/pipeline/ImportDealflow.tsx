@@ -5,7 +5,7 @@ import { db } from "@/lib/firebase";
 import { post } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { lerFolha } from "@/lib/xlsx-lite";
-import { converterDealflow, dealDaLinha, historicoDaLinha, LinhaDF } from "@/lib/import-dealflow";
+import { cadeiaPorDefeito, converterDealflow, dealDaLinha, historicoDaLinha, LinhaDF, startupDaLinha, startupIdDe } from "@/lib/import-dealflow";
 import { normNome } from "@/lib/deal-actions";
 import { Deal, ETAPAS, Startup } from "@/lib/types";
 import { hojeLocal, nowIso } from "@/lib/util";
@@ -76,7 +76,8 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
     for (let i = 0; i < linhas.length; i += LOTE) lotes.push(linhas.slice(i, i + LOTE));
 
     const gravar = async (l: LinhaDF, r: Res | undefined) => {
-      const extra = { site: r?.site || "", dominio: r?.dominio || "", cadeia: r?.cadeia || "" };
+      // Cada startup fica sempre com uma cadeia de valor: a da Gemini ou, se falhar, a que corresponde à vertical do Excel
+      const extra = { site: r?.site || "", dominio: r?.dominio || "", cadeia: r?.cadeia || cadeiaPorDefeito(l) };
       const velhas = iguais(l, extra.dominio, antes).filter((d) => !apagadas.has(d.id));
       // Mantém a ligação ao radar de startups da ficha substituída
       const ligada = velhas.find((d) => d.startupId);
@@ -100,10 +101,15 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
       // A análise da ficha do radar continua válida; a da ficha substituída é apagada com ela
       if (st?.analiseResumo) deal.analiseResumo = st.analiseResumo;
       if (!deal.site && st?.site) { deal.site = st.site; deal.dominio = st.dominio; }
+      if (!extra.site && deal.site) { extra.site = deal.site; extra.dominio = deal.dominio; }
+      // Ponto no radar de startups, no anel da cadeia de valor: liga a ficha que já existe ou cria uma nova (aprovada e ligada ao pipeline)
+      const sid = st?.id || startupIdDe(l.nome, extra.dominio);
+      deal.startupId = sid;
       const b = writeBatch(db);
       b.set(doc(db, "deals", id), clean(deal));
       historicoDaLinha(l).forEach((h, i) => b.set(doc(db, "deals", id, "interacoes", `xl-${i}`), clean({ ...h, criadoEm: agora })));
-      if (st) b.update(doc(db, "startups", st.id), { dealId: id, pipelineEm: agora, atualizadoEm: agora });
+      if (st) b.update(doc(db, "startups", st.id), { dealId: id, pipelineEm: agora, atualizadoEm: agora, ...(st.cadeia ? {} : { cadeia: extra.cadeia }), ...(st.status === "approved" ? {} : { status: "approved", aprovadoEm: agora, aprovadoPor: email }) });
+      else b.set(doc(db, "startups", sid), clean(startupDaLinha(l, extra, id, email, agora)));
       await b.commit();
       ids.add(id);
       if (!deal.site) setSemSite((x) => [...x, l.nome]);
@@ -140,7 +146,7 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
       </div>
       <div className="mdl-b scroll">
         {estado === "rever" && (<>
-          <p className="hint">Escolhe o Excel da FCR Sogrape Ventures (folha «Dealflow»). Cada startup entra no pipeline na fase em que está no Excel. Para cada uma, a Gemini pesquisa o site oficial e atribui uma cadeia de valor. As startups que já estiverem no pipeline são apagadas e substituídas pelas do Excel.</p>
+          <p className="hint">Escolhe o Excel da FCR Sogrape Ventures (folha «Dealflow»). Cada startup entra no pipeline na fase em que está no Excel. Para cada uma, a Gemini pesquisa o site oficial e atribui uma cadeia de valor, e a startup aparece no radar de startups no anel dessa cadeia. As startups que já estiverem no pipeline são apagadas e substituídas pelas do Excel.</p>
           <label className="impf">
             <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => ler(e.target.files?.[0])} disabled={lendo} />
             <Icon name="stack" /><span>{lendo ? "A ler o ficheiro…" : nomeFicheiro || "Escolher ficheiro .xlsx"}</span>
