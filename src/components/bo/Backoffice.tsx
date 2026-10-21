@@ -14,14 +14,19 @@ import { AnaliseQueueProvider } from "./AnaliseQueue";
 import RadarApp from "@/components/radar/RadarApp";
 import { Dashboard, DashGo } from "./dashboard/Dashboard";
 import { Icon } from "@/components/Icon";
+import { podeInovacao } from "@/lib/inovacao";
+import { ProjetosView } from "./inovacao/ProjetosView";
+import { EventosView } from "./inovacao/EventosView";
 
-type View = "dashboard" | "news" | "startups" | "settings";
+type View = "dashboard" | "news" | "startups" | "projetos" | "eventos" | "settings";
 const NEWS: { id: Fila; label: string; icon: string }[] = [
   { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" },
 ];
 
 export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
   const { isAdmin, profile, email } = useSession();
+  /** Projetos e eventos: por agora só para o Bruno. */
+  const inov = podeInovacao(email);
   const [view, setView] = useState<View>("dashboard");
   const [sPage, setSPage] = useState<{ p: Fila | "radar" | "pipeline"; k: number }>({ p: "pending", k: 0 });
   const go = (g: DashGo) => { if (g.view === "news") { setSt(g.st); setView("news"); } else { setSPage({ p: g.page, k: Date.now() }); setView("startups"); } window.scrollTo(0, 0); };
@@ -60,6 +65,8 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
             <button aria-current={view === "dashboard"} onClick={() => setView("dashboard")}><span className="l">Dashboard</span></button>
             <button aria-current={view === "news"} onClick={() => setView("news")}><span className="l">Notícias</span>{counts.pending > 0 && <span className="c">{counts.pending}</span>}</button>
             <button aria-current={view === "startups"} onClick={() => setView("startups")}><span className="l">Startups</span></button>
+            {inov && <button aria-current={view === "projetos"} onClick={() => setView("projetos")}><span className="l">Projetos</span></button>}
+            {inov && <button aria-current={view === "eventos"} onClick={() => setView("eventos")}><span className="l">Eventos</span></button>}
             {isAdmin && <button aria-current={view === "settings"} onClick={() => setView("settings")}><span className="l">Definições</span></button>}
           </nav>
           <span className="sp" />
@@ -90,6 +97,8 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
         {isSignals && st !== "radar" && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} search={search} />}
         {view === "dashboard" && <Dashboard signals={signals} areas={areas} go={go} />}
         {view === "startups" && <StartupsSection key={sPage.k} initial={sPage.p} />}
+        {view === "projetos" && inov && <ProjetosView />}
+        {view === "eventos" && inov && <EventosView />}
         {view === "settings" && isAdmin && <SettingsHub areas={areas} cats={cats} />}
       </main>
       {adding && <AddByLink areas={areas} cats={cats} signals={signals} onClose={() => setAdding(false)}

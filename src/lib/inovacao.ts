@@ -1,0 +1,116 @@
+/**
+ * Projetos e eventos da equipa de Inovação (coleções «projects» e «events»).
+ * Por agora só o Bruno vê e edita (também nas regras do Firestore).
+ */
+import type { Celula } from "./xlsx-lite";
+import { dataDe } from "./import-dealflow";
+
+/** Quem vê os separadores Projetos e Eventos. */
+export const INOVACAO_EMAILS = ["bruno.justa@sogrape.pt"];
+export const podeInovacao = (email: string) => INOVACAO_EMAILS.includes((email || "").toLowerCase());
+
+export type Projeto = {
+  id: string; ref: string; nome: string; descricao: string;
+  /** Cadeia de valor (a «Vertical» do Excel). */ cadeia: string;
+  mwb: string; horizonte: string; relacao: string;
+  parceiro: string; parceiroRef: string;
+  piloto: boolean; pilotoDesde: string;
+  inicio: string; fim: string; estado: string;
+  orcamento: number | null; gasto: number | null;
+  observacoes: string; criadoEm: string; atualizadoEm: string;
+};
+
+export type Evento = {
+  id: string; ref: string; nome: string;
+  tipo: string; objetivo: string; ambito: string; papel: string;
+  inicio: string; fim: string; pais: string;
+  parceria: boolean; parceiro: string; parceiroRef: string;
+  patrocinio: boolean; gasto: number | null; valorPatrocinio: number | null;
+  observacoes: string; criadoEm: string; atualizadoEm: string;
+};
+
+export const ESTADOS_PROJ = [
+  { id: "To Start", cor: "#94A3B8" }, { id: "On Going", cor: "#B15533" }, { id: "On Hold", cor: "#B07A12" },
+  { id: "Ended", cor: "#4F7A3A" }, { id: "Transferred to BU", cor: "#2F6B73" },
+];
+export const MWB = ["AI Excellence", "Unforgettable Experiences", "WineTech", "Sustainable Futures", "New Packaging & Materials", "Product Innovation"];
+export const HORIZONTES = ["Incremental Innovation", "Transformational Innovation", "Disruptive Innovation"];
+export const RELACOES = ["Startup", "Academia", "Corporate", "Accelerator", "Other"];
+
+export const TIPOS_EV = ["External Event", "Internal Event", "Scouting Event", "Design Thinking Sandbox", "Training", "Podcast"];
+export const OBJETIVOS_EV = ["Ecosystem Positioning", "Academia Positioning", "Knowledge Acquisition", "Knowledge Sharing", "Startup Scouting & Dealflow", "Innovation Capabilities", "Recognition", "Community Engagement"];
+export const AMBITOS = ["External", "Internal"];
+export const PAPEIS = ["Participant", "Organizer", "Speaker", "Jury", "Challenger", "Mentor", "Moderator"];
+
+/** «Vertical» do Excel → id da cadeia de valor. */
+export const VERTICAL_CADEIA: Record<string, string> = {
+  viticulture: "viticultura", winemaking: "enologia", production: "producao", marketing: "marketing",
+  "sales & distribution": "vendas-distribuicao", consumer: "consumidor", adjacencies: "adjacencias",
+};
+
+export const projetoVazio = (ref: string): Projeto => ({
+  id: ref, ref, nome: "", descricao: "", cadeia: "", mwb: "", horizonte: "", relacao: "", parceiro: "", parceiroRef: "",
+  piloto: false, pilotoDesde: "", inicio: "", fim: "", estado: "To Start", orcamento: null, gasto: null, observacoes: "", criadoEm: "", atualizadoEm: "",
+});
+export const eventoVazio = (ref: string): Evento => ({
+  id: ref, ref, nome: "", tipo: "External Event", objetivo: "", ambito: "External", papel: "Participant", inicio: "", fim: "", pais: "Portugal",
+  parceria: false, parceiro: "", parceiroRef: "", patrocinio: false, gasto: null, valorPatrocinio: null, observacoes: "", criadoEm: "", atualizadoEm: "",
+});
+
+/** Próxima referência (PR00023, E00176, PA00041) a partir das que já existem. */
+export function proximaRef(prefixo: string, refs: string[]) {
+  const n = Math.max(0, ...refs.map((r) => (r.startsWith(prefixo) ? Number(r.slice(prefixo.length)) || 0 : 0)));
+  return `${prefixo}${String(n + 1).padStart(5, "0")}`;
+}
+
+/** Parceiros já usados nos projetos e eventos (ref → nome). */
+export function parceirosDe(l: { parceiro: string; parceiroRef: string }[]) {
+  const m = new Map<string, string>();
+  for (const x of l) if (x.parceiro.trim()) m.set(x.parceiroRef || `?${x.parceiro.trim()}`, x.parceiro.trim());
+  return [...m.entries()].map(([ref, nome]) => ({ ref: ref.startsWith("?") ? "" : ref, nome })).sort((a, b) => a.nome.localeCompare(b.nome));
+}
+
+const txt = (v: Celula | undefined) => (v === null || v === undefined ? "" : String(v)).trim();
+const num = (v: Celula | undefined) => (typeof v === "number" ? v : txt(v) && !isNaN(Number(txt(v))) ? Number(txt(v)) : null);
+const sim = (v: Celula | undefined) => /^(yes|sim|y|true)$/i.test(txt(v));
+/** «PA00002 – Porto Business School» → ref e nome. */
+const parceiroDe = (v: Celula | undefined) => { const m = txt(v).match(/^(PA\d+)\s*[–-]\s*(.+)$/); return m ? { parceiroRef: m[1], parceiro: m[2].trim() } : { parceiroRef: "", parceiro: txt(v) }; };
+const linhas = (rows: Celula[][]) => {
+  const h = (rows[0] || []).map((x) => txt(x).toLowerCase());
+  return rows.slice(1).filter((r) => r.some((c) => txt(c))).map((r) => (k: string) => r[h.indexOf(k.toLowerCase())]);
+};
+
+/** Folha «Fact_Projects» do Excel de Inovação. */
+export function projetosDoExcel(rows: Celula[][], agora: string): Projeto[] {
+  return linhas(rows).filter((c) => txt(c("ID_Project"))).map((c) => {
+    const ref = txt(c("ID_Project")), estado = txt(c("Status"));
+    return {
+      ...projetoVazio(ref), nome: txt(c("Project Name")), descricao: txt(c("Description")),
+      cadeia: VERTICAL_CADEIA[txt(c("Vertical")).toLowerCase()] || "", mwb: txt(c("Must Win Battle")), horizonte: txt(c("Innovation Horizon")),
+      relacao: txt(c("Stakeholder Relationship")), ...parceiroDe(c("Partner Display")),
+      piloto: sim(c("Pilot Applicable")), pilotoDesde: dataDe(c("Pilot Discussion Start Date")),
+      inicio: dataDe(c("Start Date")), fim: dataDe(c("End Date")),
+      estado: /transfer/i.test(estado) ? "Transferred to BU" : ESTADOS_PROJ.find((e) => e.id.toLowerCase() === estado.toLowerCase())?.id || estado || "To Start",
+      orcamento: num(c("Estimated Budget")), gasto: num(c("Spent Budget")), observacoes: txt(c("Observations")), criadoEm: agora, atualizadoEm: agora,
+    };
+  });
+}
+
+/** Folha «Fact_Events» do Excel de Inovação. */
+export function eventosDoExcel(rows: Celula[][], agora: string): Evento[] {
+  return linhas(rows).filter((c) => txt(c("ID_Event"))).map((c) => {
+    const ref = txt(c("ID_Event")), p = parceiroDe(c("Partner Display"));
+    return {
+      ...eventoVazio(ref), nome: txt(c("Event Name")), tipo: txt(c("Type of Initiative")), objetivo: txt(c("Objective")),
+      ambito: txt(c("Scope")), papel: txt(c("Role")), inicio: dataDe(c("Start Date")), fim: dataDe(c("End Date")), pais: txt(c("Country")),
+      parceria: sim(c("Partnership")), parceiro: p.parceiro, parceiroRef: txt(c("ID_Partner")) || p.parceiroRef,
+      patrocinio: sim(c("Sponsorship")), gasto: num(c("Budget Spent (€)")), valorPatrocinio: num(c("Sponsorship Value (€)")),
+      observacoes: txt(c("Observations")), criadoEm: agora, atualizadoEm: agora,
+    };
+  });
+}
+
+const F_EUR = new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+export const eur = (n: number | null | undefined) => (n === null || n === undefined ? "" : F_EUR.format(n));
+const F_DATA = new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" });
+export const dataPt = (iso: string) => { if (!iso) return ""; const d = new Date(`${iso.slice(0, 10)}T12:00:00`); return isNaN(+d) ? "" : F_DATA.format(d); };

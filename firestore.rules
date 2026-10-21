@@ -8,6 +8,8 @@ service cloud.firestore {
     function profile() { return /databases/$(database)/documents/users/$(me()); }
     function member() { return signedIn() && exists(profile()); }
     function admin() { return member() && get(profile()).data.role == 'admin'; }
+    // Projetos e eventos de Inovação: por agora só o Bruno
+    function inovacao() { return member() && me() == 'bruno.justa@sogrape.pt'; }
     // Pipeline da Sogrape Ventures: só administradores
     function ventures() { return admin(); }
 
@@ -58,6 +60,9 @@ service cloud.firestore {
       match /interacoes/{i} { allow read, create, update, delete: if ventures(); }
       match /analises/{a}   { allow read, create: if ventures(); allow update, delete: if admin(); }
     }
+    // Inovação: projetos e eventos (só quem a função inovacao() deixa)
+    match /projects/{id} { allow read, write: if inovacao(); }
+    match /events/{id}   { allow read, write: if inovacao(); }
     // Uso do pipeline (a conta de serviço ignora as regras); o BO só cria registos das notícias manuais
     match /seen/{id}       { allow read, update, delete: if false; allow create: if member(); }
     match /embeddings/{id} { allow read, update, delete: if false; allow create: if member(); }
