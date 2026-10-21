@@ -1,190 +1,130 @@
 Fund positioning & guidelines (applicable to all tickets)
 
 1. Strategic scope
-Core investments should remain linked with the wine value chain (viticulture → winemaking →
-production → supply chain → sales/marketing).
-Adjacencies are only acceptable if the solution/technology/process is applicable and relevant for
-the wine business or there is a credible transfer plan to a wine use case. Adjacencies may represent
-up to 30% of the fund’s investments
-This will allow broadening “core” beyond production while avoiding generic, non-wine solutions.
-2. Wine sector applicability
-Consider solutions that have a clear, practical application in the wine industry. Avoid investing in
-general-purpose technologies that do not address a specific wine-related need (for example, generic
-HR platforms).
-However, sector-agnostic solutions, such as those for supply chain, direct-to-consumer (DTC), or
-marketing analytics, can be considered if they demonstrate a strong use case or a committed
-pipeline/roadmap within the wine sector.
-3. Emphasis on Team/ Founders quality
-Especially at earlier stages, the most important factor is the founding team’s quality and their ability
-to learn and adapt, and the clarity with which they are addressing a real, relevant problem.
-A strong, coachable team can drive a project’s success, while a weak or inflexible team is the main
-reason to reject an opportunity.
-4. Brand investments
-Avoid investments in pure-brand-driven startups, as they typically require significant and recurring
-capital, which should be a key consideration in the decision‑making process.
-Brand-led investments can be considered if backed with an innovative technology and aligned with
-strategic goals (e.g., no/low-alcohol with enabling tech).
-5. Follow-on guidelines
-Keep a follow-on reserve of 25%-30% of the total fund size, to avoid harmful dilution and to back up
-bridges and next rounds.
-6. Geographies & sourcing:
-Prioritize ecosystem presence and proactive scouting across EU wine geographies (France, Italy,
-Germany, Spain, UK), expanding beyond inbound applications. Projects based outside EU, may be
-considered extraordinarily if there is a very strong direct strategic relevance for Sogrape or
-commercial or operational relation with Europe (e.g. team, clients, pilots, or concrete plan for entry
-into the EU).
+Core investments should remain linked with the wine value chain (viticulture > winemaking > production > supply chain > sales/marketing).
+Adjacencies are only acceptable if the solution/technology/process is applicable and relevant for the wine business or there is a credible transfer plan to a wine use case. Adjacencies may represent up to 30% of the fund's investments.
+This will allow broadening "core" beyond production while avoiding generic, non-wine solutions.
 
-Investment decision outcomes (applicable to all tickets)
+2. Wine sector applicability
+Consider solutions that have a clear, practical application in the wine industry. Avoid investing in general-purpose technologies that do not address a specific wine-related need (for example, generic HR platforms).
+However, sector-agnostic solutions, such as those for supply chain, direct-to-consumer (DTC), or marketing analytics, can be considered if they demonstrate a strong use case or a committed pipeline/roadmap within the wine sector.
+If the wine use case is plausible but not yet demonstrated, the opportunity is UNCERTAIN (see below) until that evidence is obtained.
+
+3. Emphasis on Team/Founders quality
+Especially at earlier stages, the most important factor is the founding team's quality and their ability to learn and adapt, and the clarity with which they are addressing a real, relevant problem.
+A strong, coachable team can drive a project's success, while a weak or inflexible team is the main reason to reject an opportunity.
+
+4. Brand investments
+Avoid investments in pure-brand-driven startups, as they typically require significant and recurring capital, which should be a key consideration in the decision-making process.
+Brand-led investments can be considered if backed with an innovative technology and aligned with strategic goals (e.g., no/low-alcohol with enabling tech).
+
+5. Follow-on guidelines
+Keep a follow-on reserve of 25%-30% of the total fund size, to avoid harmful dilution and to back up bridges and next rounds.
+
+6. Geographies & sourcing
+Prioritize ecosystem presence and proactive scouting across EU wine geographies (France, Italy, Germany, Spain, UK), expanding beyond inbound applications. Projects based outside the EU may be considered extraordinarily if there is a very strong direct strategic relevance for Sogrape or a commercial or operational relation with Europe (e.g. team, clients, pilots, or a concrete plan for entry into the EU).
+
+
+Investment decision outcomes (applicable to all tickets)
 
 Each assessment ends with one of three decisions:
 
-• INVEST: strong strategic fit AND enough evidence (team, traction, round terms, wine use case) to support the proposed ticket. Conditions may still apply (standard due diligence, pilot), but they confirm what the evidence already supports.
+- INVEST: strong strategic fit AND enough evidence (team, traction, round terms, wine use case) to support the proposed ticket. Conditions may still apply (standard due diligence, pilot), but they confirm what the evidence already supports.
 
-• UNCERTAIN: the startup is interesting and has a clear strategic fit, but decisive information is missing to reach a decision, typically financial data (round size, valuation, revenue or funding history with no data available) or wine-specific evidence. An uncertain decision must state exactly what is missing and how to obtain it (e.g., request the deck and round terms, run a pilot). It should not be presented as "Invest, conditional on DD and pilot" when the missing element is the evidence itself.
-Example: an adjacency that matches one of Sogrape's 2026 investment/pilot priorities (strong strategic logic), but without enough financial and wine-specific evidence to justify a medium or large ticket, is UNCERTAIN, not INVEST.
+- UNCERTAIN: the startup is interesting and has a clear strategic fit, but decisive information is missing to reach a decision, typically financial data (round size, valuation, revenue or funding history with no data available) or wine-specific evidence. An uncertain decision must state exactly what is missing and how to obtain it (e.g., request the deck and round terms, run a pilot). It should not be presented as "Invest, conditional on DD and pilot" when the missing element is the evidence itself.
+  Example: an adjacency that matches one of Sogrape's 2026 investment/pilot priorities (strong strategic logic), but without enough financial and wine-specific evidence to justify a medium or large ticket, is UNCERTAIN, not INVEST.
+  Short example: "Decision: UNCERTAIN. Strong fit with the 2026 consumer engagement challenge, but no revenue, round size or wine pilot data. Next step: request the deck and round terms, and propose a small wine pilot before re-assessing."
 
-• DO NOT INVEST: fails the mandatory criteria for the ticket or lacks strategic fit, even if more data were available.
+- DO NOT INVEST: fails the mandatory criteria for the ticket or lacks strategic fit, even if more data were available.
 
-An uncertain opportunity stays in the pipeline until the missing information is received, and is then re-assessed.
+How to tell UNCERTAIN apart from the other two:
+- If the answer would change with information we can realistically obtain, the decision is UNCERTAIN.
+- If the answer would not change whatever the data, the decision is DO NOT INVEST.
+- If the evidence already supports the ticket and the conditions only confirm it, the decision is INVEST.
+
+An uncertain opportunity stays in the pipeline until the missing information is received, and is then re-assessed. It must not stay uncertain indefinitely: if the startup does not provide the missing information within a reasonable time, it should be moved to the radar or archived.
+
 
 Investment criteria according to ticket sizes
 
-Small tickets (≤ €100k)
+When assessing a criterion, use one of three verdicts: met, not met, or no data. A criterion marked "no data" is not a failure: it points to UNCERTAIN, as long as the strategic fit is clear. A criterion that is clearly not met points to DO NOT INVEST for that ticket (a smaller ticket may still apply).
+
+Small tickets (<= EUR 100k)
 Purpose: To manage risk and diversify the portfolio.
 Eligibility criteria (must meet most):
-•
+- Founders & team quality: Prioritize teams or founders who demonstrate deep domain insight, a high capacity for rapid learning, strong integrity, and a genuine openness to coaching.
+- Problem relevance: The problem addressed must be significant for Sogrape and/or the wine value chain.
+- Wine transfer plan: If the solution is proven in another crop/sector (e.g., strawberries, apples), there must be a credible plan to adapt to vineyards with feasibility in 6-12 months, with clear technical milestones to reach vineyard applicability or pilot readiness, and the regulatory path acknowledged.
+If the team is strong and the problem relevant but the transfer plan is not yet defined, the decision is UNCERTAIN: ask the startup for the plan before deciding.
 
-•
-•
-
-Founders & team quality: Prioritize teams or founders who demonstrate deep domain
-insight, a high capacity for rapid learning, strong integrity, and a genuine openness to
-coaching.
-Problem relevance: The problem addressed must be significant for Sogrape and/or the wine
-value chain.
-Wine transfer plan: If the solution is proven in another crop/sector (e.g., strawberries,
-apples), there must be a credible plan to adapt to vineyards with feasibility in 6–12 months
-with clear technical milestones to reach vineyard applicability or pilot readiness and
-regulatory path acknowledged.
-
-Medium tickets (€100k–€200k)
-Purpose: To support projects with initial traction and visible wine pipeline and secure governance
-and co‑investor alignment.
+Medium tickets (EUR 100k-200k)
+Purpose: To support projects with initial traction and a visible wine pipeline, and secure governance and co-investor alignment.
 Eligibility criteria (must meet most):
-•
-•
+- Criteria from "small tickets".
+- High traction: Look for early signs of product-market fit, such as successful pilots or initial revenues. Ideally, the company should have at least one paying customer or signed pilot agreements. For solutions that are adjacent to the core business, it is important to see a committed pipeline within the wine sector.
+- Round fit: Valuation and round size should allow Sogrape to be a meaningful minority investor, with the ability to maintain influence and participate in future rounds. The presence of credible co-investors is also essential.
+Missing traction or round data (no revenue figures, unknown valuation or round size) makes a medium ticket UNCERTAIN, not INVEST. Do not propose a medium ticket on strategic fit alone.
 
-•
+Large tickets (> EUR 200k)
+Purpose: Selectively anchor strategic fits with strong traction and clear wine relevance, accepting smaller ownership but seeking durable rights and co-investor quality. This reflects the Committee's acceptance of later rounds with smaller percentages when chances of success are higher and/or with high estimated portfolio impact (capability learning, strategic options).
+Eligibility criteria (must meet all):
+- Compelling strategic fit across the wine value chain, with a detailed and clear use case for Sogrape.
+- Demonstrated traction and revenue: The project must have demonstrated traction, revenue and evidence of successful pilots conducted across multiple sites, showing that the solution works in different environments and is scalable.
+- Robust business plan: The project must present a well-structured business plan with realistic financial projections, a clear go-to-market strategy, and defined milestones.
+A large ticket is only INVEST when all three criteria are met with evidence. If any of them has no data, the decision is UNCERTAIN.
 
-Criteria from “small tickets”;
-High traction: Look for early signs of product-market fit, such as successful pilots or initial
-revenues. Ideally, the company should have at least one paying customer or signed pilot
-agreements. For solutions that are adjacent to the core business, it is important to see a
-committed pipeline within the wine sector.
-Round fit: Valuation and round size should allow Sogrape to be a meaningful minority
-investor, with the ability to maintain influence and participate in future rounds. The presence
-of credible co-investors is also essential.
+Criteria by ticket size (X = required)
 
-Large tickets (> €200k)
-Purpose: Selectively anchor strategic fits with strong traction and clear wine relevance, accepting
-smaller ownership but seeking durable rights and co‑investor quality. This reflects the Committee’s
-acceptance of later rounds with smaller percentages when chances of success are higher and/or
-with high estimated portfolio impact (capability learning, strategic options).
-Eligibility criteria (must meet):
-•
-•
+Criterion                              <= 100k   100k-200k   > 200k
+High quality team/founders                X          X          X
+Problem relevance                         X          X          X
+Wine transfer plan                        X          X
+Traction / Revenue                                   X          X
+Valuation and round size alignment                   X          X
+Detailed use case                                               X
+Robust business plan                                            X
+Geographical scope: Global, with focus on Portugal and EU (all tickets)
 
-Compelling strategic fit across the wine value chain with a detailed and clear use case for
-Sogrape.
-Demonstrated traction and revenue: The project must have demonstrated traction,
-revenue and evidence of successful pilots conducted across multiple sites, showing that
-their solution works in different environments and is scalable.
+Note: in any column, a required criterion with no data available leads to UNCERTAIN, not to INVEST or DO NOT INVEST.
 
-•
+To balance the portfolio, the fund should aim for a mix of tickets according to the following indicative distribution (the number and total amount invested will be updated in proportion to the total size of the fund):
+- Small tickets: 3
+- Medium tickets: 2
+- Large tickets: 1
 
-Robust business plan: The project must present a well-structured business plan with
-realistic financial projections, clear go-to-market strategy, and defined milestones.
 
-Ticket size
+Potential Pilots & Investments - Challenges to address in 2026
 
-≤ €100k
+A startup that matches one of these challenges has a strong strategic fit. That alone does not make it INVEST: without enough evidence for the ticket, it is UNCERTAIN, and a pilot is often the best way to obtain the missing evidence.
 
-€100k–€200k
+1. Carbon Capture
+VITICULTURE | Challenge: How might we build early carbon-capture capabilities through low-cost, low-risk experiments that help us learn fast and validate where (and whether) it can create value?
 
-> €200k
+2. Valorization of byproducts from wine production
+VITICULTURE & WINEMAKING | Challenge: How might we map by-products and convert them into value (ingredients, biomaterials, energy) through quick-win pilots and partners, measuring viability and impact?
 
-High quality team/founders
-Problem relevance
-Wine transfer plan
-Traction/ Revenue
-Valuation and round size alignment
-Detailed use-case
-Robust Business Plan
-Geographical scope
-
-Global, with focus on Portugal and EU
-
-To balance the portfolio, the fund should aim for a mix of tickets according to the following indicative
-distribution (the number and total amount invested will be updated in proportion to the total size of
-the fund):
--
-
-Small tickets: 3
-Medium tickets: 2
-Large tickets: 1
-
-Potential Pilots & Investments – Challenges to address in 2026
-
-1. Carbon Capture:
-VITICULTURE | Challenge: How might we build early carbon-capture capabilities through low-cost,
-low-risk experiments that help us learn fast and validate where (and whether) it can create value?
-2. Valorization of byproducts from wine production:
-VITICULTURE & WINEMAKING | Challenge: How might we map by-products and convert them into
-value (ingredients, biomaterials, energy) through quick-win pilots and partners - measuring viability
-and impact?
 3. Enhancing consumer engagement through AI and consumer insights
-SALES & DISTRIBUTION | Challenge: How might we use AI to forecast demand and recommend the
-right portfolio, pricing and promotions by channel to lift sell-out and grow margin?
-MARKETING | Challenge: How might we combine POS data, social listening, field observation, and
-simple qualitative tools to quickly and safely generate consumer insights for portfolio and pricing
-decisions?
-ADJACENCIES | Challenge: How might we deepen consumer engagement with personalized
-journeys, loyalty/community, and test and learn activations across channels - driving retention,
-frequency, and advocacy?
+SALES & DISTRIBUTION | Challenge: How might we use AI to forecast demand and recommend the right portfolio, pricing and promotions by channel to lift sell-out and grow margin?
+MARKETING | Challenge: How might we combine POS data, social listening, field observation, and simple qualitative tools to quickly and safely generate consumer insights for portfolio and pricing decisions?
+ADJACENCIES | Challenge: How might we deepen consumer engagement with personalized journeys, loyalty/community, and test and learn activations across channels, driving retention, frequency, and advocacy?
 
-IC | Discussion Topics and Main Conclusions
-Q1. How should we define the split between core investments and diversification
-opportunities?
-The IC agreed that core investments should remain focused on the wine industry and Sogrape’s value
-chain, but the definition of "core" should be broadened to include not just wine production but also
-areas like sales, marketing, supply chain, and customer experience. Diversification into adjacent
-sectors (e.g., sustainability, circular economy, AI solutions with potential wine applications) can be
-considered selectively, but it should not become the main driver of the fund’s strategy. A balanced
-split is recommended: maintain a strong emphasis on core wine‑focused investments, allowing only
-limited diversification to capture relevant innovation and manage risk.
-Q2. How should we define and prioritize our target areas and challenges according to their level
-of importance?
-Prioritization should be based on strategic alignment with Sogrape’s needs and industry challenges.
-The team suggested defining specific challenges (e.g., reducing pesticide use, improving supply
-chain efficiency) to guide proactive sourcing. Inbound applications (via website or other channels)
-will continue to be reviewed, but with greater selectivity.
-Q3. How do we approach projects that are distant from Sogrape´s core business?
-The IC agreed to be open-minded but avoid overly generalist solutions (e.g., generic HR tools) unless
-there is a clear path to wine industry’s relevance. Early-stage projects without a wine use case should
-be evaluated for adaptability and the startup’s willingness to co-develop with Sogrape.
-Q4. How should we allocate the funds’ capital?
-The fund should aim for a mix of pre-seed, seed and later-stage investments to balance risk and
-potential returns. Smaller tickets (e.g., up to 100k) can focus on team and idea quality, while larger
-tickets (e.g., above 300k) should require a solid business plan, traction, and clients. The number of
-investments should be determined by the size of the fund and the need to reserve capital for followons (suggested 30-40%). Criteria should be clearly documented and differentiated by ticket size.
+
+IC | Discussion Topics and Main Conclusions
+
+Q1. How should we define the split between core investments and diversification opportunities?
+The IC agreed that core investments should remain focused on the wine industry and Sogrape's value chain, but the definition of "core" should be broadened to include not just wine production but also areas like sales, marketing, supply chain, and customer experience. Diversification into adjacent sectors (e.g., sustainability, circular economy, AI solutions with potential wine applications) can be considered selectively, but it should not become the main driver of the fund's strategy. A balanced split is recommended: maintain a strong emphasis on core wine-focused investments, allowing only limited diversification to capture relevant innovation and manage risk.
+
+Q2. How should we define and prioritize our target areas and challenges according to their level of importance?
+Prioritization should be based on strategic alignment with Sogrape's needs and industry challenges. The team suggested defining specific challenges (e.g., reducing pesticide use, improving supply chain efficiency) to guide proactive sourcing. Inbound applications (via website or other channels) will continue to be reviewed, but with greater selectivity.
+
+Q3. How do we approach projects that are distant from Sogrape's core business?
+The IC agreed to be open-minded but avoid overly generalist solutions (e.g., generic HR tools) unless there is a clear path to wine industry relevance. Early-stage projects without a wine use case should be evaluated for adaptability and the startup's willingness to co-develop with Sogrape. While that path is still unproven, these projects should be classified as UNCERTAIN rather than rejected or approved outright.
+
+Q4. How should we allocate the fund's capital?
+The fund should aim for a mix of pre-seed, seed and later-stage investments to balance risk and potential returns. Smaller tickets (e.g., up to 100k) can focus on team and idea quality, while larger tickets (e.g., above 300k) should require a solid business plan, traction, and clients. The number of investments should be determined by the size of the fund and the need to reserve capital for follow-ons (suggested 30-40%). Criteria should be clearly documented and differentiated by ticket size.
+
 Q5. How can we increase the number of projects? Should we launch an open call in 2026?
-The IC agreed that being more proactive in the ecosystem (attending international events, building
-networks, direct outreach) yields higher quality and quantity of deal flow than relying on inbound
-applications. Open calls could be considered, but only after building a track record with initial
-investments. Defining and publishing specific challenges can also attract targeted startups.
-Q6. What type and frequency of reporting and interaction should we have with the IC? Current
-reporting and interaction were considered effective, with regular updates and committee meetings.
-The group agreed to continue with the current format but to document and share updated investment
-criteria and challenge areas for feedback.
+The IC agreed that being more proactive in the ecosystem (attending international events, building networks, direct outreach) yields higher quality and quantity of deal flow than relying on inbound applications. Open calls could be considered, but only after building a track record with initial investments. Defining and publishing specific challenges can also attract targeted startups.
 
-
+Q6. What type and frequency of reporting and interaction should we have with the IC?
+Current reporting and interaction were considered effective, with regular updates and committee meetings. The group agreed to continue with the current format but to document and share updated investment criteria and challenge areas for feedback. Opportunities classified as UNCERTAIN should be listed in the reporting together with the information still missing, so the IC can follow them until a final decision.
