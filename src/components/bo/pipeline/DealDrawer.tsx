@@ -12,6 +12,8 @@ import { useSession } from "../AuthGate";
 import { AnaliseView } from "../startups/AnaliseView";
 import { DealEdit, DealFields, fmtEur, pickDeal } from "./DealFields";
 import { LogoEditor } from "../startups/Logo";
+import { useConfirm } from "../Confirm";
+import { AREAS_LISTA } from "@/lib/taxonomia";
 import { useAreas, useCategorias } from "@/lib/use-areas";
 import { diasDesde } from "./PipelineBoard";
 import { PassosBox } from "./PassosBox";
@@ -20,14 +22,15 @@ const nm = <T extends { id: string; nome: string }>(l: T[], id: string | null | 
 const hoje = () => hojeLocal();
 
 export const alvoDeal = (d: Deal): AlvoAnalise => d.startupId
-  ? { path: `startups/${d.startupId}`, alsoResumo: `deals/${d.id}`, nome: d.nome, site: d.site, dominio: d.dominio, descricao: d.descricao, setor: nm(VERTICAIS_DF, d.vertical), logo: d.logo }
-  : { path: `deals/${d.id}`, nome: d.nome, site: d.site, dominio: d.dominio, descricao: d.descricao, setor: nm(VERTICAIS_DF, d.vertical), logo: d.logo };
+  ? { path: `startups/${d.startupId}`, alsoResumo: `deals/${d.id}`, nome: d.nome, site: d.site, dominio: d.dominio, descricao: d.descricao, setor: AREAS_LISTA.find((a) => a.id === d.cadeia)?.nome || "", logo: d.logo }
+  : { path: `deals/${d.id}`, nome: d.nome, site: d.site, dominio: d.dominio, descricao: d.descricao, setor: AREAS_LISTA.find((a) => a.id === d.cadeia)?.nome || "", logo: d.logo };
 
 /** Ficha de uma startup no pipeline: fase, próximo passo, análise, ficha, ronda e cronologia. */
 export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }: {
   d: Deal; list: Deal[]; origens: string[]; pessoas: string[]; onClose: () => void; onNav: (id: string) => void; notify: (m: string) => void;
 }) {
   const { email } = useSession();
+  const { confirmar, el: cfEl } = useConfirm();
   const [editing, setEditing] = useState(false);
   const [f, setF] = useState<DealEdit>(pickDeal(d));
   const [archiving, setArchiving] = useState(false);
@@ -77,7 +80,6 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
       <div className="dscroll">
         <div className="dmeta">
           {d.ref && <span className="tg mn">{d.ref}</span>}
-          {d.vertical && <span className="tg">{nm(VERTICAIS_DF, d.vertical)}</span>}
           {cad && <span className="tg"><i className="cdot" style={{ background: cad.cor }} />{cad.nome}</span>}
           {cat && <span className="tg">{cat.nome}</span>}
           {d.fase && <span className="tg">{nm(FASES_DF, d.fase)}</span>}
@@ -211,7 +213,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
                   return <li key={x.id} className={`tli t-${x.tipo}`}>
                     <span className="tld"><Icon name={t?.icon || "pencil-simple"} /></span>
                     <div className="tlb"><div className="tlt"><b>{t?.nome}</b><span>{x.data ? fdLongo(x.data) : ""}{x.participantes ? ` · ${x.participantes}` : ""}{x.por ? ` · ${x.por === "Excel" ? "importado do Excel" : x.por.split("@")[0]}` : ""}</span>
-                      <button className="tlx" title="Apagar" aria-label="Apagar registo" onClick={() => { if (window.confirm(x.tipo === "etapa" ? "Apagar este registo de mudança de fase da cronologia? A fase atual da startup não muda. Não dá para anular." : "Apagar este registo da cronologia? Não dá para anular.")) act(delInteracao(d.id, x.id), "Registo apagado"); }}><Icon name="trash" /></button></div>
+                      <button className="tlx" title="Apagar" aria-label="Apagar registo" onClick={async () => { if (await confirmar({ titulo: "Apagar este registo da cronologia?", texto: x.tipo === "etapa" ? "É um registo de mudança de fase. A fase atual da startup não muda. Não dá para anular." : "Não dá para anular.", ok: "Apagar", perigo: true })) act(delInteracao(d.id, x.id), "Registo apagado"); }}><Icon name="trash" /></button></div>
                       <p>{x.texto}</p>
                       {!!x.links?.length && <div className="tll">{x.links.map((l) => <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer"><Icon name="arrow-up-right" size={12} />{l.titulo || l.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 48)}</a>)}</div>}</div>
                   </li>;
@@ -240,6 +242,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
         </>)}
       </div>
     </aside>
+    {cfEl}
     {analise && <AnaliseView alvo={alvoDeal(d)} onClose={() => setAnalise(false)} notify={notify} />}
   </>);
 }

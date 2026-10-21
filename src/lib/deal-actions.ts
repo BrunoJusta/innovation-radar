@@ -4,6 +4,7 @@ import { addDoc, collection, deleteDoc, doc, setDoc, updateDoc } from "firebase/
 import { db } from "./firebase";
 import { Deal, ETAPAS, Etapa, emCurso, Interacao, Passo, MotivoArquivo, MOTIVOS_ARQUIVO, ORIGENS_DF, Startup, VERTICAIS_DF, FASES_DF, VEZES, nomeDecisao } from "./types";
 import { hojeLocal, nowIso, slug } from "./util";
+import { AREAS_LISTA } from "./taxonomia";
 
 const ref = (id: string) => doc(db, "deals", id);
 const hoje = () => hojeLocal();
@@ -105,10 +106,10 @@ export function findDeal(deals: Deal[], s: Pick<Startup, "id" | "dominio" | "nom
 
 const nome = <T extends { id: string; nome: string }>(l: T[], id: string | null | undefined) => l.find((x) => x.id === id)?.nome || "";
 export function dealsCsv(deals: Deal[]) {
-  const head = ["Ref", "Entrada", "Startup", "Site", "Fundadores", "Descrição", "País", "Vertical", "Fase", "Etapa", "Desde", "De quem é a vez", "Próxima ação", "Prazo", "Responsável", "Outros passos em aberto",
+  const head = ["Ref", "Entrada", "Startup", "Site", "Fundadores", "Descrição", "País", "Cadeia de valor", "Fase", "Etapa", "Desde", "De quem é a vez", "Próxima ação", "Prazo", "Responsável", "Outros passos em aberto",
     "Valuation (€)", "Ronda (€)", "Ticket (€)", "Lead", "Coinvestidores", "Notas da ronda", "Origem", "Origem (nome)", "Contacto", "Motivo de arquivo", "Nota de arquivo", "Análise", "Ticket sugerido"];
   const esc = (v: unknown) => { const t = v == null ? "" : String(v); return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
-  const rows = deals.map((d) => [d.ref, d.entrada, d.nome, d.site, d.fundadores, d.descricao, d.pais, nome(VERTICAIS_DF, d.vertical), nome(FASES_DF, d.fase), nomeEtapa(d.etapa), d.etapaDesde,
+  const rows = deals.map((d) => [d.ref, d.entrada, d.nome, d.site, d.fundadores, d.descricao, d.pais, (AREAS_LISTA.find((a) => a.id === d.cadeia)?.nome || ""), nome(FASES_DF, d.fase), nomeEtapa(d.etapa), d.etapaDesde,
     nome(VEZES, d.vez), d.proximaAcao, d.prazo, d.responsavel, passosAbertos(d).slice(1).map((p) => `${p.texto}${p.prazo ? ` (${p.prazo})` : ""}`).join(" | "), d.ronda?.valuation, d.ronda?.valor, d.ronda?.ticket, d.ronda?.lead, (d.ronda?.coinvestidores || []).join(", "), d.ronda?.notas,
     nome(ORIGENS_DF, d.origem?.tipo), d.origem?.nome, d.origem?.contacto, nome(MOTIVOS_ARQUIVO, d.arquivo?.motivo), d.arquivo?.nota,
     d.analiseResumo ? nomeDecisao(d.analiseResumo.decisao) : "", d.analiseResumo?.ticket || ""]);

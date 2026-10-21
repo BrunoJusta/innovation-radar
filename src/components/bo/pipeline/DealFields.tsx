@@ -38,8 +38,6 @@ export function DealFields({ value: v, onChange, origens }: { value: DealEdit; o
         <label className="fld"><span>Site</span><input autoComplete="off" type="url" spellCheck={false} value={v.site} onChange={(e) => onChange({ site: e.target.value })} placeholder="https://" /></label>
         <label className="fld"><span>Fundadores</span><input autoComplete="off" value={v.fundadores} onChange={(e) => onChange({ fundadores: e.target.value })} /></label>
         <label className="fld"><span>País</span><input autoComplete="off" value={v.pais} onChange={(e) => onChange({ pais: e.target.value })} /></label>
-        <label className="fld"><span>Vertical</span><select value={v.vertical} onChange={(e) => onChange({ vertical: e.target.value as DealEdit["vertical"] })}>
-          <option value="">Por definir</option>{VERTICAIS_DF.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
         <label className="fld"><span>Cadeia de valor</span><select value={v.cadeia || ""} onChange={(e) => onChange({ cadeia: e.target.value || undefined })}>
           <option value="">Por definir</option>{areas.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
         <label className="fld"><span>Categoria</span><select value={v.categoria || ""} onChange={(e) => onChange({ categoria: e.target.value || undefined })}>

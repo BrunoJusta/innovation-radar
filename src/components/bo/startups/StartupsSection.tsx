@@ -41,10 +41,10 @@ function Section({ initial }: { initial: Page }) {
   const lista = startups.filter((s) => !(s.status === "approved" && (s.dealId || noPipe.has(s.id))));
   const cnt = (st: Status) => lista.filter((s) => s.status === st).length;
   const TABS: { id: Status; label: string; icon: string }[] = [
-    { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Arquivo de triagem", icon: "prohibit" },
+    { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }
   ];
   const Tab = ({ t }: { t: (typeof TABS)[number] }) => (
-    <button key={t.id} aria-current={page === t.id} onClick={() => setPage(t.id)}><Icon name={t.icon} />{t.label}
+    <button key={t.id} aria-current={page === t.id || (t.id === "pending" && page === "rejected")} onClick={() => setPage(t.id)}><Icon name={t.icon} />{t.label}
       {cnt(t.id) > 0 && <span className={t.id === "pending" ? "c" : "c soft"}>{cnt(t.id)}</span>}</button>
   );
   return (<>

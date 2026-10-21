@@ -10,6 +10,7 @@ import { normNome } from "@/lib/deal-actions";
 import { Deal, ETAPAS, Startup } from "@/lib/types";
 import { hojeLocal, nowIso } from "@/lib/util";
 import { cadeiasParaApi, useAreas, useCategorias } from "@/lib/use-areas";
+import { useConfirm } from "../Confirm";
 
 const LOTE = 8, PARALELO = 3;
 type Res = { k: number; site: string; dominio: string; cadeia: string; categoria?: string };
@@ -39,6 +40,7 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
   const areas = useAreas();
   const categorias = useCategorias();
   const busy = estado === "importar";
+  const { confirmar, el: cfEl } = useConfirm();
 
   // Startups do radar que vieram de um import anterior e já não têm ficha no pipeline (por exemplo, depois de apagar o pipeline)
   const [orfas, setOrfas] = useState<Startup[]>([]);
@@ -49,7 +51,7 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
       .filter((st) => (st.origens || []).some((o) => o.titulo === "Excel do dealflow da Sogrape Ventures") && !(st.dealId && ids.has(st.dealId))))).catch(() => {});
   }, [deals]);
   const limparOrfas = async () => {
-    if (!window.confirm(`Apagar do radar de startups as ${orfas.length} startups que vieram do Excel e já não estão no pipeline? Não dá para anular.`)) return;
+    if (!(await confirmar({ titulo: `Apagar ${orfas.length} startups do radar?`, texto: "Vieram do Excel e já não estão no pipeline. Não dá para anular.", ok: "Apagar", perigo: true }))) return;
     setLimpando(true);
     try {
       for (let i = 0; i < orfas.length; i += 50) {
@@ -180,6 +182,7 @@ export function ImportDealflow({ deals, email, onClose, onDone }: { deals: Deal[
   const pct = total ? Math.round((feitas / total) * 100) : 0;
 
   return (<>
+    {cfEl}
     <div className="scrim" onClick={() => !busy && onClose()} />
     <div className="mdl wide" role="dialog" aria-modal="true" aria-labelledby="imp-t">
       <div className="mdl-h">

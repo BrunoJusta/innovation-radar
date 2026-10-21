@@ -28,7 +28,7 @@ const TITLES: Record<Status, [string, string]> = {
 };
 
 export function StartupsTriage({ areas, status, onStatus, startups, sectors, loaded, search, adding, setAdding }: {
-  areas: Area[]; status: Status; onStatus: (s: Fila) => void; startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
+  areas: Area[]; status: Status; onStatus: (s: Status) => void; startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
 }) {
   const { email } = useSession();
   const { dealOf } = useDeals();
@@ -82,6 +82,12 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
     <div className="head">
       <div><h1>{TITLES[status][0]}</h1><p>{TITLES[status][1]}</p></div>
     </div>
+    {status !== "approved" && (
+      <div className="seg trseg" role="group" aria-label="Triagem">
+        <button aria-pressed={status === "pending"} onClick={() => onStatus("pending")}><Icon name="tray" />Por decidir<span className="sc">{startups.filter((s) => s.status === "pending").length}</span></button>
+        <button aria-pressed={status === "rejected"} onClick={() => onStatus("rejected")}><Icon name="prohibit" />Arquivo de triagem<span className="sc">{startups.filter((s) => s.status === "rejected").length}</span></button>
+      </div>
+    )}
     <div className="toolbar">
       <AreaSelect areas={areas} value={fCad} onChange={setFCad} counts={nCad} />
       <SectorSelect sectors={sectors} value={fSec} onChange={setFSec} counts={nSec} />

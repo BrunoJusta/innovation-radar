@@ -7,6 +7,7 @@ import { fdCurto, hojeLocal, nDias } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { AnaliseLoading } from "../AnaliseQueue";
 import { Logo } from "../startups/Logo";
+import { useAreas } from "@/lib/use-areas";
 
 export const diasDesde = (iso: string | null | undefined) => { const t = Date.parse(iso || ""); return isNaN(t) ? 0 : Math.max(0, Math.floor((Date.now() - t) / 864e5)); };
 /** Estado do prazo: atrasado, nos próximos 3 dias, ou sem urgência. */
@@ -19,13 +20,14 @@ export const prazoEstado = (d: Pick<Deal, "prazo" | "etapa">) => !emCurso(d.etap
 const nm = <T extends { id: string; nome: string }>(l: T[], id: string | null | undefined) => l.find((x) => x.id === id)?.nome || "";
 
 export function DealCard({ d, onOpen, drag }: { d: Deal; onOpen: () => void; drag?: boolean }) {
+  const areas = useAreas();
   const pz = prazoEstado(d), dias = diasDesde(d.etapaDesde);
   const vez = VEZES.find((v) => v.id === d.vez), mais = passosAbertos(d).length - 1;
   return (
     <article className={`dcard${pz ? ` pz-${pz}` : ""}`} draggable={drag} onDragStart={(e) => { e.dataTransfer.setData("text/deal", d.id); e.dataTransfer.effectAllowed = "move"; }}
       role="button" tabIndex={0} aria-label={`Abrir ${d.nome}`} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}>
       <div className="dc1">{d.logo && <Logo nome={d.nome} logo={d.logo} />}<b>{d.nome}</b><AnaliseLoading path={d.startupId ? `startups/${d.startupId}` : `deals/${d.id}`} short />{d.analiseResumo && <span className={`anchip ${d.analiseResumo.decisao}`} title="Análise de investimento"><Icon name="scales" />{DECISOES[d.analiseResumo.decisao]?.curto}</span>}</div>
-      <div className="dc2">{[nm(VERTICAIS_DF, d.vertical), d.pais].filter(Boolean).join(" · ") || "Sem vertical"}</div>
+      <div className="dc2">{[areas.find((a) => a.id === d.cadeia)?.nome, d.pais].filter(Boolean).join(" · ") || "Sem cadeia de valor"}</div>
       {d.proximaAcao && <p className="dcn">{d.proximaAcao}{mais > 0 && <span className="pmais" title={`Mais ${mais} ${mais === 1 ? "passo" : "passos"} em aberto`}> +{mais}</span>}</p>}
       <div className="dc3">
         {vez && <span className={`vez v-${vez.id}`}>{vez.curto}</span>}

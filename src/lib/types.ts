@@ -262,6 +262,8 @@ export interface Analise {
   followOn: boolean; followOnRacional: string;
   encaixe: string; proximosPassos: string[];
   fontes: AnaliseFonte[];
+  /** Versão editada à mão (sem nova pesquisa nem avaliação da Gemini). */
+  editada?: boolean;
   /** Documentos juntados à análise (só os nomes; o conteúdo não fica guardado). */
   documentos?: string[];
 }
@@ -284,7 +286,7 @@ export const ETAPAS: { id: Etapa; nome: string; desc: string }[] = [
 /** As fases em curso (as colunas do quadro). */
 export const ETAPAS_ATIVAS = ETAPAS.filter((e) => !["radar", "investida", "arquivada"].includes(e.id));
 /** Os três destinos finais. */
-export const ETAPAS_FINAIS = ETAPAS.filter((e) => ["radar", "investida", "arquivada"].includes(e.id));
+export const ETAPAS_FINAIS = (["investida", "radar", "arquivada"] as Etapa[]).map((id) => ETAPAS.find((e) => e.id === id)!);
 export const emCurso = (e: string) => ETAPAS_ATIVAS.some((x) => x.id === e);
 /** Fases da versão anterior → fases atuais (para fichas antigas e para a migração). */
 export const ETAPA_ANTIGA: Record<string, Etapa> = { contacto: "fit", "analise-bc": "geral", negociacao: "fecho" };

@@ -1,4 +1,5 @@
 "use client";
+import { AREAS_LISTA } from "@/lib/taxonomia";
 import { useEffect, useMemo, useState } from "react";
 import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -104,7 +105,7 @@ function MobileDeal({ d, onClose }: { d: Deal; onClose: () => void }) {
     return () => { document.body.style.overflow = prev; document.removeEventListener("keydown", k); };
   }, [onClose]);
   const abertos = passosAbertos(d);
-  const vert = VERTICAIS_DF.find((v) => v.id === d.vertical)?.nome;
+  const vert = AREAS_LISTA.find((a) => a.id === d.cadeia)?.nome;
   return (<>
     <div className="scrim" onClick={onClose} />
     <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="ms-t">

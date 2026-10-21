@@ -9,6 +9,8 @@ import { fdLongo } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { ACEITES, DocAnalise, lerDocumento, MAX_BINARIO } from "@/lib/doc-text";
 import { PerfilEditor } from "./PerfilEditor";
+import { AnaliseEditor } from "./AnaliseEditor";
+import { saveAnalise } from "@/lib/analise-run";
 import type { AnalisePerfil } from "@/lib/types";
 
 const PASSOS: { id: ParteId | "avaliar"; nome: string; desc: string }[] = [
@@ -44,6 +46,21 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
   const [erroDoc, setErroDoc] = useState("");
   // Dados do perfil editados à mão: ao refazer, a avaliação usa-os em vez de voltar a pesquisar na web
   const [perfilEd, setPerfilEd] = useState<AnalisePerfil | null>(null);
+  // Edição direta da análise (tudo, incluindo a decisão), sem a refazer
+  const [anEd, setAnEd] = useState<Analise | null>(null);
+  const [gravando, setGravando] = useState(false);
+  const guardarEd = async () => {
+    if (!anEd) return;
+    setGravando(true);
+    try {
+      const { id: _i, ...resto } = anEd; // eslint-disable-line @typescript-eslint/no-unused-vars
+      const nova: Analise = { ...resto, feitaEm: new Date().toISOString(), por: email, editada: true };
+      const id = await saveAnalise(alvo.path, nova, alvo.alsoResumo);
+      setHist((h) => [{ ...nova, id }, ...(h || [])]); setIdx(0); setAnEd(null);
+      notify("Análise editada e guardada (a versão anterior fica no histórico)");
+    } catch (e) { notify((e as { code?: string }).code === "permission-denied" ? "Sem permissão para guardar a análise." : "Não foi possível guardar. Tenta outra vez."); }
+    setGravando(false);
+  };
   const juntar = async (fs: FileList | null) => {
     if (!fs?.length) return;
     setLendo(true); setErroDoc("");
@@ -61,10 +78,10 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
 
   useEffect(() => { if (!emFundo) loadAnalises(alvo.path).then(setHist).catch(() => setHist([])); }, [alvo.path, emFundo]);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); if (!busy) onClose(); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); if (!busy && !anEd) onClose(); } };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [busy, onClose]);
+  }, [busy, onClose, anEd]);
 
   const run = useCallback(async (jaTem: Partial<Record<ParteId, Parte>> = {}) => {
     setErro(""); setPedir(false);
@@ -145,16 +162,21 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
             {perfilEd && <PerfilEditor v={perfilEd} onChange={setPerfilEd} />}
           </div>
         )}
-        {a && !passos && !pedir && <AnaliseReport a={a} />}
+        {a && !passos && !pedir && (anEd ? <AnaliseEditor v={anEd} onChange={setAnEd} /> : <AnaliseReport a={a} />)}
       </div>
 
       <div className="mdl-f">
-        {a && !passos && !pedir && <>
-          <span className="an-meta">{fdLongo(a.feitaEm)}{a.por ? ` · ${a.por === "recolha" ? "recolha semanal" : a.por}` : ""}</span>
+        {a && !passos && !pedir && !anEd && <>
+          <span className="an-meta">{fdLongo(a.feitaEm)}{a.por ? ` · ${a.por === "recolha" ? "recolha semanal" : a.por}` : ""}{a.editada ? " · editada à mão" : ""}</span>
           {hist && hist.length > 1 && <select className="an-hist" value={idx} onChange={(e) => setIdx(+e.target.value)} aria-label="Análises anteriores">
             {hist.map((h, i) => <option key={h.id || i} value={i}>{i === 0 ? "Mais recente" : fdLongo(h.feitaEm)}</option>)}</select>}
         </>}
         <span className="sp" />
+        {anEd ? <>
+          <button className="txtbtn" onClick={() => setAnEd(null)} disabled={gravando}>Cancelar</button>
+          <button className="btn primary" onClick={guardarEd} disabled={gravando}>{gravando ? <><span className="spin" aria-hidden="true" />A guardar…</> : <><Icon name="check" />Guardar alterações</>}</button>
+        </> : <>
+        {a && !passos && !pedir && <button className="btn" onClick={() => setAnEd(JSON.parse(JSON.stringify(a)))}><Icon name="pencil-simple" />Editar análise</button>}
         {a && !passos && !pedir && <button className="btn" onClick={copiar}><Icon name="copy" />Copiar relatório</button>}
         {passos && erro && !busy && <button className="txtbtn" onClick={() => { setPassos(null); setErro(""); setPartes({}); }}>Cancelar</button>}
         {busy ? <button className="btn primary" disabled><span className="spin" aria-hidden="true" />A analisar…</button>
@@ -163,6 +185,7 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
             ? <>{pedir && <button className="txtbtn" onClick={() => { setPedir(false); setErroDoc(""); setPerfilEd(null); }}>Cancelar</button>}
               <button className="btn primary" onClick={() => run()} disabled={lendo}><Icon name={a ? "arrows-clockwise" : "sparkle"} />{`${a ? "Refazer" : "Fazer"} análise${perfilEd ? " com os dados editados" : ""}${docs.length ? ` e ${docs.length} ${docs.length === 1 ? "documento" : "documentos"}` : perfilEd ? "" : " sem documentos"}`}</button></>
           : !emFundo && hist !== null && <button className="btn" onClick={() => setPedir(true)}><Icon name="arrows-clockwise" />Refazer análise</button>}
+        </>}
       </div>
     </div>
   </>);

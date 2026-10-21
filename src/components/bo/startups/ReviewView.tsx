@@ -47,7 +47,13 @@ export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }
   const [porQ, setPorQ] = useState<"cadeia" | "categoria">("cadeia");
   const areas = useAreas(), categorias = useCategorias();
   useEffect(() => setSel(null), [ano]);
-  const ver = (titulo: string, l: Deal[]) => { setSel({ titulo, lista: l }); setTimeout(() => document.getElementById("rev-sel")?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 30); };
+  useEffect(() => {
+    if (!sel || openId) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSel(null); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [sel, openId]);
+  const ver = (titulo: string, l: Deal[]) => setSel({ titulo, lista: l });
 
   if (!loaded) return <div className="loading">A carregar…</div>;
   if (!deals.length) return <p className="hint">Ainda não há startups no pipeline.</p>;
@@ -99,18 +105,21 @@ export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }
           <Mapa lista={lista} setTip={setTip} onPick={ver} />
         </section>
       </div>
-      {sel && (
-        <section className="rev-c full rev-sel" id="rev-sel" aria-label={sel.titulo}>
-          <div className="rev-h"><h2>{sel.titulo}</h2><span>{sel.lista.length} {sel.lista.length === 1 ? "startup" : "startups"}</span>
-            <button className="btn icon" aria-label="Fechar a lista" onClick={() => setSel(null)}><Icon name="x" /></button></div>
-          {sel.lista.length ? <ul className="rev-ls">{[...sel.lista].sort((a, b) => a.nome.localeCompare(b.nome)).map((d) => (
-            <li key={d.id}><button onClick={() => setOpenId(d.id)}>
-              <b>{d.nome}</b><span className={`tg e-${d.etapa}`}>{ETAPAS.find((e) => e.id === d.etapa)?.nome}</span>
-              <span className="mut">{[bandeiraDe(d.pais), d.pais].filter(Boolean).join(" ")}</span>
-              <span className="mut">{areas.find((a) => a.id === d.cadeia)?.nome || ""}</span></button></li>
-          ))}</ul> : <p className="hint">Nenhuma startup.</p>}
-        </section>
-      )}
+      {sel && !openId && (<>
+        <div className="scrim" onClick={() => setSel(null)} />
+        <div className="mdl wide rev-pop" role="dialog" aria-modal="true" aria-labelledby="rs-t">
+          <div className="mdl-h"><div><h2 id="rs-t">{sel.titulo}</h2><span className="mdl-sub">{sel.lista.length} {sel.lista.length === 1 ? "startup" : "startups"}{ano === "all" ? "" : ` · ${ano}`}</span></div>
+            <button className="btn icon" aria-label="Fechar" onClick={() => setSel(null)}><Icon name="x" /></button></div>
+          <div className="mdl-b scroll">
+            {sel.lista.length ? <ul className="rev-ls">{[...sel.lista].sort((a, b) => a.nome.localeCompare(b.nome)).map((d) => (
+              <li key={d.id}><button onClick={() => setOpenId(d.id)}>
+                <b>{d.nome}</b><span className={`tg e-${d.etapa}`}>{ETAPAS.find((e) => e.id === d.etapa)?.nome}</span>
+                <span className="mut">{[bandeiraDe(d.pais), d.pais].filter(Boolean).join(" ")}</span>
+                <span className="mut">{areas.find((a) => a.id === d.cadeia)?.nome || ""}</span></button></li>
+            ))}</ul> : <p className="hint">Nenhuma startup.</p>}
+          </div>
+        </div>
+      </>)}
       {openId && deals.find((d) => d.id === openId) && <DealDrawer d={deals.find((d) => d.id === openId)!} list={sel?.lista || []} origens={[]} pessoas={[]}
         onClose={() => setOpenId(null)} onNav={setOpenId} notify={(m) => { setMsg(m); setTimeout(() => setMsg(""), 2600); }} />}
       {msg && <div className="toast" role="status"><span>{msg}</span></div>}

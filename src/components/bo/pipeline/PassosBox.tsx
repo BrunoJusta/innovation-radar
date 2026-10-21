@@ -5,6 +5,7 @@ import { novoPasso, ordemPassos, passosDe, savePassos } from "@/lib/deal-actions
 import { Deal, Passo, VEZES, Vez } from "@/lib/types";
 import { fdCurto, fdLongo, hojeLocal } from "@/lib/util";
 import { estadoPrazo } from "./PipelineBoard";
+import { useConfirm } from "../Confirm";
 
 const pzCls = (p: string | null) => { const e = estadoPrazo(p); return e === "atrasado" ? "late" : e === "breve" ? "soon" : ""; };
 
@@ -28,7 +29,8 @@ export function PassosBox({ d, pessoas, by, act }: {
   };
   const concluir = (p: Passo) => act(savePassos(d, todos.map((x) => (x.id === p.id ? { ...x, feito: hojeLocal(), feitoPor: by } : x)), by, `Passo concluído: ${p.texto}`), "Passo concluído");
   const reabrir = (p: Passo) => act(savePassos(d, todos.map((x) => (x.id === p.id ? { ...x, feito: null, feitoPor: "" } : x))), "Passo reaberto");
-  const apagar = (p: Passo) => { if (window.confirm(`Apagar o passo "${p.texto}"? Não dá para anular.`)) act(savePassos(d, todos.filter((x) => x.id !== p.id)), "Passo apagado"); };
+  const { confirmar, el: cfEl } = useConfirm();
+  const apagar = async (p: Passo) => { if (await confirmar({ titulo: `Apagar o passo «${p.texto}»?`, texto: "Não dá para anular.", ok: "Apagar", perigo: true })) act(savePassos(d, todos.filter((x) => x.id !== p.id)), "Passo apagado"); };
 
   const form = edit && (
     <div className="pform" onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setEdit(null); } }}>
@@ -74,6 +76,7 @@ export function PassosBox({ d, pessoas, by, act }: {
             <span className="pa"><button className="tlx" title="Apagar" aria-label={`Apagar: ${p.texto}`} onClick={() => apagar(p)}><Icon name="trash" /></button></span>
           </li>))}</ul>}
       </>}
+      {cfEl}
     </div>
   );
 }
