@@ -4,6 +4,8 @@ import { collection, doc, onSnapshot, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { lerFolha, type Celula } from "@/lib/xlsx-lite";
 import { Icon } from "@/components/Icon";
+import { corDe } from "@/lib/inovacao";
+import type { Category } from "@/lib/types";
 
 /** Uma coleção em tempo real. */
 export function useLive<T extends { id: string }>(col: string) {
@@ -93,4 +95,60 @@ export function ordenar<T>(l: T[], v: (x: T) => string | number | null, dir: 1 |
     if (x === y) return 0; if (x === null || x === "") return 1; if (y === null || y === "") return -1;
     return (x < y ? -1 : 1) * dir;
   });
+}
+
+/** Etiqueta com a cor do valor (estado, Must Win Battle, tipo, papel...). */
+export function Tag({ v, dot = false }: { v: string; dot?: boolean }) {
+  if (!v) return null;
+  return <span className="tg inv-tag" style={{ ["--c" as string]: corDe(v) }}>{dot && <i className="inv-dot" />}{v}</span>;
+}
+
+/** Opções para os filtros em dropdown (o mesmo componente dos filtros da triagem). */
+export const opcoes = (l: (string | { id: string; nome: string; cor?: string })[], cor = true): Category[] =>
+  l.map((x, i) => { const o = typeof x === "string" ? { id: x, nome: x } : x; return { id: o.id, nome: o.nome, ...(cor ? { cor: ("cor" in o && o.cor) || corDe(o.id) } : {}), icone: "calendar-blank", descricao: "", ordem: i, palavrasChave: [] } as unknown as Category; });
+
+/** Lista de dados do detalhe (só mostra os que têm valor). */
+export function Dados({ itens }: { itens: [string, React.ReactNode][] }) {
+  const l = itens.filter(([, v]) => v !== "" && v !== null && v !== undefined && v !== false);
+  return l.length ? <dl className="inv-dados">{l.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl> : null;
+}
+
+/** Janela do detalhe: abre em modo de leitura, com o botão para editar; os novos abrem logo em edição. */
+export function Detalhe({ titulo, refTxt, tags, editando, onEditar, onCancelar, onGuardar, onApagar, onClose, leitura, edicao }: {
+  titulo: string; refTxt: string; tags?: React.ReactNode; editando: boolean; onEditar: () => void; onCancelar: () => void;
+  onGuardar: () => Promise<unknown> | void; onApagar?: () => void; onClose: () => void; leitura: React.ReactNode; edicao: React.ReactNode;
+}) {
+  const [busy, setBusy] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape" && !document.querySelector(".mdl.cfm")) { if (editando) onCancelar(); else onClose(); } };
+    document.addEventListener("keydown", k);
+    if (editando) box.current?.querySelector<HTMLElement>(".mdl-b input,.mdl-b textarea,.mdl-b select")?.focus();
+    return () => document.removeEventListener("keydown", k);
+  }, [editando, onCancelar, onClose, onEditar]);
+  const guardar = async (e?: React.FormEvent) => { e?.preventDefault(); if (busy) return; setBusy(true); try { await onGuardar(); } finally { setBusy(false); } };
+  return (<>
+    <div className="scrim" onClick={() => !busy && !editando && onClose()} />
+    <div ref={box} className="mdl wide inv-mdl" role="dialog" aria-modal="true" aria-label={titulo}>
+      <div className="mdl-h">
+        <div className="inv-mh"><span className="inv-ref">{refTxt}</span><h2>{titulo || "Sem nome"}</h2>{!editando && tags && <div className="inv-tags">{tags}</div>}</div>
+        <button type="button" className="btn icon" aria-label="Fechar" onClick={onClose} disabled={busy}><Icon name="x" /></button>
+      </div>
+      <form className="inv-f" onSubmit={guardar}>
+        <div className="mdl-b scroll fmodal">{editando ? edicao : leitura}</div>
+        <div className="mdl-f">
+          {onApagar && <button type="button" className="txtbtn danger inv-del" onClick={onApagar} disabled={busy}><Icon name="trash" />Apagar</button>}
+          <span className="sp" />
+          {editando ? <>
+            <button type="button" className="txtbtn" onClick={onCancelar} disabled={busy}>Cancelar</button>
+            <button type="submit" className="btn primary" disabled={busy}>{busy ? <><span className="spin" aria-hidden="true" />A guardar…</> : <><Icon name="check" />Guardar</>}</button>
+          </> : <button type="button" className="btn primary" onClick={onEditar}><Icon name="pencil-simple" />Editar</button>}
+        </div>
+      </form>
+    </div>
+  </>);
 }

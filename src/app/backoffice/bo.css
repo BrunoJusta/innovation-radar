@@ -1397,4 +1397,32 @@
 .bo .inv-tbl .clip{max-width:340px}
 .bo .inv-tbl td{vertical-align:top}
 .bo .txtbtn.danger{color:#C42B31}
-.bo .inv-del{display:inline-flex;align-items:center;gap:6px;margin-top:18px}
+.bo .inv-del{display:inline-flex;align-items:center;gap:6px}
+.bo .inv-tag{--c:#94A3B8;background:color-mix(in srgb,var(--c) 12%,var(--surface-1));border-color:color-mix(in srgb,var(--c) 28%,transparent);color:color-mix(in srgb,var(--c) 85%,#000);font-weight:600}
+.bo .inv-tag .inv-dot{background:var(--c)}
+.bo .inv-tbl td .inv-tag{margin:0 6px 0 0}
+.bo .inv-tbl .sm{margin-top:3px}
+.bo .inv-tbl td{vertical-align:middle}
+/* Detalhe */
+.bo .inv-mdl .mdl-h{align-items:flex-start}
+.bo .inv-mh{display:flex;flex-direction:column;gap:6px;min-width:0}
+.bo .inv-mh h2{margin:0}
+.bo .inv-ref{font:500 12px/1 var(--f-mono);color:var(--ink-tertiary)}
+.bo .inv-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.bo .inv-f{display:contents}
+.bo .inv-desc{margin:0 0 6px;font-size:14.5px;line-height:1.6;color:var(--ink);white-space:pre-line;max-width:75ch}
+.bo .inv-dados{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin:0 0 6px}
+.bo .inv-dados>div{background:var(--surface-2);border-radius:12px;padding:10px 12px;min-width:0}
+.bo .inv-dados dt{font-size:12px;color:var(--ink-subtle)}
+.bo .inv-dados dd{margin:3px 0 0;font:500 14.5px/1.35 var(--f-display);color:var(--ink);overflow-wrap:anywhere}
+.bo .inv-mdl .fsec:first-child{margin-top:4px}
+/* Quadro dos projetos: só as colunas dos estados */
+.bo .board.inv-board{grid-auto-flow:row;grid-template-columns:repeat(5,minmax(0,1fr))}
+.bo .board.inv-board .bcol header .inv-dot{margin-right:-2px}
+.bo .inv-card .dc3{flex-wrap:wrap;gap:6px}
+@media (max-width:1100px){.bo .board.inv-board{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}}
+/* Setas dos dropdowns dos formulários com espaço até à borda */
+.bo .fld select{-webkit-appearance:none;appearance:none;padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%23767B85' d='M213.66 101.66l-80 80a8 8 0 0 1-11.32 0l-80-80a8 8 0 0 1 11.32-11.32L128 164.69l74.34-74.35a8 8 0 0 1 11.32 11.32Z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;background-size:13px;text-overflow:ellipsis}
+/* Ícones na navbar */
+.bo .tabs button .i{width:16px;height:16px;opacity:.75}
+.bo .tabs button[aria-current="true"] .i{opacity:1}

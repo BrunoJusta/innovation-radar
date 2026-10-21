@@ -114,3 +114,30 @@ const F_EUR = new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR
 export const eur = (n: number | null | undefined) => (n === null || n === undefined ? "" : F_EUR.format(n));
 const F_DATA = new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" });
 export const dataPt = (iso: string) => { if (!iso) return ""; const d = new Date(`${iso.slice(0, 10)}T12:00:00`); return isNaN(+d) ? "" : F_DATA.format(d); };
+
+/** Cores das etiquetas (paleta terrosa da Sogrape). */
+const P = { teal: "#2F6B73", plum: "#9B4D6B", wine: "#7A2338", green: "#4F7A3A", ochre: "#B07A12", rust: "#B15533", slate: "#5E6B7A", grey: "#94A3B8", indigo: "#3D4170" };
+export const CORES: Record<string, string> = {
+  // Must Win Battles
+  "AI Excellence": P.teal, "Unforgettable Experiences": P.plum, "WineTech": P.wine, "Sustainable Futures": P.green, "New Packaging & Materials": P.ochre, "Product Innovation": P.rust,
+  // Tipos de evento
+  "External Event": P.teal, "Internal Event": P.slate, "Scouting Event": P.rust, "Design Thinking Sandbox": P.plum, "Training": P.ochre, "Podcast": P.wine,
+  // Papéis
+  "Participant": P.grey, "Organizer": P.green, "Speaker": P.rust, "Jury": P.wine, "Challenger": P.ochre, "Mentor": P.teal, "Moderator": P.plum,
+  // Objetivos
+  "Ecosystem Positioning": P.teal, "Academia Positioning": P.indigo, "Knowledge Acquisition": P.ochre, "Knowledge Sharing": P.green, "Startup Scouting & Dealflow": P.rust,
+  "Innovation Capabilities": P.plum, "Recognition": P.wine, "Community Engagement": P.slate,
+  // Horizontes e relações
+  "Incremental Innovation": P.green, "Transformational Innovation": P.ochre, "Disruptive Innovation": P.wine,
+  "Startup": P.rust, "Academia": P.indigo, "Corporate": P.slate, "Accelerator": P.teal, "Other": P.grey,
+  ...Object.fromEntries(ESTADOS_PROJ.map((e) => [e.id, e.cor])),
+};
+export const corDe = (v: string) => CORES[v] || P.grey;
+
+/** Anos em que um projeto esteve ativo: do início (ou da discussão do piloto, ou da criação) até ao fim (ou até hoje). */
+export function anosDoProjeto(p: Projeto): string[] {
+  const hoje = new Date().getFullYear();
+  const de = Number((p.inicio || p.pilotoDesde || p.criadoEm || "").slice(0, 4)) || hoje;
+  const ate = Number(p.fim.slice(0, 4)) || Math.max(hoje, de);
+  return Array.from({ length: Math.max(0, ate - de) + 1 }, (_, i) => String(de + i));
+}
