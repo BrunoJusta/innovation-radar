@@ -66,7 +66,7 @@ export function Eur({ label, v, on }: { label: string; v: number | null; on: (n:
     onChange={(e) => on(e.target.value === "" ? null : Number(e.target.value))} /></label>;
 }
 
-/** Parceiro: escolhe um dos que já existem ou escreve um novo (recebe uma ref PA nova ao guardar). */
+/** Parceiro: escolhe um dos que já existem ou escreve um novo (recebe uma referência interna nova ao guardar). */
 export function Parceiro({ nome, parceiros, onChange }: { nome: string; parceiros: { ref: string; nome: string }[]; onChange: (nome: string, ref: string) => void }) {
   const id = "parc-" + useRef(Math.random().toString(36).slice(2)).current;
   return <label className="fld wide"><span>Parceiro</span>
@@ -74,7 +74,7 @@ export function Parceiro({ nome, parceiros, onChange }: { nome: string; parceiro
       const v = e.target.value, p = parceiros.find((x) => x.nome.toLowerCase() === v.trim().toLowerCase());
       onChange(v, p?.ref || "");
     }} />
-    <datalist id={id}>{parceiros.map((p) => <option key={p.ref + p.nome} value={p.nome}>{p.ref}</option>)}</datalist></label>;
+    <datalist id={id}>{parceiros.map((p) => <option key={p.ref + p.nome} value={p.nome} />)}</datalist></label>;
 }
 
 /** Linha de números no topo de cada página. */
@@ -115,8 +115,8 @@ export function Dados({ itens }: { itens: [string, React.ReactNode][] }) {
 }
 
 /** Página do detalhe: abre em modo de leitura, com o botão para editar; os novos abrem logo em edição. */
-export function Detalhe({ titulo, refTxt, tags, editando, onEditar, onCancelar, onGuardar, onApagar, onClose, leitura, edicao, voltar }: {
-  titulo: string; refTxt: string; tags?: React.ReactNode; editando: boolean; onEditar: () => void; onCancelar: () => void;
+export function Detalhe({ titulo, tags, editando, onEditar, onCancelar, onGuardar, onApagar, onClose, leitura, edicao, voltar }: {
+  titulo: string; tags?: React.ReactNode; editando: boolean; onEditar: () => void; onCancelar: () => void;
   onGuardar: () => Promise<unknown> | void; onApagar?: () => void; onClose: () => void; leitura: React.ReactNode; edicao: React.ReactNode; voltar: string;
 }) {
   const [busy, setBusy] = useState(false);
@@ -140,7 +140,7 @@ export function Detalhe({ titulo, refTxt, tags, editando, onEditar, onCancelar, 
     <div ref={box} className={`inv-page${editando ? " ed" : ""}`}>
       <button type="button" className="txtbtn inv-back" onClick={editando ? onCancelar : onClose}><Icon name="caret-left" />{voltar}</button>
       <header className="inv-phd">
-        <div className="inv-mh"><span className="inv-ref">{refTxt}</span><h1>{titulo || "Sem nome"}</h1>{!editando && tags && <div className="inv-tags">{tags}</div>}</div>
+        <div className="inv-mh"><h1>{titulo || "Sem nome"}</h1>{!editando && tags && <div className="inv-tags">{tags}</div>}</div>
         <div className="inv-act">{acoes}</div>
       </header>
       <form id="inv-form" className="inv-body" onSubmit={guardar}>{editando ? edicao : leitura}</form>

@@ -27,7 +27,7 @@ export function EventoFicha({ e }: { e: Evento }) {
               <p className="mut">{varios ? `${dias(e.inicio, e.fim)} dias` : "Um dia"}{e.pais ? `, ${e.pais}` : ""}</p></div>
           </div>)}
         <section><h3>Parceiro</h3>
-          <p>{e.parceiro ? <>{e.parceiro}{e.parceiroRef && <span className="mut"> ({e.parceiroRef})</span>}</> : e.parceria ? "Com parceria, sem parceiro indicado" : "Sem parceria"}</p></section>
+          <p>{e.parceiro ? <>{e.parceiro}</> : e.parceria ? "Com parceria, sem parceiro indicado" : "Sem parceria"}</p></section>
         {e.observacoes && <section><h3>Observações</h3><p>{e.observacoes}</p></section>}
       </div>
       <aside className="pf-side" aria-label="Dados do evento">
@@ -68,7 +68,6 @@ export function EventoForm({ ed, setEd, parceiros }: { ed: Evento; setEd: (e: Ev
         <div className="fgrid">
           <SimNao label="Com parceria" value={ed.parceria} onChange={(v) => set({ parceria: v })} />
           <Parceiro nome={ed.parceiro} parceiros={parceiros} onChange={(nome, ref) => set({ parceiro: nome, parceiroRef: ref, parceria: ed.parceria || !!nome.trim() })} />
-          <label className="fld"><span>Ref. do parceiro</span><input value={ed.parceiroRef || (ed.parceiro.trim() ? "Nova, ao guardar" : "")} readOnly tabIndex={-1} /></label>
         </div>
       </section>
       <section><h4>Custos</h4>

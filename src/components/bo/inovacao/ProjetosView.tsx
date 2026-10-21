@@ -66,11 +66,11 @@ export function ProjetosView() {
     const parceiroRef = x.parceiro.trim() && !x.parceiroRef ? proximaRef("PA", [...list, ...eventos].map((y) => y.parceiroRef || "")) : x.parceiro.trim() ? x.parceiroRef : "";
     try {
       await setDoc(doc(db, "projects", id), { ...x, parceiro: x.parceiro.trim(), parceiroRef, atualizadoEm: agora, criadoEm: x.criadoEm || agora });
-      setEd(null); setAberto(id); flash(_novo ? `Projeto ${id} criado` : "Projeto guardado");
+      setEd(null); setAberto(id); flash(_novo ? "Projeto criado" : "Projeto guardado");
     } catch (e) { flash(errMsg(e)); }
   };
   const apagar = async (p: Projeto) => {
-    if (!(await confirmar({ titulo: `Apagar o projeto «${p.nome || p.ref}»?`, texto: "Não dá para anular.", ok: "Apagar", perigo: true }))) return;
+    if (!(await confirmar({ titulo: `Apagar o projeto «${p.nome || "sem nome"}»?`, texto: "Não dá para anular.", ok: "Apagar", perigo: true }))) return;
     try { await deleteDoc(doc(db, "projects", p.id)); setAberto(null); setEd(null); flash("Projeto apagado"); } catch (e) { flash(errMsg(e)); }
   };
   const novo = () => { const ref = proximaRef("PR", list.map((p) => p.ref || p.id)); setAberto(null); setEd({ ...projetoVazio(ref), _novo: true }); };
@@ -91,7 +91,7 @@ export function ProjetosView() {
   const S = (k: Col, l: string, cls = "", desc = false) => th(sort, setSort, k, l, cls, desc);
   const set = (k: keyof F) => (v: string) => setF({ ...f, [k]: v });
   const det = ed || atual;
-  const pagina = det && (<Detalhe voltar="Projetos" titulo={det.nome} refTxt={det.ref} editando={!!ed}
+  const pagina = det && (<Detalhe voltar="Projetos" titulo={det.nome} editando={!!ed}
         tags={<><span className="tg inv-kind">{det.piloto ? "Piloto" : "Projeto"}</span><Tag v={det.estado} dot />{det.fase && <span className="tg">{det.fase}</span>}</>}
         onClose={() => { setEd(null); setAberto(null); }} onEditar={() => atual && setEd({ ...atual })} onCancelar={sair}
         onGuardar={guardar} onApagar={ed?._novo ? undefined : () => apagar(det)}
@@ -143,7 +143,7 @@ export function ProjetosView() {
                   <article key={p.id} className="dcard inv-card" draggable onDragStart={(ev) => { ev.dataTransfer.setData("text/proj", p.id); ev.dataTransfer.effectAllowed = "move"; }}
                     role="button" tabIndex={0} aria-label={`Abrir ${p.nome}`} onClick={() => setAberto(p.id)} onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setAberto(p.id); } }}>
                     <div className="dc1"><b>{p.nome}</b></div>
-                    <div className="dc2">{[p.parceiro, cadNome(p.cadeia)].filter(Boolean).join(" · ") || p.ref}</div>
+                    <div className="dc2">{[p.parceiro, cadNome(p.cadeia)].filter(Boolean).join(" · ") || "Sem parceiro"}</div>
                     <div className="dc3"><Tag v={p.mwb} />{p.piloto && <span className="tg">Piloto</span>}<span className="sp" />{p.orcamento ? <span className="mut sm">{eur(p.orcamento)}</span> : null}</div>
                   </article>))}
                 {!l.length && <p className="bempty">Sem projetos</p>}
@@ -161,11 +161,10 @@ export function ProjetosView() {
         <div className="tbl stbl ptbl inv-tbl">
           <table>
             <thead><tr>
-              {S("ref", "Ref", "", true)}{S("nome", "Projeto")}{S("estado", "Estado")}{S("mwb", "Must Win Battle")}{S("parceiro", "Parceiro")}{S("inicio", "Início", "n", true)}{S("orcamento", "Orçamento", "n", true)}
+              {S("nome", "Projeto")}{S("estado", "Estado")}{S("mwb", "Must Win Battle")}{S("parceiro", "Parceiro")}{S("inicio", "Início", "n", true)}{S("orcamento", "Orçamento", "n", true)}
             </tr></thead>
             <tbody>{rows.map((p) => (
               <tr key={p.id} tabIndex={0} onClick={() => setAberto(p.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) setAberto(p.id); }}>
-                <td className="mut refc">{p.ref}</td>
                 <td><b className="inv-n">{p.nome}</b><span className="mut sm clip" title={p.descricao}>{p.descricao}</span></td>
                 <td><Tag v={p.estado} dot />{p.piloto && <span className="mut sm">Com piloto</span>}</td>
                 <td>{p.mwb ? <Tag v={p.mwb} /> : <span className="mut">-</span>}</td>

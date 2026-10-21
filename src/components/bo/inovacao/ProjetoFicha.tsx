@@ -100,7 +100,6 @@ export function ProjetoForm({ ed, setEd, areas, startups, parceiros }: {
             ? <StartupPicker startups={startups} startupId={ed.startupId} nome={ed.parceiro}
                 onPick={(st, nome) => set({ startupId: st?.id || "", parceiro: nome, parceiroRef: parceiros.find((x) => x.nome.toLowerCase() === nome.trim().toLowerCase())?.ref || "" })} />
             : <Parceiro nome={ed.parceiro} parceiros={parceiros} onChange={(nome, ref) => set({ parceiro: nome, parceiroRef: ref, startupId: "" })} />}
-          <label className="fld"><span>Ref. do parceiro</span><input value={ed.parceiroRef || (ed.parceiro.trim() ? "Nova, ao guardar" : "")} readOnly tabIndex={-1} /></label>
         </div>
       </section>
       <section><h4>Equipa</h4>
