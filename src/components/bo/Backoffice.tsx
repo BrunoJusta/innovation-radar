@@ -63,10 +63,10 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
           <a className="brand" href="/" title="Abrir o radar"><b>Inovação</b></a>
           <nav className="tabs" aria-label="Secções">
             <button aria-current={view === "dashboard"} onClick={() => setView("dashboard")}><Icon name="squares-four" /><span className="l">Dashboard</span></button>
-            <button aria-current={view === "news"} onClick={() => setView("news")}><Icon name="rss" /><span className="l">Notícias</span>{counts.pending > 0 && <span className="c">{counts.pending}</span>}</button>
-            <button aria-current={view === "startups"} onClick={() => setView("startups")}><Icon name="lightbulb" /><span className="l">Startups</span></button>
             {inov && <button aria-current={view === "projetos"} onClick={() => setView("projetos")}><Icon name="target" /><span className="l">Projetos</span></button>}
+            <button aria-current={view === "startups"} onClick={() => setView("startups")}><Icon name="lightbulb" /><span className="l">Startups</span></button>
             {inov && <button aria-current={view === "eventos"} onClick={() => setView("eventos")}><Icon name="calendar-blank" /><span className="l">Eventos</span></button>}
+            <button aria-current={view === "news"} onClick={() => setView("news")}><Icon name="rss" /><span className="l">Notícias</span>{counts.pending > 0 && <span className="c">{counts.pending}</span>}</button>
             {isAdmin && <button aria-current={view === "settings"} onClick={() => setView("settings")}><Icon name="gear" /><span className="l">Definições</span></button>}
           </nav>
           <span className="sp" />
