@@ -17,6 +17,7 @@ import { useDeals } from "../pipeline/DealsLookup";
 import { nomeEtapa } from "@/lib/deal-actions";
 import { AnaliseLoading, useAnaliseQueue } from "../AnaliseQueue";
 import { AnaliseView } from "./AnaliseView";
+import { useConfirm } from "../Confirm";
 
 const VIEW_KEY = "radar.startups.vista";
 const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; } };
@@ -78,9 +79,24 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
   };
   const open = openId ? startups.find((x) => x.id === openId) || null : null;
 
+  // Refazer em massa a análise de investimento das startups por decidir com relevância de 80 ou mais
+  const { queue, running } = useAnaliseQueue();
+  const { confirmar, el: cfEl } = useConfirm();
+  const altas = status === "pending" ? startups.filter((s) => s.status === "pending" && (s.relevancia || 0) >= 80) : [];
+  const nFila = altas.filter((s) => running.has(`startups/${s.id}`)).length;
+  const refazerAnalises = async () => {
+    if (!(await confirmar({ titulo: `Refazer a análise de ${altas.length} startup${altas.length === 1 ? "" : "s"}?`,
+      texto: "Todas as startups por decidir com relevância de 80 ou mais voltam a ser analisadas, uma de cada vez, com pesquisa na web. A análise anterior fica no histórico. Mantém esta página aberta até acabar.", ok: "Refazer análises" }))) return;
+    for (const s of altas) queue(alvoStartup(s, sectors.find((x) => x.id === s.setor)?.nome || ""));
+    notify(`${altas.length} análise${altas.length === 1 ? "" : "s"} na fila`);
+  };
+
   return (<>
     <div className="head">
       <div><h1>{TITLES[status][0]}</h1><p>{TITLES[status][1]}</p></div>
+      {status === "pending" && altas.length > 0 && <button className="btn" style={{ marginLeft: "auto" }} onClick={refazerAnalises} disabled={nFila > 0}
+        title="Refazer a análise de investimento das startups por decidir com relevância de 80 ou mais">
+        {nFila > 0 ? <><span className="spin" aria-hidden="true" />A analisar: faltam {nFila}</> : <><Icon name="arrows-clockwise" />Refazer análises (relevância 80+) · {altas.length}</>}</button>}
     </div>
     {status !== "approved" && (
       <div className="seg trseg" role="group" aria-label="Triagem">
@@ -180,6 +196,7 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
         {toast.undo && <button className="btn" onClick={() => { cancelarApagar(`s:${toast.undo!.id}`); restoreStartup(toast.undo!).then(() => notify("Anulado")); }}><Icon name="arrow-counter-clockwise" />Anular</button>}
       </div>
     )}
+    {cfEl}
     {anFor && <AnaliseView alvo={alvoStartup(anFor, sectors.find((x) => x.id === anFor.setor)?.nome || "")} onClose={() => setAnFor(null)} notify={(m) => notify(m)} />}
   </>);
 }
