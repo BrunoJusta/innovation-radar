@@ -1,11 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Deal, MOTIVOS_ARQUIVO, VERTICAIS_DF, VEZES, Vez, emCurso } from "@/lib/types";
-import { useConfirm } from "../Confirm";
-import { post } from "@/lib/api";
-import { cadeiasParaApi } from "@/lib/use-areas";
-import { doc, writeBatch } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { Deal, MOTIVOS_ARQUIVO, VEZES, Vez, emCurso } from "@/lib/types";
 import { Icon } from "@/components/Icon";
 import { useSession } from "../AuthGate";
 import { useFlash } from "../admin/common";
@@ -50,35 +45,6 @@ export function PipelineSection({ search }: { search: string }) {
   const [aMot, setAMot] = useState("all");
   const [aAno, setAAno] = useState("all");
   const { flash, el } = useFlash();
-  const { confirmar, el: cfEl } = useConfirm();
-  // Atribuir com a Gemini uma cadeia de valor a todas as startups do pipeline (em curso, investidas, radar e arquivo)
-  const [cadProg, setCadProg] = useState<{ feitas: number; total: number } | null>(null);
-  const atribuirCadeias = async () => {
-    if (!(await confirmar({ titulo: `Atribuir uma cadeia de valor às ${deals.length} startups?`, texto: "A Gemini classifica cada startup do pipeline, das investidas, do radar e do arquivo pela descrição (e usa a vertical antiga como pista). Substitui as cadeias que já existem; as fichas ligadas no radar de startups também ficam com a mesma.", ok: "Atribuir" }))) return;
-    setCadProg({ feitas: 0, total: deals.length });
-    let feitas = 0, mudadas = 0;
-    try {
-      for (let i = 0; i < deals.length; i += 60) {
-        const lote = deals.slice(i, i + 60);
-        const j = await post<{ cadeias: Record<string, string> }>("/api/startups/cadeias", {
-          startups: lote.map((d) => ({ id: d.id, nome: d.nome, descricao: d.descricao || d.nome, setor: VERTICAIS_DF.find((v) => v.id === d.vertical)?.nome || "" })),
-          cadeias: cadeiasParaApi(areas) });
-        const b = writeBatch(db);
-        for (const d of lote) {
-          const c = j.cadeias[d.id];
-          if (!c) continue;
-          b.update(doc(db, "deals", d.id), { cadeia: c });
-          if (d.startupId) b.update(doc(db, "startups", d.startupId), { cadeia: c });
-          mudadas++;
-        }
-        await b.commit();
-        feitas += lote.length; setCadProg({ feitas, total: deals.length });
-      }
-      flash(`Cadeia de valor atribuída a ${mudadas} de ${deals.length} startups`);
-    } catch (e) { flash((e as Error).message || "Não foi possível atribuir as cadeias. Tenta outra vez."); }
-    setCadProg(null);
-  };
-
   const ativas = deals.filter((d) => emCurso(d.etapa)), arq = deals.filter((d) => d.etapa === "arquivada");
   const noRadar = deals.filter((d) => d.etapa === "radar"), investidas = deals.filter((d) => d.etapa === "investida");
   const eu = email.split("@")[0];
@@ -130,8 +96,6 @@ export function PipelineSection({ search }: { search: string }) {
           <option value="all">Todos os anos</option>{anosArq.map((a) => <option key={a} value={a}>{a}</option>)}</select></label>
       </>}
       <span className="sp" />
-      <button className="btn" onClick={atribuirCadeias} disabled={!!cadProg || !deals.length} title="Atribuir com a Gemini uma cadeia de valor a todas as startups do pipeline">
-        {cadProg ? <><span className="spin" aria-hidden="true" />{cadProg.feitas} de {cadProg.total}</> : <><Icon name="sparkle" />Atribuir cadeias</>}</button>
       {!fin && <div className="seg" role="group" aria-label="Vista">
         <button aria-pressed={vista === "quadro"} onClick={() => setVista("quadro")} title="Quadro"><Icon name="kanban" />Quadro</button>
         <button aria-pressed={vista === "lista"} onClick={() => setVista("lista")} title="Lista"><Icon name="list-bullets" />Lista</button>
@@ -145,7 +109,6 @@ export function PipelineSection({ search }: { search: string }) {
       : !filtradas.length ? <Empty title="Nada encontrado" text="Muda a pesquisa ou os filtros." />
       : <PipelineTable key={`${estado}-${vista}`} deals={filtradas} arquivadas={arquivadas} final={estado === "radar" || estado === "investidas"} onOpen={setOpenId} />}
     {open && <DealDrawer d={open} list={filtradas} origens={origens} pessoas={pessoas} onClose={() => setOpenId(null)} onNav={setOpenId} notify={flash} />}
-    {cfEl}
     {el}
   </>);
 }

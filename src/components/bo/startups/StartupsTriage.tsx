@@ -17,11 +17,6 @@ import { useDeals } from "../pipeline/DealsLookup";
 import { nomeEtapa } from "@/lib/deal-actions";
 import { AnaliseLoading, useAnaliseQueue } from "../AnaliseQueue";
 import { AnaliseView } from "./AnaliseView";
-import { doc, writeBatch } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { post } from "@/lib/api";
-import { cadeiasParaApi } from "@/lib/use-areas";
-import { useConfirm } from "../Confirm";
 
 const VIEW_KEY = "radar.startups.vista";
 const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; } };
@@ -83,41 +78,9 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
   };
   const open = openId ? startups.find((x) => x.id === openId) || null : null;
 
-  // Atribui com a Gemini uma cadeia de valor a todas as startups (por decidir, arquivo de triagem e aprovadas)
-  const { confirmar, el: cfEl } = useConfirm();
-  const [cadProg, setCadProg] = useState<{ feitas: number; total: number } | null>(null);
-  const atribuirCadeias = async () => {
-    const todas = startups.filter((s) => s.nome);
-    if (!(await confirmar({ titulo: `Atribuir uma cadeia de valor às ${todas.length} startups?`, texto: "A Gemini classifica pela descrição todas as startups: as por decidir, as do arquivo de triagem e as aprovadas que não estão no pipeline (essas têm o botão no Pipeline). Substitui as cadeias que já existem.", ok: "Atribuir" }))) return;
-    setCadProg({ feitas: 0, total: todas.length });
-    let mudadas = 0;
-    try {
-      for (let i = 0; i < todas.length; i += 60) {
-        const lote = todas.slice(i, i + 60);
-        const j = await post<{ cadeias: Record<string, string> }>("/api/startups/cadeias", {
-          startups: lote.map((s) => ({ id: s.id, nome: s.nome, descricao: s.descricao || s.nome, setor: sectors.find((x) => x.id === s.setor)?.nome || "" })),
-          cadeias: cadeiasParaApi(areas) });
-        const b = writeBatch(db);
-        for (const s of lote) {
-          const c = j.cadeias[s.id];
-          if (!c) continue;
-          b.update(doc(db, "startups", s.id), { cadeia: c });
-          if (s.dealId) b.update(doc(db, "deals", s.dealId), { cadeia: c });
-          mudadas++;
-        }
-        await b.commit();
-        setCadProg({ feitas: Math.min(i + 60, todas.length), total: todas.length });
-      }
-      notify(`Cadeia de valor atribuída a ${mudadas} de ${todas.length} startups`);
-    } catch (e) { notify((e as Error).message || "Não foi possível atribuir as cadeias. Tenta outra vez."); }
-    setCadProg(null);
-  };
-
   return (<>
     <div className="head">
       <div><h1>{TITLES[status][0]}</h1><p>{TITLES[status][1]}</p></div>
-      <button className="btn" style={{ marginLeft: "auto" }} onClick={atribuirCadeias} disabled={!!cadProg || !startups.length} title="Atribuir com a Gemini uma cadeia de valor a todas as startups">
-        {cadProg ? <><span className="spin" aria-hidden="true" />{cadProg.feitas} de {cadProg.total}</> : <><Icon name="sparkle" />Atribuir cadeias</>}</button>
     </div>
     {status !== "approved" && (
       <div className="seg trseg" role="group" aria-label="Triagem">
@@ -217,7 +180,6 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
         {toast.undo && <button className="btn" onClick={() => { cancelarApagar(`s:${toast.undo!.id}`); restoreStartup(toast.undo!).then(() => notify("Anulado")); }}><Icon name="arrow-counter-clockwise" />Anular</button>}
       </div>
     )}
-    {cfEl}
     {anFor && <AnaliseView alvo={alvoStartup(anFor, sectors.find((x) => x.id === anFor.setor)?.nome || "")} onClose={() => setAnFor(null)} notify={(m) => notify(m)} />}
   </>);
 }
