@@ -1545,3 +1545,8 @@
 /* Dashboard: painéis de Inovação */
 .bo .d2-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-top:12px}
 .bo .d2-grid .d2-p{min-height:220px}
+.bo .pf-link{font:inherit;color:inherit;text-align:left;padding:0;border-radius:6px;cursor:pointer}
+.bo .pf-link span{text-decoration:underline;text-decoration-color:var(--hairline-strong);text-underline-offset:3px}
+.bo .pf-link .i{width:13px;height:13px;flex:none;color:var(--ink-subtle)}
+.bo .pf-link:hover span{text-decoration-color:currentColor}
+.bo .pf-link:focus-visible{outline:2px solid var(--ink);outline-offset:2px}

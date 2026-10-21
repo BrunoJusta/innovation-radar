@@ -12,6 +12,11 @@ import { useConfirm } from "../Confirm";
 import { ProjetoFicha, ProjetoForm } from "./ProjetoFicha";
 import { Detalhe, ImportarExcel, Kpis, opcoes, ordenar, Tag, th, useLive } from "./shared";
 import type { Startup } from "@/lib/types";
+import { useCategorias } from "@/lib/use-areas";
+import { approveStartup, rejectStartup, startupBackToTriage } from "@/lib/startup-actions";
+import { StartupDrawer } from "../startups/StartupDrawer";
+import { DealsLookup } from "../pipeline/DealsLookup";
+import { useSession } from "../AuthGate";
 
 type Col = "ref" | "nome" | "estado" | "mwb" | "parceiro" | "inicio" | "orcamento";
 type F = { ano: string; estado: string; mwb: string; cadeia: string; relacao: string };
@@ -31,6 +36,10 @@ export function ProjetosView() {
     const b = writeBatch(db); velhos.forEach((p) => b.update(doc(db, "projects", p.id), { estado: estadoNorm(p.estado) })); b.commit().catch(() => {});
   }, [brutos]);
   const { list: startups } = useLive<Startup>("startups");
+  // Detalhe da startup parceira, aberto a partir da ficha do projeto
+  const [stId, setStId] = useState<string | null>(null);
+  const categorias = useCategorias();
+  const { email } = useSession();
   const [tab, setTab] = useState<"ativos" | "finished">("ativos");
   const { list: eventos } = useLive<Evento>("events");
   const areas = useAreas();
@@ -95,10 +104,19 @@ export function ProjetosView() {
         tags={<><span className="tg inv-kind">{det.piloto ? "Piloto" : "Projeto"}</span><Tag v={det.estado} dot />{det.fase && <span className="tg">{det.fase}</span>}</>}
         onClose={() => { setEd(null); setAberto(null); }} onEditar={() => atual && setEd({ ...atual })} onCancelar={sair}
         onGuardar={guardar} onApagar={ed?._novo ? undefined : () => apagar(det)}
-        leitura={<ProjetoFicha p={det} cadeia={cadNome(det.cadeia)} startup={startups.find((x) => x.id === det.startupId)} />}
+        leitura={<ProjetoFicha p={det} cadeia={cadNome(det.cadeia)} startup={startups.find((x) => x.id === det.startupId)} onStartup={() => setStId(det.startupId || null)} />}
         edicao={ed && <ProjetoForm ed={ed} setEd={(x) => setEd({ ...x, _novo: ed._novo })} areas={areas} startups={startups} parceiros={parceiros} />} />);
+  const stOpen = stId ? startups.find((x) => x.id === stId) : undefined;
   if (det) return (<>
     {pagina}
+    {stOpen && (
+      <DealsLookup>
+        <StartupDrawer s={stOpen} list={[stOpen]} sectors={categorias} areas={areas} onClose={() => setStId(null)} onNav={setStId} notify={flash}
+          onApprove={() => approveStartup(stOpen, email).then(() => flash(`«${stOpen.nome}» aprovada`)).catch((e) => flash(errMsg(e)))}
+          onReason={(m) => rejectStartup(stOpen, m).then(() => { setStId(null); flash(`«${stOpen.nome}» arquivada no arquivo de triagem`); }).catch((e) => flash(errMsg(e)))}
+          onBack={() => startupBackToTriage(stOpen).then(() => flash(`«${stOpen.nome}» voltou à triagem`)).catch((e) => flash(errMsg(e)))} />
+      </DealsLookup>
+    )}
     {cfEl}
     {el}
   </>);

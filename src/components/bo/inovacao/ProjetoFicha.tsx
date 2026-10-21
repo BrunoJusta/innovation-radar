@@ -9,7 +9,7 @@ import { Eur, Parceiro, Sel, SimNao, StartupPicker } from "./shared";
 const iniciais = (n: string) => n.trim().split(/\s+/).filter(Boolean).map((x) => x[0]).slice(0, 2).join("").toUpperCase() || "?";
 
 /** Ficha de leitura do projeto, no formato do one-pager de Inovação: à esquerda a história, à direita os dados. */
-export function ProjetoFicha({ p, cadeia, startup }: { p: Projeto; cadeia: string; startup?: Startup }) {
+export function ProjetoFicha({ p, cadeia, startup, onStartup }: { p: Projeto; cadeia: string; startup?: Startup; /** Abrir o detalhe da startup parceira. */ onStartup?: () => void }) {
   const equipa = (p.equipa || []).filter((x) => x.nome.trim());
   const kpis = (p.kpis || []).filter(Boolean), cond = (p.condicoes || []).filter(Boolean);
   const proposta = p.proposta || p.descricao;
@@ -20,7 +20,9 @@ export function ProjetoFicha({ p, cadeia, startup }: { p: Projeto; cadeia: strin
     { l: "Cadeia de valor", i: "wine", v: cadeia || "Por definir" },
     { l: "Stage", i: "kanban", v: p.fase || "Por definir" },
     { l: "Tipo", i: "users", v: p.relacao || "Por definir" },
-    { l: "Parceiro", i: "briefcase", v: p.parceiro ? <span className="pf-par">{startup?.logo && <Logo nome={startup.nome} logo={startup.logo} />}<span title={p.parceiro}>{p.parceiro}</span></span> : "Sem parceiro" },
+    { l: "Parceiro", i: "briefcase", v: !p.parceiro ? "Sem parceiro" : startup && onStartup
+      ? <button type="button" className="pf-par pf-link" onClick={onStartup} title={`Abrir a startup ${startup.nome}`}>{startup.logo && <Logo nome={startup.nome} logo={startup.logo} />}<span>{p.parceiro}</span><Icon name="arrow-up-right" /></button>
+      : <span className="pf-par">{startup?.logo && <Logo nome={startup.nome} logo={startup.logo} />}<span title={p.parceiro}>{p.parceiro}</span></span> },
     { l: "Estado", i: p.estado === "Finished" ? "check-circle" : "clock", v: p.estado, c: est?.cor },
   ];
   return (
