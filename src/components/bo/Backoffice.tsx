@@ -60,7 +60,7 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
     <div className="bo-app">
       <header className="top">
         <div className="wrap topin">
-          <a className="brand" href="/" title="Abrir o radar"><img src="/brand/innovation-logo.svg" alt="" width={28} height={28} /><b>Inovação</b></a>
+          <a className="brand" href="/" title="Abrir o radar"><b>Inovação</b></a>
           <nav className="tabs" aria-label="Secções">
             <button title="Dashboard" aria-current={view === "dashboard"} onClick={() => setView("dashboard")}><Icon name="squares-four" /><span className="l">Dashboard</span></button>
             {inov && <button title="Projetos" aria-current={view === "projetos"} onClick={() => setView("projetos")}><Icon name="target" /><span className="l">Projetos</span></button>}
