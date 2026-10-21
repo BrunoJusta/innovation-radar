@@ -60,7 +60,7 @@ export function EventosView() {
     } catch (e) { flash(errMsg(e)); }
   };
   const apagar = async (e: Evento) => {
-    if (!(await confirmar({ titulo: `Apagar o evento «${e.nome || "sem nome"}»?`, texto: "Não dá para anular.", ok: "Apagar", perigo: true }))) return;
+    if (!(await confirmar({ titulo: `Apagar o evento «${e.nome || "sem nome"}»?`, texto: "Não dá para anular.", ok: "Apagar", perigo: true, escrever: "DELETE" }))) return;
     try { await deleteDoc(doc(db, "events", e.id)); setAberto(null); setEd(null); flash("Evento apagado"); } catch (er) { flash(errMsg(er)); }
   };
   const novo = () => { const ref = proximaRef("E", list.map((e) => e.ref || e.id)); setAberto(null); setEd({ ...eventoVazio(ref), _novo: true }); };

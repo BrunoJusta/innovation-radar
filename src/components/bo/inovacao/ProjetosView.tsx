@@ -79,7 +79,7 @@ export function ProjetosView() {
     } catch (e) { flash(errMsg(e)); }
   };
   const apagar = async (p: Projeto) => {
-    if (!(await confirmar({ titulo: `Apagar o projeto «${p.nome || "sem nome"}»?`, texto: "Não dá para anular.", ok: "Apagar", perigo: true }))) return;
+    if (!(await confirmar({ titulo: `Apagar o projeto «${p.nome || "sem nome"}»?`, texto: "Não dá para anular.", ok: "Apagar", perigo: true, escrever: "DELETE" }))) return;
     try { await deleteDoc(doc(db, "projects", p.id)); setAberto(null); setEd(null); flash("Projeto apagado"); } catch (e) { flash(errMsg(e)); }
   };
   const novo = () => { const ref = proximaRef("PR", list.map((p) => p.ref || p.id)); setAberto(null); setEd({ ...projetoVazio(ref), _novo: true }); };
