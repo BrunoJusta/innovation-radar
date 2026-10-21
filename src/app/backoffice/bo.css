@@ -1542,21 +1542,6 @@
 .bo .ev-foot{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:8px;border-top:1px solid var(--hairline);font-size:13px;min-width:0}
 .bo .ev-par{font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 @media (prefers-reduced-motion:reduce){.bo .ev-card{transition:none}.bo .ev-card:active{transform:none}}
-/* Dashboard: mais painéis */
+/* Dashboard: painéis de Inovação */
 .bo .d2-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-top:12px}
-.bo .d2-grid .d2-p{min-height:260px}
-.bo .d2-rel{min-width:36px;text-align:center;font:650 14px/1 var(--f-display);font-variant-numeric:tabular-nums;color:var(--ink);background:var(--surface-2);border-radius:8px;padding:7px 0}
-.bo .d2-fases{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
-.bo .d2-fases li{display:grid;grid-template-columns:150px minmax(0,1fr) 32px;gap:12px;align-items:center;font-size:13.5px;color:var(--ink-muted)}
-.bo .d2-fases i{height:8px;min-width:2px;border-radius:4px;background:#B15533}
-.bo .d2-fases b{text-align:right;font:600 14px/1 var(--f-display);font-variant-numeric:tabular-nums;color:var(--ink)}
-.bo .d2-nota{margin:auto 0 0;padding-top:14px;font-size:13px;color:var(--ink-subtle)}
-.bo .d2-sem{margin:12px 0 0!important;padding-top:10px;border-top:1px solid var(--hairline)}
-.bo .d2-sem div{flex-direction:column;align-items:flex-start!important;gap:4px;border-top:0!important;padding:0!important}
-.bo .d2-sem dd{font:500 13.5px/1.35 var(--f-display)!important}
-.bo .d2-inov{margin-top:32px}
-.bo .d2-inov>.d2-ph h2{font:650 20px/1.2 var(--f-display);letter-spacing:-.01em}
-.bo .d2-act-s{margin-top:10px}
-.bo .d2-act-s .d2-a b{font-size:32px}
-.bo .d2-static{cursor:default}.bo .d2-static:hover{box-shadow:var(--e2)}
-@media (max-width:640px){.bo .d2-fases li{grid-template-columns:110px minmax(0,1fr) 28px}}
+.bo .d2-grid .d2-p{min-height:220px}
