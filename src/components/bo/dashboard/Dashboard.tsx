@@ -5,13 +5,14 @@ import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestor
 import { db } from "@/lib/firebase";
 import { Icon } from "@/components/Icon";
 import { nomeEtapa } from "@/lib/deal-actions";
-import { Area, Deal, Run, Signal, Startup, VEZES, emCurso } from "@/lib/types";
+import { Area, DECISOES, Deal, ETAPAS_ATIVAS, Run, Signal, Startup, VEZES, emCurso, nomeDecisao } from "@/lib/types";
+import { Evento, FINISHED, Projeto, anosDoProjeto, corDe, dataPt, eur, estadoNorm, podeInovacao } from "@/lib/inovacao";
 import { fdCurto, fdLongo, hojeLocal } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { estadoPrazo } from "../pipeline/PipelineBoard";
 import { itensComPrazo } from "../pipeline/PipelineCalendar";
 
-export type DashGo = { view: "news"; st: "pending" | "approved" | "radar" } | { view: "startups"; page: "pending" | "approved" | "radar" | "pipeline" };
+export type DashGo = { view: "news"; st: "pending" | "approved" | "radar" } | { view: "startups"; page: "pending" | "approved" | "radar" | "pipeline" } | { view: "projetos" } | { view: "eventos" };
 
 const addDays = (s: string, n: number) => { const d = new Date(`${s}T12:00:00`); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const saudacao = () => { const h = new Date().getHours(); return h < 13 ? "Bom dia" : h < 20 ? "Boa tarde" : "Boa noite"; };
@@ -22,6 +23,15 @@ export function Dashboard({ signals, areas, go }: { signals: Signal[]; areas: Ar
   const [startups, setStartups] = useState<Startup[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
+  const [projetos, setProjetos] = useState<Projeto[]>([]);
+  const [eventos, setEventos] = useState<Evento[]>([]);
+  const inov = podeInovacao(email);
+  useEffect(() => {
+    if (!inov) return;
+    const u = [onSnapshot(collection(db, "projects"), (s) => setProjetos(s.docs.map((d) => ({ ...d.data(), id: d.id }) as Projeto)), () => {}),
+      onSnapshot(collection(db, "events"), (s) => setEventos(s.docs.map((d) => ({ ...d.data(), id: d.id }) as Evento)), () => {})];
+    return () => u.forEach((f) => f());
+  }, [inov]);
   useEffect(() => {
     const u = [onSnapshot(collection(db, "startups"), (s) => setStartups(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Startup)), () => {})];
     if (canPipeline) u.push(onSnapshot(collection(db, "deals"), (s) => setDeals(s.docs.map((d) => normDeal({ id: d.id, ...d.data() } as Deal))), () => {}));
@@ -29,13 +39,14 @@ export function Dashboard({ signals, areas, go }: { signals: Signal[]; areas: Ar
     return () => u.forEach((f) => f());
   }, [canPipeline, isAdmin]);
   const nome = (profile.nome || email.split("@")[0].split(".")[0]).split(" ")[0];
-  return <DashboardView {...{ signals, areas, go, startups, deals, runs, isAdmin, canPipeline, nome }} />;
+  return <DashboardView {...{ signals, areas, go, startups, deals, runs, isAdmin, canPipeline, nome, inov, projetos, eventos }} />;
 }
 
 /** A página em si, só com os dados (sem leituras à base de dados). */
-export function DashboardView({ signals, areas, go, startups, deals, runs, isAdmin, canPipeline, nome }: {
+export function DashboardView({ signals, areas, go, startups, deals, runs, isAdmin, canPipeline, nome, inov = false, projetos = [], eventos = [] }: {
   signals: Signal[]; areas: Area[]; go: (g: DashGo) => void;
   startups: Startup[]; deals: Deal[]; runs: Run[]; isAdmin: boolean; canPipeline: boolean; nome: string;
+  /** Projetos e eventos de Inovação (por agora só para o Bruno). */ inov?: boolean; projetos?: Projeto[]; eventos?: Evento[];
 }) {
   const hoje = hojeLocal();
   const nPend = signals.filter((s) => s.status === "pending").length;
@@ -46,6 +57,21 @@ export function DashboardView({ signals, areas, go, startups, deals, runs, isAdm
   const recentes = useMemo(() => signals.filter((s) => s.status === "approved").sort((a, b) => (b.aprovadoEm || b.criadoEm).localeCompare(a.aprovadoEm || a.criadoEm)).slice(0, 5), [signals]);
   const lastDaily = runs.find((r) => r.tipo !== "startups"), lastWeekly = runs.find((r) => r.tipo === "startups");
   const tudoFeito = !nPend && !sPend && !atrasadas;
+  // Startups por decidir com mais relevância (e a decisão da análise, quando há)
+  const destaques = useMemo(() => startups.filter((s) => s.status === "pending").sort((a, b) => (b.relevancia || 0) - (a.relevancia || 0)).slice(0, 5), [startups]);
+  // O que entrou nos últimos 7 dias
+  const desde = addDays(hoje, -7);
+  const novas = { noticias: signals.filter((s) => (s.criadoEm || "").slice(0, 10) >= desde).length, startups: startups.filter((s) => (s.criadoEm || "").slice(0, 10) >= desde).length };
+  const porFase = ETAPAS_ATIVAS.map((e) => ({ e, n: ativas.filter((d) => d.etapa === e.id).length }));
+  const maxFase = Math.max(1, ...porFase.map((x) => x.n));
+  // Inovação: projetos e eventos do ano
+  const ano = hoje.slice(0, 4);
+  const projAtivos = projetos.filter((p) => estadoNorm(p.estado) !== FINISHED);
+  const pilotos = projAtivos.filter((p) => p.piloto && p.estado === "On Going").length;
+  const evAno = eventos.filter((e) => (e.inicio || "").startsWith(ano));
+  const gastoAno = projetos.filter((p) => anosDoProjeto(p).includes(ano)).reduce((t, p) => t + (p.gasto || 0), 0) + evAno.reduce((t, e) => t + (e.gasto || 0), 0);
+  const proxEventos = eventos.filter((e) => (e.fim || e.inicio || "") >= hoje).sort((a, b) => a.inicio.localeCompare(b.inicio)).slice(0, 5);
+  const parados = projAtivos.filter((p) => p.estado === "On Hold");
 
   const Run1 = ({ r, label }: { r?: Run; label: string }) => (
     <li className={r?.estado === "erro" ? "no" : ""}><span className="k">{label}</span>
@@ -97,8 +123,67 @@ export function DashboardView({ signals, areas, go, startups, deals, runs, isAdm
           {canPipeline && <div><dt>No pipeline</dt><dd>{ativas.length}</dd></div>}
           {canPipeline && <div><dt>Investidas</dt><dd>{deals.filter((d) => d.etapa === "investida").length}</dd></div>}
         </dl>
+        <dl className="d2-sem"><div><dt>Novas esta semana</dt><dd>{novas.noticias} {novas.noticias === 1 ? "notícia" : "notícias"}, {novas.startups} {novas.startups === 1 ? "startup" : "startups"}</dd></div></dl>
         {isAdmin && <ul className="d2-runs"><Run1 r={lastDaily} label="Recolha diária" /><Run1 r={lastWeekly} label="Recolha semanal" /></ul>}
       </aside>
     </div>
+
+    <div className="d2-grid">
+      <section className="d2-p">
+        <div className="d2-ph"><h2>Destaques na triagem de startups</h2><button className="txtbtn" onClick={() => go({ view: "startups", page: "pending" })}>Abrir a triagem<Icon name="arrow-up-right" /></button></div>
+        {destaques.length ? <ul className="d2-list">{destaques.map((s) => (
+          <li key={s.id}><span className="d2-rel" title="Relevância">{s.relevancia || 0}</span>
+            <div><b>{s.nome}</b><span>{s.descricao}</span></div>
+            <span className="d2-m">{s.analiseResumo ? <span className={`anchip ${s.analiseResumo.decisao}`}>{DECISOES[s.analiseResumo.decisao]?.curto || nomeDecisao(s.analiseResumo.decisao)}</span> : <em>Sem análise</em>}</span></li>))}</ul>
+          : <div className="d2-empty"><Icon name="tray" /><b>Não há startups por decidir</b><span>As novas chegam com a recolha semanal ou pelo Procurar online.</span></div>}
+      </section>
+
+      {canPipeline ? (
+        <section className="d2-p">
+          <div className="d2-ph"><h2>Pipeline por fase</h2><button className="txtbtn" onClick={() => go({ view: "startups", page: "pipeline" })}>Ver o quadro<Icon name="arrow-up-right" /></button></div>
+          <ul className="d2-fases">{porFase.map(({ e, n }) => (
+            <li key={e.id}><span>{e.nome}</span><i style={{ width: `${(n / maxFase) * 100}%` }} aria-hidden="true" /><b>{n}</b></li>))}</ul>
+          <p className="d2-nota">{deals.filter((d) => d.etapa === "radar").length} no radar e {deals.filter((d) => d.etapa === "investida").length} investidas.</p>
+        </section>
+      ) : null}
+
+      {canPipeline && (
+        <section className="d2-p">
+          <div className="d2-ph"><h2>Últimas no radar</h2><button className="txtbtn" onClick={() => go({ view: "news", st: "radar" })}>Ver o radar<Icon name="arrow-up-right" /></button></div>
+          {recentes.length ? <ul className="d2-list">{recentes.map((s) => {
+            const a = areas.find((x) => x.id === s.area);
+            return <li key={s.id}><span className="d2-dot" style={{ background: a?.cor }} aria-hidden="true" /><div><b>{s.titulo}</b><span>{a?.nome}</span></div></li>;
+          })}</ul> : <div className="d2-empty"><Icon name="globe" /><b>Ainda não há notícias aprovadas</b></div>}
+        </section>
+      )}
+    </div>
+
+    {inov && (
+      <section className="d2-inov" aria-labelledby="d2-inov-t">
+        <div className="d2-ph"><h2 id="d2-inov-t">Inovação em {ano}</h2></div>
+        <div className="d2-act d2-act-s">
+          <button className="d2-a on" onClick={() => go({ view: "projetos" })}><b>{projAtivos.length}</b><span>{projAtivos.length === 1 ? "projeto ativo" : "projetos ativos"}</span><em>Abrir os projetos<Icon name="arrow-up-right" /></em></button>
+          <button className="d2-a on" onClick={() => go({ view: "projetos" })}><b>{pilotos}</b><span>{pilotos === 1 ? "piloto On Going" : "pilotos On Going"}</span><em>Abrir os projetos<Icon name="arrow-up-right" /></em></button>
+          <button className="d2-a on" onClick={() => go({ view: "eventos" })}><b>{evAno.length}</b><span>{evAno.length === 1 ? "evento este ano" : "eventos este ano"}</span><em>{evAno.filter((e) => e.papel === "Speaker" || e.papel === "Jury" || e.papel === "Organizer").length} como orador, júri ou organizador</em></button>
+          <div className="d2-a on d2-static"><b>{eur(gastoAno) || "0 €"}</b><span>gasto este ano</span><em>Projetos e eventos</em></div>
+        </div>
+        <div className="d2-grid">
+          <section className="d2-p">
+            <div className="d2-ph"><h2>Próximos eventos</h2><button className="txtbtn" onClick={() => go({ view: "eventos" })}>Ver os eventos<Icon name="arrow-up-right" /></button></div>
+            {proxEventos.length ? <ul className="d2-list">{proxEventos.map((e) => (
+              <li key={e.id}><span className="pz">{fdCurto(e.inicio)}</span><div><b>{e.nome}</b><span>{[e.parceiro, e.pais !== "Portugal" ? e.pais : ""].filter(Boolean).join(", ") || e.objetivo}</span></div>
+                <span className="d2-m">{e.papel && <span className="tg inv-tag" style={{ ["--c" as string]: corDe(e.papel) }}>{e.papel}</span>}</span></li>))}</ul>
+              : <div className="d2-empty"><Icon name="calendar-blank" /><b>Sem eventos marcados</b><span>Os eventos com data a partir de hoje aparecem aqui.</span></div>}
+          </section>
+          <section className="d2-p">
+            <div className="d2-ph"><h2>Projetos On Hold</h2><button className="txtbtn" onClick={() => go({ view: "projetos" })}>Ver os projetos<Icon name="arrow-up-right" /></button></div>
+            {parados.length ? <ul className="d2-list">{parados.map((p) => (
+              <li key={p.id}><span className="d2-dot" style={{ background: corDe("On Hold") }} aria-hidden="true" /><div><b>{p.nome}</b><span>{p.parceiro || p.mwb}</span></div>
+                <span className="d2-m"><em>{p.inicio ? `desde ${dataPt(p.inicio)}` : ""}</em></span></li>))}</ul>
+              : <div className="d2-empty"><Icon name="check-circle" /><b>Nenhum projeto parado</b></div>}
+          </section>
+        </div>
+      </section>
+    )}
   </div>);
 }

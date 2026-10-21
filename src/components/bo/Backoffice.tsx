@@ -29,7 +29,7 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
   const inov = podeInovacao(email);
   const [view, setView] = useState<View>("dashboard");
   const [sPage, setSPage] = useState<{ p: Fila | "radar" | "pipeline"; k: number }>({ p: "pending", k: 0 });
-  const go = (g: DashGo) => { if (g.view === "news") { setSt(g.st); setView("news"); } else { setSPage({ p: g.page, k: Date.now() }); setView("startups"); } window.scrollTo(0, 0); };
+  const go = (g: DashGo) => { if (g.view === "news") { setSt(g.st); setView("news"); } else if (g.view === "projetos" || g.view === "eventos") setView(g.view); else { setSPage({ p: g.page, k: Date.now() }); setView("startups"); } window.scrollTo(0, 0); };
   const [st, setSt] = useState<Fila | "radar">("pending");
   const [signals, setSignals] = useState<Signal[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
