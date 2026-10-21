@@ -14,11 +14,21 @@ export type Projeto = {
   /** Cadeia de valor (a «Vertical» do Excel). */ cadeia: string;
   mwb: string; horizonte: string; relacao: string;
   parceiro: string; parceiroRef: string;
+  /** Startup da base de dados ligada, quando o parceiro é uma startup. */ startupId?: string;
   piloto: boolean; pilotoDesde: string;
   inicio: string; fim: string; estado: string;
   orcamento: number | null; gasto: number | null;
   observacoes: string; criadoEm: string; atualizadoEm: string;
+  /** Ficha do projeto (como no one-pager de Inovação). */
+  desafio?: string; proposta?: string; casoUso?: string; fase?: string;
+  equipa?: { nome: string; papel: string }[]; kpis?: string[]; condicoes?: string[];
+  /** Imagem do projeto (data URL pequeno, reduzido no browser). */ imagem?: string;
 };
+
+/** Fases (stage) de um projeto ou piloto. */
+export const FASES_PROJ = ["Scouting", "Pilot Design", "Pilot Execution", "Evaluation", "Scale-up", "Closed"];
+/** Papéis na equipa do projeto (RACI e PMO). */
+export const PAPEIS_EQUIPA = ["Approver", "Responsible", "Supporter", "Consulted", "Informed", "Innovation PMO"];
 
 export type Evento = {
   id: string; ref: string; nome: string;
@@ -31,8 +41,14 @@ export type Evento = {
 
 export const ESTADOS_PROJ = [
   { id: "To Start", cor: "#94A3B8" }, { id: "On Going", cor: "#B15533" }, { id: "On Hold", cor: "#B07A12" },
-  { id: "Ended", cor: "#4F7A3A" }, { id: "Transferred to BU", cor: "#2F6B73" },
+  { id: "Transferred to BU", cor: "#2F6B73" }, { id: "Finished", cor: "#4F7A3A" },
 ];
+/** Estado final: os projetos terminados ficam no separador Finished (e são o destino do fim do quadro). */
+export const FINISHED = "Finished";
+/** Estados em curso (as colunas do quadro). */
+export const ESTADOS_ATIVOS = ESTADOS_PROJ.filter((e) => e.id !== FINISHED);
+/** «Ended» (nome antigo, do Excel) passou a «Finished». */
+export const estadoNorm = (e: string) => (/^(ended|finished)$/i.test((e || "").trim()) ? FINISHED : /transfer/i.test(e || "") ? "Transferred to BU" : e);
 export const MWB = ["AI Excellence", "Unforgettable Experiences", "WineTech", "Sustainable Futures", "New Packaging & Materials", "Product Innovation"];
 export const HORIZONTES = ["Incremental Innovation", "Transformational Innovation", "Disruptive Innovation"];
 export const RELACOES = ["Startup", "Academia", "Corporate", "Accelerator", "Other"];
@@ -90,7 +106,7 @@ export function projetosDoExcel(rows: Celula[][], agora: string): Projeto[] {
       relacao: txt(c("Stakeholder Relationship")), ...parceiroDe(c("Partner Display")),
       piloto: sim(c("Pilot Applicable")), pilotoDesde: dataDe(c("Pilot Discussion Start Date")),
       inicio: dataDe(c("Start Date")), fim: dataDe(c("End Date")),
-      estado: /transfer/i.test(estado) ? "Transferred to BU" : ESTADOS_PROJ.find((e) => e.id.toLowerCase() === estado.toLowerCase())?.id || estado || "To Start",
+      estado: ESTADOS_PROJ.find((e) => e.id.toLowerCase() === estadoNorm(estado).toLowerCase())?.id || estado || "To Start",
       orcamento: num(c("Estimated Budget")), gasto: num(c("Spent Budget")), observacoes: txt(c("Observations")), criadoEm: agora, atualizadoEm: agora,
     };
   });

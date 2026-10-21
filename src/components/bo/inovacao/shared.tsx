@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { collection, doc, onSnapshot, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { lerFolha, type Celula } from "@/lib/xlsx-lite";
 import { Icon } from "@/components/Icon";
 import { corDe } from "@/lib/inovacao";
-import type { Category } from "@/lib/types";
+import type { Category, Startup } from "@/lib/types";
+import { Logo } from "../startups/Logo";
 
 /** Uma coleção em tempo real. */
 export function useLive<T extends { id: string }>(col: string) {
@@ -113,42 +114,103 @@ export function Dados({ itens }: { itens: [string, React.ReactNode][] }) {
   return l.length ? <dl className="inv-dados">{l.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl> : null;
 }
 
-/** Janela do detalhe: abre em modo de leitura, com o botão para editar; os novos abrem logo em edição. */
-export function Detalhe({ titulo, refTxt, tags, editando, onEditar, onCancelar, onGuardar, onApagar, onClose, leitura, edicao }: {
+/** Página do detalhe: abre em modo de leitura, com o botão para editar; os novos abrem logo em edição. */
+export function Detalhe({ titulo, refTxt, tags, editando, onEditar, onCancelar, onGuardar, onApagar, onClose, leitura, edicao, voltar }: {
   titulo: string; refTxt: string; tags?: React.ReactNode; editando: boolean; onEditar: () => void; onCancelar: () => void;
-  onGuardar: () => Promise<unknown> | void; onApagar?: () => void; onClose: () => void; leitura: React.ReactNode; edicao: React.ReactNode;
+  onGuardar: () => Promise<unknown> | void; onApagar?: () => void; onClose: () => void; leitura: React.ReactNode; edicao: React.ReactNode; voltar: string;
 }) {
   const [busy, setBusy] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  useEffect(() => { window.scrollTo(0, 0); }, []);
   useEffect(() => {
-    const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, []);
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape" && !document.querySelector(".mdl.cfm")) { if (editando) onCancelar(); else onClose(); } };
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape" && editando && !document.querySelector(".mdl.cfm")) onCancelar(); };
     document.addEventListener("keydown", k);
-    if (editando) box.current?.querySelector<HTMLElement>(".mdl-b input,.mdl-b textarea,.mdl-b select")?.focus();
+    if (editando) box.current?.querySelector<HTMLElement>(".pfo input,.pfo textarea,.pfo select")?.focus({ preventScroll: true });
     return () => document.removeEventListener("keydown", k);
-  }, [editando, onCancelar, onClose, onEditar]);
+  }, [editando, onCancelar]);
   const guardar = async (e?: React.FormEvent) => { e?.preventDefault(); if (busy) return; setBusy(true); try { await onGuardar(); } finally { setBusy(false); } };
-  return (<>
-    <div className="scrim" onClick={() => !busy && !editando && onClose()} />
-    <div ref={box} className="mdl wide inv-mdl" role="dialog" aria-modal="true" aria-label={titulo}>
-      <div className="mdl-h">
-        <div className="inv-mh"><span className="inv-ref">{refTxt}</span><h2>{titulo || "Sem nome"}</h2>{!editando && tags && <div className="inv-tags">{tags}</div>}</div>
-        <button type="button" className="btn icon" aria-label="Fechar" onClick={onClose} disabled={busy}><Icon name="x" /></button>
-      </div>
-      <form className="inv-f" onSubmit={guardar}>
-        <div className="mdl-b scroll fmodal">{editando ? edicao : leitura}</div>
-        <div className="mdl-f">
-          {onApagar && <button type="button" className="txtbtn danger inv-del" onClick={onApagar} disabled={busy}><Icon name="trash" />Apagar</button>}
-          <span className="sp" />
-          {editando ? <>
-            <button type="button" className="txtbtn" onClick={onCancelar} disabled={busy}>Cancelar</button>
-            <button type="submit" className="btn primary" disabled={busy}>{busy ? <><span className="spin" aria-hidden="true" />A guardar…</> : <><Icon name="check" />Guardar</>}</button>
-          </> : <button type="button" className="btn primary" onClick={onEditar}><Icon name="pencil-simple" />Editar</button>}
-        </div>
-      </form>
+  const acoes = editando ? <>
+    <button key="cancelar" type="button" className="txtbtn" onClick={onCancelar} disabled={busy}>Cancelar</button>
+    <button key="guardar" type="submit" form="inv-form" className="btn primary" disabled={busy}>{busy ? <><span className="spin" aria-hidden="true" />A guardar…</> : <><Icon name="check" />Guardar</>}</button>
+  </> : <>
+    {onApagar && <button key="apagar" type="button" className="txtbtn danger inv-del" onClick={onApagar}><Icon name="trash" />Apagar</button>}
+    <button key="editar" type="button" className="btn primary" onClick={onEditar}><Icon name="pencil-simple" />Editar</button>
+  </>;
+  return (
+    <div ref={box} className={`inv-page${editando ? " ed" : ""}`}>
+      <button type="button" className="txtbtn inv-back" onClick={editando ? onCancelar : onClose}><Icon name="caret-left" />{voltar}</button>
+      <header className="inv-phd">
+        <div className="inv-mh"><span className="inv-ref">{refTxt}</span><h1>{titulo || "Sem nome"}</h1>{!editando && tags && <div className="inv-tags">{tags}</div>}</div>
+        <div className="inv-act">{acoes}</div>
+      </header>
+      <form id="inv-form" className="inv-body" onSubmit={guardar}>{editando ? edicao : leitura}</form>
+      {editando && <div className="inv-bar" role="region" aria-label="Guardar alterações"><span className="mut">{onApagar ? "A editar" : "Novo"}: {titulo || "sem nome"}</span><span className="sp" />{acoes}</div>}
     </div>
-  </>);
+  );
+}
+
+const fold = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+/** Nome só com letras e números, para comparar «Candam Tech» com «CandamTech». */
+export const chave = (s: string) => fold(s).replace(/[^a-z0-9]/g, "");
+const ondeEsta = (s: Startup) => s.status === "pending" ? "Triagem" : s.status === "rejected" ? "Arquivo de triagem" : s.dealId ? "Pipeline" : "Aprovada";
+
+/** Startup da base de dados que melhor corresponde a um nome (igual, ou um começa pelo outro, ou o domínio). */
+export function sugerirStartup(nome: string, startups: Startup[]): Startup | null {
+  const k = chave(nome);
+  if (k.length < 3) return null;
+  return startups.find((s) => chave(s.nome) === k)
+    || startups.find((s) => chave((s.dominio || "").split(".")[0]) === k)
+    || (k.length >= 4 ? startups.find((s) => { const c = chave(s.nome); return c.length >= 4 && (c.startsWith(k) || k.startsWith(c)); }) : undefined) || null;
+}
+
+/** Escolher a startup parceira na base de dados, com pesquisa. Escrever sem escolher deixa o parceiro sem ligação. */
+export function StartupPicker({ startups, startupId, nome, onPick, label = "Startup parceira", cls = "fld wide" }: {
+  startups: Startup[]; startupId?: string; nome: string; onPick: (s: Startup | null, nomeLivre: string) => void; label?: string; cls?: string;
+}) {
+  const [q, setQ] = useState(nome);
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(0);
+  const box = useRef<HTMLDivElement>(null);
+  const ligada = startups.find((s) => s.id === startupId);
+  useEffect(() => { setQ(ligada?.nome || nome); }, [startupId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!open) return;
+    const f = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", f); return () => document.removeEventListener("mousedown", f);
+  }, [open]);
+  const lista = useMemo(() => {
+    const k = fold(q.trim());
+    const l = !k ? startups : startups.filter((s) => fold(`${s.nome} ${s.dominio}`).includes(k));
+    return [...l].sort((a, b) => Number(!fold(a.nome).startsWith(k)) - Number(!fold(b.nome).startsWith(k)) || a.nome.localeCompare(b.nome)).slice(0, 40);
+  }, [q, startups]);
+  const escolher = (s: Startup) => { onPick(s, s.nome); setQ(s.nome); setOpen(false); };
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); setHi((h) => Math.min(lista.length - 1, h + 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(0, h - 1)); }
+    else if (e.key === "Enter" && open && lista[hi]) { e.preventDefault(); escolher(lista[hi]); }
+    else if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpen(false); }
+  };
+  return (
+    <div className={`${cls} inv-sp`} ref={box}>
+      <span>{label}</span>
+      <div className="inv-spi">
+        <Icon name={ligada ? "check-circle" : "magnifying-glass"} className={ligada ? "ok" : ""} />
+        <input value={q} placeholder="Procurar startup na base de dados" role="combobox" aria-expanded={open} aria-label={label} autoComplete="off"
+          onClick={() => setOpen(true)} onKeyDown={onKey}
+          onChange={(e) => { setQ(e.target.value); setOpen(true); setHi(0); onPick(null, e.target.value); }} />
+        {ligada && <button type="button" className="inv-spx" aria-label="Tirar a ligação" title="Tirar a ligação à startup" onClick={() => onPick(null, q)}><Icon name="x" /></button>}
+        {open && (
+          <div className="inv-spl" role="listbox">
+            {lista.map((s, i) => (
+              <button type="button" role="option" key={s.id} aria-selected={s.id === startupId} className={`inv-spo${i === hi ? " hi" : ""}`}
+                onMouseEnter={() => setHi(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => escolher(s)}>
+                <Logo nome={s.nome} logo={s.logo} /><b>{s.nome}</b><small>{s.dominio}</small><span className="sp" /><em>{ondeEsta(s)}</em>
+              </button>))}
+            {!lista.length && <p className="inv-spe">Nenhuma startup com «{q}». Fica como texto, sem ligação.</p>}
+          </div>
+        )}
+      </div>
+      <em className="inv-sph">{ligada ? `Ligada a «${ligada.nome}» (${ondeEsta(ligada)})` : q.trim() ? "Sem ligação: escolhe uma startup da lista" : "Escolhe uma startup da lista"}</em>
+    </div>
+  );
 }

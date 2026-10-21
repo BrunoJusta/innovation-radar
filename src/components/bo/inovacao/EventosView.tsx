@@ -4,11 +4,12 @@ import { deleteDoc, doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Icon } from "@/components/Icon";
 import { CatSelect } from "@/components/CatSelect";
-import { AMBITOS, Evento, OBJETIVOS_EV, PAPEIS, TIPOS_EV, dataPt, eur, eventoVazio, eventosDoExcel, parceirosDe, proximaRef, type Projeto } from "@/lib/inovacao";
+import { Evento, OBJETIVOS_EV, PAPEIS, TIPOS_EV, dataPt, eur, eventoVazio, eventosDoExcel, parceirosDe, proximaRef, type Projeto } from "@/lib/inovacao";
 import { Empty, SearchField } from "../ui";
 import { errMsg, useFlash } from "../admin/common";
 import { useConfirm } from "../Confirm";
-import { Dados, Detalhe, Eur, ImportarExcel, Kpis, opcoes, ordenar, Parceiro, Sel, SimNao, Tag, th, useLive } from "./shared";
+import { Detalhe, ImportarExcel, Kpis, opcoes, ordenar, Tag, th, useLive } from "./shared";
+import { EventoFicha, EventoForm } from "./EventoFicha";
 
 type Col = "ref" | "nome" | "inicio" | "tipo" | "papel" | "parceiro";
 type F = { ano: string; tipo: string; objetivo: string; papel: string };
@@ -16,7 +17,6 @@ const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 const anoDe = (e: Evento) => (e.inicio || "").slice(0, 4);
 const ANO = String(new Date().getFullYear());
 const OPC_TIPO = opcoes(TIPOS_EV), OPC_OBJ = opcoes(OBJETIVOS_EV), OPC_PAPEL = opcoes(PAPEIS);
-const datas = (e: Evento) => e.fim && e.fim !== e.inicio ? `${dataPt(e.inicio)} a ${dataPt(e.fim)}` : dataPt(e.inicio);
 
 /** Eventos de Inovação: lista por ano, filtros, detalhe, criar, editar e apagar. */
 export function EventosView() {
@@ -59,9 +59,28 @@ export function EventosView() {
   };
   const novo = () => { const ref = proximaRef("E", list.map((e) => e.ref || e.id)); setAberto(null); setEd({ ...eventoVazio(ref), _novo: true }); };
 
+  /** Sair da edição: avisa se houver alterações por guardar. */
+  const sair = async () => {
+    if (!ed) return;
+    const { _novo, ...x } = ed;
+    const mudou = _novo ? !!x.nome.trim() : JSON.stringify(x) !== JSON.stringify(atual);
+    if (mudou && !(await confirmar({ titulo: "Sair sem guardar?", texto: "As alterações que fizeste perdem-se.", ok: "Sair sem guardar", perigo: true }))) return;
+    setEd(null);
+  };
   const S = (k: Col, l: string, cls = "", desc = false) => th(sort, setSort, k, l, cls, desc);
   const set = (k: keyof F) => (v: string) => setF({ ...f, [k]: v });
   const det = ed || atual;
+  const pagina = det && (<Detalhe voltar="Eventos" titulo={det.nome} refTxt={det.ref} editando={!!ed}
+        tags={<>{det.tipo && <Tag v={det.tipo} />}{det.papel && <Tag v={det.papel} />}</>}
+        onClose={() => { setEd(null); setAberto(null); }} onEditar={() => atual && setEd({ ...atual })} onCancelar={sair}
+        onGuardar={guardar} onApagar={ed?._novo ? undefined : () => apagar(det)}
+        leitura={<EventoFicha e={det} />}
+        edicao={ed && <EventoForm ed={ed} setEd={(x) => setEd({ ...x, _novo: ed._novo })} parceiros={parceiros} />} />);
+  if (det) return (<>
+    {pagina}
+    {cfEl}
+    {el}
+  </>);
   return (<>
     <div className="head">
       <div><h1>Eventos</h1><p>Eventos, sessões de scouting, formações e podcasts.</p></div>
@@ -101,37 +120,6 @@ export function EventosView() {
           </table>
         </div>)}
     </>}
-    {det && (
-      <Detalhe titulo={det.nome} refTxt={det.ref} editando={!!ed}
-        tags={<>{det.tipo && <Tag v={det.tipo} />}{det.papel && <Tag v={det.papel} />}{det.objetivo && <Tag v={det.objetivo} />}</>}
-        onClose={() => { setEd(null); setAberto(null); }} onEditar={() => atual && setEd({ ...atual })} onCancelar={() => setEd(null)}
-        onGuardar={guardar} onApagar={ed?._novo ? undefined : () => apagar(det)}
-        leitura={<>
-          <h5 className="fsec">Evento</h5>
-          <Dados itens={[["Data", datas(det) || "Por definir"], ["País", det.pais], ["Tipo", det.tipo], ["Âmbito", det.ambito], ["Objetivo", det.objetivo], ["Papel da Sogrape", det.papel]]} />
-          <h5 className="fsec">Parceria e custos</h5>
-          <Dados itens={[["Parceiro", det.parceiro ? <>{det.parceiro}{det.parceiroRef && <span className="mut"> · {det.parceiroRef}</span>}</> : det.parceria ? "Sim, sem parceiro indicado" : "Sem parceria"],
-            ["Patrocínio", det.patrocinio ? (eur(det.valorPatrocinio) || "Sim") : "Não"], ["Gasto", eur(det.gasto) || "Sem custos registados"]]} />
-          {det.observacoes && <><h5 className="fsec">Observações</h5><p className="inv-desc">{det.observacoes}</p></>}
-        </>}
-        edicao={ed && <div className="fgrid">
-          <label className="fld full"><span>Nome</span><input autoComplete="off" value={ed.nome} onChange={(e) => setEd({ ...ed, nome: e.target.value })} /></label>
-          <Sel label="Tipo" value={ed.tipo} opcoes={TIPOS_EV} onChange={(v) => setEd({ ...ed, tipo: v })} />
-          <Sel label="Objetivo" value={ed.objetivo} opcoes={OBJETIVOS_EV} onChange={(v) => setEd({ ...ed, objetivo: v })} />
-          <Sel label="Âmbito" value={ed.ambito} opcoes={AMBITOS} onChange={(v) => setEd({ ...ed, ambito: v })} />
-          <Sel label="Papel" value={ed.papel} opcoes={PAPEIS} onChange={(v) => setEd({ ...ed, papel: v })} />
-          <label className="fld"><span>Início</span><input type="date" value={ed.inicio} onChange={(e) => setEd({ ...ed, inicio: e.target.value, fim: !ed.fim || ed.fim < e.target.value ? e.target.value : ed.fim })} /></label>
-          <label className="fld"><span>Fim</span><input type="date" value={ed.fim} min={ed.inicio || undefined} onChange={(e) => setEd({ ...ed, fim: e.target.value })} /></label>
-          <label className="fld"><span>País</span><input value={ed.pais} onChange={(e) => setEd({ ...ed, pais: e.target.value })} /></label>
-          <SimNao label="Parceria" value={ed.parceria} onChange={(v) => setEd({ ...ed, parceria: v })} />
-          <Parceiro nome={ed.parceiro} parceiros={parceiros} onChange={(nome, ref) => setEd({ ...ed, parceiro: nome, parceiroRef: ref, parceria: ed.parceria || !!nome.trim() })} />
-          <label className="fld"><span>Ref. do parceiro</span><input value={ed.parceiroRef || (ed.parceiro.trim() ? "Nova, ao guardar" : "")} readOnly tabIndex={-1} /></label>
-          <SimNao label="Patrocínio" value={ed.patrocinio} onChange={(v) => setEd({ ...ed, patrocinio: v })} />
-          <Eur label="Gasto (€)" v={ed.gasto} on={(n) => setEd({ ...ed, gasto: n })} />
-          <Eur label="Valor do patrocínio (€)" v={ed.valorPatrocinio} on={(n) => setEd({ ...ed, valorPatrocinio: n, patrocinio: ed.patrocinio || (n ?? 0) > 0 })} />
-          <label className="fld full"><span>Observações</span><textarea rows={2} value={ed.observacoes} onChange={(e) => setEd({ ...ed, observacoes: e.target.value })} /></label>
-        </div>} />
-    )}
     {cfEl}
     {el}
   </>);

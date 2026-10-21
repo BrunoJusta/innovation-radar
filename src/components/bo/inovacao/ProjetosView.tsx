@@ -1,26 +1,39 @@
 "use client";
-import { useMemo, useState } from "react";
-import { deleteDoc, doc, setDoc, updateDoc } from "firebase/firestore";
+import { useEffect, useMemo, useState } from "react";
+import { deleteDoc, doc, setDoc, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Icon } from "@/components/Icon";
 import { AreaSelect, CatSelect } from "@/components/CatSelect";
 import { useAreas } from "@/lib/use-areas";
-import { ESTADOS_PROJ, HORIZONTES, MWB, Projeto, RELACOES, anosDoProjeto, dataPt, eur, parceirosDe, projetoVazio, projetosDoExcel, proximaRef, type Evento } from "@/lib/inovacao";
+import { ESTADOS_ATIVOS, ESTADOS_PROJ, FINISHED, estadoNorm, MWB, Projeto, RELACOES, anosDoProjeto, dataPt, eur, parceirosDe, projetoVazio, projetosDoExcel, proximaRef, type Evento } from "@/lib/inovacao";
 import { Empty, SearchField } from "../ui";
 import { errMsg, useFlash } from "../admin/common";
 import { useConfirm } from "../Confirm";
-import { Dados, Detalhe, Eur, ImportarExcel, Kpis, opcoes, ordenar, Parceiro, Sel, SimNao, Tag, th, useLive } from "./shared";
+import { ProjetoFicha, ProjetoForm } from "./ProjetoFicha";
+import { Detalhe, ImportarExcel, Kpis, opcoes, ordenar, StartupPicker, sugerirStartup, Tag, th, useLive } from "./shared";
+import { FormModal } from "../admin/common";
+import type { Startup } from "@/lib/types";
 
 type Col = "ref" | "nome" | "estado" | "mwb" | "parceiro" | "inicio" | "orcamento";
 type F = { ano: string; estado: string; mwb: string; cadeia: string; relacao: string };
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const ANO = String(new Date().getFullYear());
-const OPC_ESTADO = opcoes(ESTADOS_PROJ.map((e) => ({ id: e.id, nome: e.id, cor: e.cor })));
+const OPC_ESTADO = opcoes(ESTADOS_ATIVOS.map((e) => ({ id: e.id, nome: e.id, cor: e.cor })));
 const OPC_MWB = opcoes(MWB), OPC_REL = opcoes(RELACOES);
 
 /** Projetos de Inovação: lista ou quadro por estado, filtros, detalhe, criar, editar e apagar. */
 export function ProjetosView() {
-  const { list, loaded, erro } = useLive<Projeto>("projects");
+  const { list: brutos, loaded, erro } = useLive<Projeto>("projects");
+  // «Ended» (nome antigo) passou a «Finished»
+  const list = useMemo(() => brutos.map((p) => (estadoNorm(p.estado) === p.estado ? p : { ...p, estado: estadoNorm(p.estado) })), [brutos]);
+  useEffect(() => {
+    const velhos = brutos.filter((p) => estadoNorm(p.estado) !== p.estado);
+    if (!velhos.length) return;
+    const b = writeBatch(db); velhos.forEach((p) => b.update(doc(db, "projects", p.id), { estado: estadoNorm(p.estado) })); b.commit().catch(() => {});
+  }, [brutos]);
+  const { list: startups } = useLive<Startup>("startups");
+  const [tab, setTab] = useState<"ativos" | "finished">("ativos");
+  const [ligar, setLigar] = useState<Record<string, string> | null>(null);
   const { list: eventos } = useLive<Evento>("events");
   const areas = useAreas();
   const { flash, el } = useFlash();
@@ -37,13 +50,25 @@ export function ProjetosView() {
   const cadNome = (id: string) => areas.find((a) => a.id === id)?.nome || "";
   const anos = useMemo(() => opcoes([...new Set([ANO, ...list.flatMap(anosDoProjeto)])].sort().reverse(), false), [list]);
   // Cada filtro conta com os outros aplicados (o próprio não conta)
-  const passa = (p: Projeto, sem?: keyof F) => (sem === "ano" || f.ano === "all" || anosDoProjeto(p).includes(f.ano)) && (sem === "estado" || f.estado === "all" || p.estado === f.estado) &&
+  const passa = (p: Projeto, sem?: keyof F) => (tab === "finished" ? p.estado === FINISHED : p.estado !== FINISHED) && (sem === "ano" || f.ano === "all" || anosDoProjeto(p).includes(f.ano)) && (sem === "estado" || tab === "finished" || f.estado === "all" || p.estado === f.estado) &&
     (sem === "mwb" || f.mwb === "all" || p.mwb === f.mwb) && (sem === "cadeia" || f.cadeia === "all" || p.cadeia === f.cadeia) && (sem === "relacao" || f.relacao === "all" || p.relacao === f.relacao) &&
     (!q.trim() || norm([p.ref, p.nome, p.descricao, p.parceiro, p.observacoes].join(" ")).includes(norm(q.trim())));
   const conta = (k: keyof F, campo: (p: Projeto) => boolean) => list.filter((p) => passa(p, k) && campo(p)).length;
-  const filtrados = useMemo(() => list.filter((p) => passa(p)), [list, f, q]); // eslint-disable-line react-hooks/exhaustive-deps
+  const filtrados = useMemo(() => list.filter((p) => passa(p)), [list, f, q, tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const rows = useMemo(() => ordenar(filtrados, (p) => sort.col === "estado" ? ESTADOS_PROJ.findIndex((e) => e.id === p.estado) : sort.col === "orcamento" ? p.orcamento : (p[sort.col] || "").toString().toLowerCase(), sort.dir), [filtrados, sort]);
   const soma = (k: "orcamento" | "gasto") => filtrados.reduce((t, p) => t + (p[k] || 0), 0);
+  const nTab = (fin: boolean) => list.filter((p) => (p.estado === FINISHED) === fin && (f.ano === "all" || anosDoProjeto(p).includes(f.ano))).length;
+  // Ligação provisória dos projetos com startups às fichas da base de dados
+  const porLigar = list.filter((p) => p.relacao === "Startup" && !p.startupId && p.parceiro.trim());
+  const abrirLigar = () => setLigar(Object.fromEntries(porLigar.map((p) => [p.id, sugerirStartup(p.parceiro, startups)?.id || ""])));
+  const guardarLigar = async () => {
+    if (!ligar) return;
+    const l = Object.entries(ligar).filter(([, sid]) => sid);
+    try {
+      const b = writeBatch(db); l.forEach(([id, startupId]) => b.update(doc(db, "projects", id), { startupId, atualizadoEm: new Date().toISOString() })); await b.commit();
+      setLigar(null); flash(`${l.length} ${l.length === 1 ? "projeto ligado" : "projetos ligados"} a startups`);
+    } catch (e) { flash(errMsg(e)); }
+  };
   const atual = aberto ? list.find((p) => p.id === aberto) || null : null;
 
   const guardar = async () => {
@@ -68,14 +93,34 @@ export function ProjetosView() {
     updateDoc(doc(db, "projects", id), { estado, atualizadoEm: new Date().toISOString() }).then(() => flash(`«${p.nome}» passou para ${estado}`)).catch((e) => flash(errMsg(e)));
   };
 
+  /** Sair da edição: avisa se houver alterações por guardar. */
+  const sair = async () => {
+    if (!ed) return;
+    const { _novo, ...x } = ed;
+    const mudou = _novo ? !!x.nome.trim() : JSON.stringify(x) !== JSON.stringify(atual);
+    if (mudou && !(await confirmar({ titulo: "Sair sem guardar?", texto: "As alterações que fizeste perdem-se.", ok: "Sair sem guardar", perigo: true }))) return;
+    setEd(null);
+  };
   const S = (k: Col, l: string, cls = "", desc = false) => th(sort, setSort, k, l, cls, desc);
   const set = (k: keyof F) => (v: string) => setF({ ...f, [k]: v });
   const det = ed || atual;
+  const pagina = det && (<Detalhe voltar="Projetos" titulo={det.nome} refTxt={det.ref} editando={!!ed}
+        tags={<><span className="tg inv-kind">{det.piloto ? "Piloto" : "Projeto"}</span><Tag v={det.estado} dot />{det.fase && <span className="tg">{det.fase}</span>}</>}
+        onClose={() => { setEd(null); setAberto(null); }} onEditar={() => atual && setEd({ ...atual })} onCancelar={sair}
+        onGuardar={guardar} onApagar={ed?._novo ? undefined : () => apagar(det)}
+        leitura={<ProjetoFicha p={det} cadeia={cadNome(det.cadeia)} startup={startups.find((x) => x.id === det.startupId)} />}
+        edicao={ed && <ProjetoForm ed={ed} setEd={(x) => setEd({ ...x, _novo: ed._novo })} areas={areas} startups={startups} parceiros={parceiros} />} />);
+  if (det) return (<>
+    {pagina}
+    {cfEl}
+    {el}
+  </>);
   return (<>
     <div className="head">
       <div><h1>Projetos</h1><p>Os projetos e pilotos de Inovação, com parceiros, datas e orçamento.</p></div>
       <div className="pageact">
         <SearchField value={q} onChange={setQ} placeholder="Pesquisar projetos" />
+        {porLigar.length > 0 && startups.length > 0 && <button className="btn" onClick={abrirLigar} title="Provisório: ligar os projetos com startups às fichas que já existem"><Icon name="lightbulb" />Ligar a startups · {porLigar.length}</button>}
         {loaded && !erro && !list.length && <ImportarExcel folha="Fact_Projects" col="projects" conv={projetosDoExcel} nome="projetos" notify={flash} />}
         <button className="btn primary" onClick={novo} disabled={!!erro}><Icon name="plus" />Novo projeto</button>
       </div>
@@ -85,21 +130,25 @@ export function ProjetosView() {
         { l: "Projetos", v: filtrados.length }, { l: "On Going", v: filtrados.filter((p) => p.estado === "On Going").length },
         { l: "Com piloto", v: filtrados.filter((p) => p.piloto).length }, { l: "Orçamento estimado", v: eur(soma("orcamento")) || "0 €" }, { l: "Gasto", v: eur(soma("gasto")) || "0 €" },
       ]} />
+      <div className="seg trseg" role="group" aria-label="Projetos">
+        <button aria-pressed={tab === "ativos"} onClick={() => setTab("ativos")}><Icon name="target" />Ativos<span className="sc">{nTab(false)}</span></button>
+        <button aria-pressed={tab === "finished"} onClick={() => setTab("finished")}><Icon name="check-circle" />Finished<span className="sc">{nTab(true)}</span></button>
+      </div>
       <div className="toolbar">
         <CatSelect cats={anos} value={f.ano} onChange={set("ano")} simples counts={(a) => conta("ano", (p) => anosDoProjeto(p).includes(a))} allLabel="Todos os anos" procurar="Procurar ano" />
-        <CatSelect cats={OPC_ESTADO} value={f.estado} onChange={set("estado")} simples counts={(id) => conta("estado", (p) => p.estado === id)} allLabel="Todos os estados" procurar="Procurar estado" />
+        {tab === "ativos" && <CatSelect cats={OPC_ESTADO} value={f.estado} onChange={set("estado")} simples counts={(id) => conta("estado", (p) => p.estado === id)} allLabel="Todos os estados" procurar="Procurar estado" />}
         <CatSelect cats={OPC_MWB} value={f.mwb} onChange={set("mwb")} simples counts={(id) => conta("mwb", (p) => p.mwb === id)} allLabel="Todas as Must Win Battles" procurar="Procurar" />
         <AreaSelect areas={areas} value={f.cadeia} onChange={set("cadeia")} counts={(id) => conta("cadeia", (p) => p.cadeia === id)} />
         <CatSelect cats={OPC_REL} value={f.relacao} onChange={set("relacao")} simples counts={(id) => conta("relacao", (p) => p.relacao === id)} allLabel="Todas as relações" procurar="Procurar" />
         <span className="sp" />
-        <div className="seg" role="group" aria-label="Vista">
+        {tab === "ativos" && <div className="seg" role="group" aria-label="Vista">
           <button aria-pressed={vista === "lista"} onClick={() => setVista("lista")} title="Lista"><Icon name="list-bullets" />Lista</button>
           <button aria-pressed={vista === "quadro"} onClick={() => setVista("quadro")} title="Quadro"><Icon name="kanban" />Quadro</button>
-        </div>
+        </div>}
       </div>
-      {vista === "quadro" ? (
+      {vista === "quadro" && tab === "ativos" ? (
         <div className="board inv-board">
-          {ESTADOS_PROJ.map((e) => { const l = rows.filter((p) => p.estado === e.id); return (
+          {ESTADOS_ATIVOS.map((e) => { const l = rows.filter((p) => p.estado === e.id); return (
             <section key={e.id} className={`bcol${over === e.id ? " over" : ""}`} aria-label={e.id}
               onDragOver={(ev) => { ev.preventDefault(); setOver(e.id); }} onDragLeave={() => setOver(null)} onDrop={(ev) => { ev.preventDefault(); setOver(null); mudarEstado(ev.dataTransfer.getData("text/proj"), e.id); }}>
               <header><i className="inv-dot" style={{ background: e.cor }} /><b>{e.id}</b><span className="c soft">{l.length}</span></header>
@@ -114,6 +163,13 @@ export function ProjetosView() {
                 {!l.length && <p className="bempty">Sem projetos</p>}
               </div>
             </section>); })}
+          <section className="bcol bfim" aria-label="Finished">
+            <div className={`bdest d-finished${over === FINISHED ? " over" : ""}`} title="Larga aqui para marcar como Finished"
+              onDragOver={(ev) => { ev.preventDefault(); setOver(FINISHED); }} onDragLeave={() => setOver(null)}
+              onDrop={(ev) => { ev.preventDefault(); setOver(null); mudarEstado(ev.dataTransfer.getData("text/proj"), FINISHED); }}>
+              <Icon name="check-circle" size={20} /><b>Finished</b><span>{nTab(true)}</span><em>Larga aqui</em>
+            </div>
+          </section>
         </div>
       ) : !rows.length ? <Empty title="Nada encontrado" text="Muda a pesquisa, o ano ou os filtros." /> : (
         <div className="tbl stbl ptbl inv-tbl">
@@ -134,41 +190,16 @@ export function ProjetosView() {
           </table>
         </div>)}
     </>}
-    {det && (
-      <Detalhe titulo={det.nome} refTxt={det.ref} editando={!!ed}
-        tags={<><Tag v={det.estado} dot />{det.mwb && <Tag v={det.mwb} />}{det.horizonte && <Tag v={det.horizonte} />}{det.piloto && <span className="tg">Piloto</span>}</>}
-        onClose={() => { setEd(null); setAberto(null); }} onEditar={() => atual && setEd({ ...atual })} onCancelar={() => { if (ed?._novo) setEd(null); else setEd(null); }}
-        onGuardar={guardar} onApagar={ed?._novo ? undefined : () => apagar(det)}
-        leitura={<>
-          {det.descricao && <p className="inv-desc">{det.descricao}</p>}
-          <h5 className="fsec">Enquadramento</h5>
-          <Dados itens={[["Must Win Battle", det.mwb], ["Cadeia de valor", cadNome(det.cadeia)], ["Horizonte de inovação", det.horizonte], ["Estado", det.estado]]} />
-          <h5 className="fsec">Parceiro</h5>
-          <Dados itens={[["Parceiro", det.parceiro ? <>{det.parceiro}{det.parceiroRef && <span className="mut"> · {det.parceiroRef}</span>}</> : "Sem parceiro"], ["Relação", det.relacao],
-            ["Piloto", det.piloto ? (det.pilotoDesde ? `Sim, em discussão desde ${dataPt(det.pilotoDesde)}` : "Sim") : "Não"]]} />
-          <h5 className="fsec">Datas e orçamento</h5>
-          <Dados itens={[["Início", dataPt(det.inicio) || "Por definir"], ["Fim", dataPt(det.fim) || (det.estado === "Ended" ? "Sem data" : "Em aberto")],
-            ["Orçamento estimado", eur(det.orcamento) || "Sem dados"], ["Orçamento gasto", eur(det.gasto) || "Sem dados"]]} />
-          {det.observacoes && <><h5 className="fsec">Observações</h5><p className="inv-desc">{det.observacoes}</p></>}
-        </>}
-        edicao={ed && <div className="fgrid">
-          <label className="fld wide"><span>Nome</span><input autoComplete="off" value={ed.nome} onChange={(e) => setEd({ ...ed, nome: e.target.value })} /></label>
-          <Sel label="Estado" value={ed.estado} opcoes={ESTADOS_PROJ.map((e) => e.id)} onChange={(v) => setEd({ ...ed, estado: v })} />
-          <SimNao label="Piloto" value={ed.piloto} onChange={(v) => setEd({ ...ed, piloto: v })} />
-          <label className="fld full"><span>Descrição</span><textarea rows={4} value={ed.descricao} onChange={(e) => setEd({ ...ed, descricao: e.target.value })} /></label>
-          <Sel label="Must Win Battle" value={ed.mwb} opcoes={MWB} onChange={(v) => setEd({ ...ed, mwb: v })} />
-          <Sel label="Cadeia de valor" value={ed.cadeia} opcoes={areas.map((a) => ({ id: a.id, nome: a.nome }))} onChange={(v) => setEd({ ...ed, cadeia: v })} />
-          <Sel label="Horizonte de inovação" value={ed.horizonte} opcoes={HORIZONTES} onChange={(v) => setEd({ ...ed, horizonte: v })} />
-          <Sel label="Relação com o parceiro" value={ed.relacao} opcoes={RELACOES} onChange={(v) => setEd({ ...ed, relacao: v })} />
-          <Parceiro nome={ed.parceiro} parceiros={parceiros} onChange={(nome, ref) => setEd({ ...ed, parceiro: nome, parceiroRef: ref })} />
-          <label className="fld"><span>Início da discussão do piloto</span><input type="date" value={ed.pilotoDesde} onChange={(e) => setEd({ ...ed, pilotoDesde: e.target.value })} /></label>
-          <label className="fld"><span>Ref. do parceiro</span><input value={ed.parceiroRef || (ed.parceiro.trim() ? "Nova, ao guardar" : "")} readOnly tabIndex={-1} /></label>
-          <label className="fld"><span>Início</span><input type="date" value={ed.inicio} onChange={(e) => setEd({ ...ed, inicio: e.target.value })} /></label>
-          <label className="fld"><span>Fim</span><input type="date" value={ed.fim} onChange={(e) => setEd({ ...ed, fim: e.target.value })} /></label>
-          <Eur label="Orçamento estimado (€)" v={ed.orcamento} on={(n) => setEd({ ...ed, orcamento: n })} />
-          <Eur label="Orçamento gasto (€)" v={ed.gasto} on={(n) => setEd({ ...ed, gasto: n })} />
-          <label className="fld full"><span>Observações</span><textarea rows={2} value={ed.observacoes} onChange={(e) => setEd({ ...ed, observacoes: e.target.value })} /></label>
-        </div>} />
+    {ligar && (
+      <FormModal title="Ligar os projetos às startups" saveLabel={`Ligar ${Object.values(ligar).filter(Boolean).length}`} onClose={() => setLigar(null)} onSave={guardarLigar}>
+        <p className="hint">Projetos com a relação «Startup» que ainda não estão ligados a uma ficha. A sugestão vem do nome do parceiro; confirma ou escolhe outra. Os que ficarem vazios não mudam.</p>
+        <div className="inv-lig">{porLigar.map((p) => (
+          <div key={p.id} className="inv-ligr">
+            <div className="inv-ligp"><span className="inv-ref">{p.ref}</span><b>{p.nome}</b><small>Parceiro: {p.parceiro}</small></div>
+            <StartupPicker startups={startups} startupId={ligar[p.id]} nome={startups.find((x) => x.id === ligar[p.id])?.nome || ""} label="Startup" cls="fld"
+              onPick={(st) => setLigar({ ...ligar, [p.id]: st?.id || "" })} />
+          </div>))}</div>
+      </FormModal>
     )}
     {cfEl}
     {el}
