@@ -22,7 +22,7 @@ export function MobileApp({ onFull }: { onFull: () => void }) {
   return (
     <div className="mob">
       <header className="mob-h">
-        <span className="mob-brand"><img src="/icon-192.png" alt="" width={24} height={24} />Radar</span>
+        <span className="mob-brand"><img src="/brand/innovation-logo.svg" alt="" width={24} height={24} />Radar</span>
         <span className="sp" />
         <span className="mob-me" title={email}>{(profile.nome || email).split(/[\s@.]/)[0]}</span>
         <button className="btn icon" aria-label="Abrir a versão completa" title="Versão completa" onClick={onFull}><Icon name="monitor" /></button>
