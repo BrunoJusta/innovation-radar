@@ -151,6 +151,8 @@ export interface Startup {
   fase: Fase; setor: string;
   /** Cadeia de valor (anel do radar de startups), id de areas. */
   cadeia?: string;
+  /** Logótipo (data URL pequeno, procurado no site ou carregado à mão). */
+  logo?: string;
   descricao: string;     // o que faz, pt-PT
   porque: string;        // porque interessa à Sogrape
   relevancia: number;
@@ -171,6 +173,12 @@ export interface Startup {
 /* ---------- Análise de investimento (Sogrape Ventures) ---------- */
 
 export type Veredicto = "positivo" | "negativo" | "incerto";
+/** Decisão da análise: investir, não investir ou incerto (bom encaixe, mas faltam dados para decidir, por exemplo financeiros). */
+export type Decisao = "investir" | "nao-investir" | "incerto";
+export const DECISOES: Record<Decisao, { nome: string; curto: string }> = {
+  investir: { nome: "Investir", curto: "Investir" }, "nao-investir": { nome: "Não investir", curto: "Não" }, incerto: { nome: "Incerto", curto: "Incerto" },
+};
+export const nomeDecisao = (d: string | undefined | null) => (d && d in DECISOES ? DECISOES[d as Decisao].nome : "");
 export const VEREDICTOS: Record<Veredicto, { nome: string; icon: string }> = {
   positivo: { nome: "Positivo", icon: "check" }, negativo: { nome: "Negativo", icon: "x" }, incerto: { nome: "Incerto", icon: "question" },
 };
@@ -249,7 +257,7 @@ export interface Analise {
   /** Desafio de 2026 das guidelines a que a startup responde, ou "". */
   desafio: string;
   forcas: string[]; riscos: string[]; emFalta: string[];
-  decisao: "investir" | "nao-investir"; condicoes: string; racional: string;
+  decisao: Decisao; condicoes: string; racional: string;
   ticket: Ticket | null; ticketRacional: string;
   followOn: boolean; followOnRacional: string;
   encaixe: string; proximosPassos: string[];
@@ -261,19 +269,26 @@ export interface AnaliseResumo { decisao: Analise["decisao"]; ticket: Ticket | n
 
 /* ---------- Pipeline (dealflow da Sogrape Ventures) ---------- */
 
-export type Etapa = "radar" | "contacto" | "fit" | "analise-bc" | "aprofundada" | "negociacao" | "investida" | "arquivada";
-/** Fases do pipeline, pela ordem do processo. Arquivar é possível em qualquer uma. */
+export type Etapa = "fit" | "geral" | "aprofundada" | "comite" | "fecho" | "radar" | "investida" | "arquivada";
+/** Fases do pipeline, pela ordem do processo, seguidas dos três destinos finais (radar, investida, arquivada). */
 export const ETAPAS: { id: Etapa; nome: string; desc: string }[] = [
-  { id: "radar", nome: "Radar", desc: "Identificada como possível fit, ainda sem contacto" },
-  { id: "contacto", nome: "Primeiro contacto", desc: "Candidatura recebida ou primeira conversa" },
-  { id: "fit", nome: "Validação de fit", desc: "A Sogrape valida o encaixe e o caso de uso" },
-  { id: "analise-bc", nome: "Análise Beta Capital", desc: "Avaliação pela Beta Capital" },
-  { id: "aprofundada", nome: "Análise aprofundada", desc: "Due diligence e comité de investimento" },
-  { id: "negociacao", nome: "Negociação", desc: "MoU e acordo de investimento" },
+  { id: "fit", nome: "Validation Fit", desc: "A Sogrape valida o encaixe estratégico e o caso de uso" },
+  { id: "geral", nome: "General Analysis", desc: "Análise geral (com a Beta Capital)" },
+  { id: "aprofundada", nome: "Deep Analysis", desc: "Análise aprofundada e due diligence" },
+  { id: "comite", nome: "Investment Committee", desc: "Decisão do comité de investimento" },
+  { id: "fecho", nome: "Closing Stage", desc: "MoU, acordo de investimento e fecho" },
+  { id: "radar", nome: "Radar", desc: "Fica no radar: interesse sem investimento agora (acompanhar, piloto, parceria)" },
   { id: "investida", nome: "Investida", desc: "No portefólio" },
   { id: "arquivada", nome: "Arquivada", desc: "Processo terminado" },
 ];
-export const ETAPAS_ATIVAS = ETAPAS.filter((e) => e.id !== "arquivada");
+/** As fases em curso (as colunas do quadro). */
+export const ETAPAS_ATIVAS = ETAPAS.filter((e) => !["radar", "investida", "arquivada"].includes(e.id));
+/** Os três destinos finais. */
+export const ETAPAS_FINAIS = ETAPAS.filter((e) => ["radar", "investida", "arquivada"].includes(e.id));
+export const emCurso = (e: string) => ETAPAS_ATIVAS.some((x) => x.id === e);
+/** Fases da versão anterior → fases atuais (para fichas antigas e para a migração). */
+export const ETAPA_ANTIGA: Record<string, Etapa> = { contacto: "fit", "analise-bc": "geral", negociacao: "fecho" };
+export const etapaAtual = (e: string | null | undefined): Etapa => (ETAPA_ANTIGA[e || ""] || e || "fit") as Etapa;
 
 export type Vez = "startup" | "sogrape" | "beta" | "reuniao";
 export const VEZES: { id: Vez; nome: string; curto: string }[] = [
@@ -324,6 +339,8 @@ export interface Deal {
   cadeia?: string;
   /** Categoria, o tipo de solução (id de sectors). */
   categoria?: string;
+  /** Logótipo (data URL pequeno). */
+  logo?: string;
   etapa: Etapa; etapaDesde: string;
   /** Interesse quando está no radar: investimento ou outro tipo de relação (piloto, parceria). */
   interesse: "investimento" | "outro";
@@ -335,6 +352,8 @@ export interface Deal {
   origem: { tipo: OrigemTipo; nome: string; contacto: string };
   documentos: { titulo: string; url: string }[];
   arquivo?: { motivo: MotivoArquivo; nota: string; em: string; etapaAnterior: Etapa | null } | null;
+  /** Fase em curso de onde saiu para o radar ou para as investidas (para reabrir e para o funil). */
+  etapaAnterior?: Etapa | null;
   /** Ficha no radar de startups, quando existe. */
   startupId?: string;
   analiseResumo?: AnaliseResumo;

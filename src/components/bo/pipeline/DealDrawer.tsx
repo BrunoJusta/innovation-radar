@@ -6,11 +6,12 @@ import { Icon } from "@/components/Icon";
 import { nomeTicket } from "@/lib/analise-util";
 import { addInteracao, archiveDeal, delInteracao, moveDeal, reopenDeal, saveDeal } from "@/lib/deal-actions";
 import { AlvoAnalise } from "@/lib/analise-run";
-import { Deal, ETAPAS, ETAPAS_ATIVAS, Etapa, FASES_DF, Interacao, MOTIVOS_ARQUIVO, MotivoArquivo, ORIGENS_DF, TIPOS_INTERACAO, TipoInteracao, VERTICAIS_DF } from "@/lib/types";
+import { Deal, ETAPAS, ETAPAS_ATIVAS, Etapa, emCurso, FASES_DF, Interacao, MOTIVOS_ARQUIVO, MotivoArquivo, ORIGENS_DF, TIPOS_INTERACAO, TipoInteracao, VERTICAIS_DF, nomeDecisao } from "@/lib/types";
 import { fdLongo, hojeLocal, nDias } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { AnaliseView } from "../startups/AnaliseView";
 import { DealEdit, DealFields, fmtEur, pickDeal } from "./DealFields";
+import { LogoEditor } from "../startups/Logo";
 import { useAreas, useCategorias } from "@/lib/use-areas";
 import { diasDesde } from "./PipelineBoard";
 import { PassosBox } from "./PassosBox";
@@ -19,8 +20,8 @@ const nm = <T extends { id: string; nome: string }>(l: T[], id: string | null | 
 const hoje = () => hojeLocal();
 
 export const alvoDeal = (d: Deal): AlvoAnalise => d.startupId
-  ? { path: `startups/${d.startupId}`, alsoResumo: `deals/${d.id}`, nome: d.nome, site: d.site, dominio: d.dominio, descricao: d.descricao, setor: nm(VERTICAIS_DF, d.vertical) }
-  : { path: `deals/${d.id}`, nome: d.nome, site: d.site, dominio: d.dominio, descricao: d.descricao, setor: nm(VERTICAIS_DF, d.vertical) };
+  ? { path: `startups/${d.startupId}`, alsoResumo: `deals/${d.id}`, nome: d.nome, site: d.site, dominio: d.dominio, descricao: d.descricao, setor: nm(VERTICAIS_DF, d.vertical), logo: d.logo }
+  : { path: `deals/${d.id}`, nome: d.nome, site: d.site, dominio: d.dominio, descricao: d.descricao, setor: nm(VERTICAIS_DF, d.vertical), logo: d.logo };
 
 /** Ficha de uma startup no pipeline: fase, próximo passo, análise, ficha, ronda e cronologia. */
 export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }: {
@@ -43,7 +44,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
   const [analise, setAnalise] = useState(false);
   const [saving, setSaving] = useState(false);
   const [ints, setInts] = useState<Interacao[] | null>(null);
-  const [nova, setNova] = useState<{ tipo: TipoInteracao; data: string; texto: string; participantes: string } | null>(null);
+  const [nova, setNova] = useState<{ tipo: TipoInteracao; data: string; texto: string; participantes: string; links: { titulo: string; url: string }[] } | null>(null);
 
   useEffect(() => { setEditing(false); setArchiving(false); setEditArq(null); setNova(null); setF(pickDeal(d)); }, [d.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => onSnapshot(query(collection(db, "deals", d.id, "interacoes"), orderBy("data", "desc")),
@@ -58,7 +59,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
   const i = list.findIndex((x) => x.id === d.id);
   const act = (p: Promise<unknown>, msg: string) => p.then(() => notify(msg)).catch((e) => notify((e as { code?: string }).code === "permission-denied" ? "Sem permissão para alterar o pipeline." : "Não foi possível guardar. Tenta outra vez."));
   const saveFicha = () => { if (!f.nome.trim()) return; act(saveDeal(d, { ...f, dominio: (f.site || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].toLowerCase() }).then(() => setEditing(false)), "Ficha guardada"); };
-  const ativa = d.etapa !== "arquivada";
+  const ativa = emCurso(d.etapa);
   const etapaIdx = ETAPAS_ATIVAS.findIndex((e) => e.id === d.etapa);
   const grupos = useMemo(() => {
     const m = new Map<string, Interacao[]>();
@@ -84,6 +85,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
           {d.interesse === "outro" && <span className="tg">Outra relação</span>}
           {d.startupId && <span className="badge"><Icon name="globe" />No radar de startups</span>}
         </div>
+        <LogoEditor nome={d.nome} logo={d.logo} site={d.site} alvo={{ dealId: d.id, startupId: d.startupId }} notify={notify} />
         <h2>{d.nome}</h2>
         {d.site ? <a className="sweb" href={d.site} target="_blank" rel="noopener noreferrer">{d.dominio || d.site}<Icon name="arrow-up-right" /></a> : <span className="sweb mut">Sem site registado</span>}
 
@@ -96,6 +98,10 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
                 <span className="b" /><span className="l">{e.nome}</span></button>
             ))}
           </div>
+        ) : d.etapa !== "arquivada" ? (
+          <div className={`fimbox f-${d.etapa}`}><Icon name={d.etapa === "investida" ? "check-circle" : "globe"} />
+            <div><b>{d.etapa === "investida" ? "Investida" : "No radar"}{d.etapaDesde ? ` desde ${fdLongo(d.etapaDesde)}` : ""}</b>
+              {d.etapaAnterior && <span>Saiu de {nm(ETAPAS, d.etapaAnterior)}</span>}</div></div>
         ) : (
           editArq ? (
             <div className="reasons arqed">
@@ -126,7 +132,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
         <div className="blk"><div className="bh"><h4>Análise de investimento</h4></div>
           {d.analiseResumo ? (
             <button className={`anbox ${d.analiseResumo.decisao}`} onClick={() => setAnalise(true)}>
-              <span className="d">{d.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}</span>
+              <span className="d">{nomeDecisao(d.analiseResumo.decisao)}</span>
               <span className="m">{nomeTicket(d.analiseResumo.ticket)} · {d.analiseResumo.positivos} de 11 critérios positivos{d.analiseResumo.desafio ? ` · ${d.analiseResumo.desafio}` : ""}</span>
               <span className="m">{fdLongo(d.analiseResumo.feitaEm)}</span>
               <span className="go">Ver análise<Icon name="arrow-up-right" /></span>
@@ -169,7 +175,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
         </>)}
 
         {/* Cronologia */}
-        <div className="blk"><div className="bh"><h4>Cronologia</h4>{!nova && <button className="txtbtn" onClick={() => setNova({ tipo: "reuniao", data: hoje(), texto: "", participantes: "" })}><Icon name="plus" />Registar</button>}</div>
+        <div className="blk"><div className="bh"><h4>Cronologia</h4>{!nova && <button className="txtbtn" onClick={() => setNova({ tipo: "reuniao", data: hoje(), texto: "", participantes: "", links: [] })}><Icon name="plus" />Registar</button>}</div>
           {nova && (
             <div className="newint">
               <div className="seg" role="group" aria-label="Tipo">{TIPOS_INTERACAO.filter((t) => t.id !== "etapa").map((t) =>
@@ -180,8 +186,20 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
               </div>
               <label className="fld full"><span>O que aconteceu</span><textarea autoFocus rows={4} value={nova.texto} onChange={(e) => setNova({ ...nova, texto: e.target.value })}
                 placeholder="ex.: Intro meeting. Apresentaram a ronda de 1,5 M€; ficámos de partilhar o deck com a BC." /></label>
+              <div className="fld full"><span>Links <em>(opcional: deck, ata, email, pasta partilhada…)</em></span>
+                <div className="docs-ed">
+                  {nova.links.map((l, i) => (
+                    <div key={i} className="doc-row">
+                      <input aria-label={`Título do link ${i + 1}`} value={l.titulo} placeholder="Título (opcional)" onChange={(e) => setNova({ ...nova, links: nova.links.map((x, k) => k === i ? { ...x, titulo: e.target.value } : x) })} />
+                      <input aria-label={`Endereço do link ${i + 1}`} value={l.url} type="url" spellCheck={false} placeholder="https://" onChange={(e) => setNova({ ...nova, links: nova.links.map((x, k) => k === i ? { ...x, url: e.target.value } : x) })} />
+                      <button type="button" className="btn icon" aria-label="Tirar link" onClick={() => setNova({ ...nova, links: nova.links.filter((_, k) => k !== i) })}><Icon name="trash" /></button>
+                    </div>
+                  ))}
+                  <button type="button" className="txtbtn" onClick={() => setNova({ ...nova, links: [...nova.links, { titulo: "", url: "" }] })}><Icon name="plus" />Juntar link</button>
+                </div></div>
               <div className="factions"><button className="txtbtn" onClick={() => setNova(null)}>Cancelar</button>
-                <button className="btn primary" disabled={!nova.texto.trim() || saving} onClick={() => { setSaving(true); act(addInteracao(d.id, { tipo: nova.tipo, data: nova.data, texto: nova.texto.trim(), participantes: nova.participantes.trim() || undefined, por: email })
+                <button className="btn primary" disabled={!nova.texto.trim() || saving} onClick={() => { setSaving(true); const links = nova.links.map((l) => ({ titulo: l.titulo.trim(), url: /^https?:\/\//i.test(l.url.trim()) ? l.url.trim() : l.url.trim() ? `https://${l.url.trim()}` : "" })).filter((l) => l.url);
+                  act(addInteracao(d.id, { tipo: nova.tipo, data: nova.data, texto: nova.texto.trim(), participantes: nova.participantes.trim() || undefined, ...(links.length ? { links } : {}), por: email })
                   .then(() => saveDeal(d, {})).then(() => setNova(null)), "Registado na cronologia").finally(() => setSaving(false)); }}><Icon name="check" />Registar</button></div>
             </div>
           )}
@@ -193,8 +211,9 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
                   return <li key={x.id} className={`tli t-${x.tipo}`}>
                     <span className="tld"><Icon name={t?.icon || "pencil-simple"} /></span>
                     <div className="tlb"><div className="tlt"><b>{t?.nome}</b><span>{x.data ? fdLongo(x.data) : ""}{x.participantes ? ` · ${x.participantes}` : ""}{x.por ? ` · ${x.por === "Excel" ? "importado do Excel" : x.por.split("@")[0]}` : ""}</span>
-                      {x.tipo !== "etapa" && (x.por === email || x.por === "Excel") && <button className="tlx" title="Apagar" aria-label="Apagar registo" onClick={() => { if (window.confirm("Apagar este registo da cronologia? Não dá para anular.")) act(delInteracao(d.id, x.id), "Registo apagado"); }}><Icon name="trash" /></button>}</div>
-                      <p>{x.texto}</p></div>
+                      <button className="tlx" title="Apagar" aria-label="Apagar registo" onClick={() => { if (window.confirm(x.tipo === "etapa" ? "Apagar este registo de mudança de fase da cronologia? A fase atual da startup não muda. Não dá para anular." : "Apagar este registo da cronologia? Não dá para anular.")) act(delInteracao(d.id, x.id), "Registo apagado"); }}><Icon name="trash" /></button></div>
+                      <p>{x.texto}</p>
+                      {!!x.links?.length && <div className="tll">{x.links.map((l) => <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer"><Icon name="arrow-up-right" size={12} />{l.titulo || l.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 48)}</a>)}</div>}</div>
                   </li>;
                 })}</ol></li>
             ))}</ol>
@@ -202,17 +221,22 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
         </div>
       </div>
       <div className="dbar">
-        {ativa ? (archiving ? (
+        {ativa || (archiving && d.etapa !== "arquivada") ? (archiving ? (
           <div className="reasons"><div className="rh">Porque arquivas?<button className="txtbtn" onClick={() => setArchiving(false)}>Cancelar</button></div>
             <div className="rgrid">{MOTIVOS_ARQUIVO.filter((m) => m.id !== "sem-registo").map((m) => <button key={m.id} aria-pressed={motivo === m.id} onClick={() => setMotivo(m.id)}>{m.nome}</button>)}</div>
             <div className="arqf"><input aria-label="Nota de arquivo" value={notaArq} onChange={(e) => setNotaArq(e.target.value)} placeholder="Nota (opcional): o que foi comunicado à startup" />
               <button className="btn primary" disabled={!motivo} onClick={() => motivo && act(archiveDeal(d, motivo, notaArq.trim(), email).then(() => { setArchiving(false); setMotivo(""); setNotaArq(""); }), "Arquivada")}>Arquivar</button></div></div>
         ) : (<>
-          {etapaIdx < ETAPAS_ATIVAS.length - 1 && <button className="btn primary lg" onClick={() => act(moveDeal(d, ETAPAS_ATIVAS[etapaIdx + 1].id, email), `Passou para ${ETAPAS_ATIVAS[etapaIdx + 1].nome}`)}>
-            <Icon name="check" />Avançar para {ETAPAS_ATIVAS[etapaIdx + 1].nome}</button>}
+          {etapaIdx < ETAPAS_ATIVAS.length - 1 ? <button className="btn primary lg" onClick={() => act(moveDeal(d, ETAPAS_ATIVAS[etapaIdx + 1].id, email), `Passou para ${ETAPAS_ATIVAS[etapaIdx + 1].nome}`)}>
+            <Icon name="check" />Avançar para {ETAPAS_ATIVAS[etapaIdx + 1].nome}</button>
+            : <button className="btn primary lg" onClick={() => act(moveDeal(d, "investida", email), "Passou para as investidas")}><Icon name="check-circle" />Marcar como investida</button>}
+          <button className="btn lg" onClick={() => act(moveDeal(d, "radar", email), "Passou para o radar")}><Icon name="globe" />Pôr no radar</button>
           <button className="btn lg" onClick={() => setArchiving(true)}><Icon name="prohibit" />Arquivar</button><span className="sp" />
         </>)) : (<>
-          <button className="btn lg" onClick={() => act(reopenDeal(d, email), "Reaberta")}><Icon name="arrow-u-up-left" />Reabrir</button><span className="sp" />
+          <button className="btn lg" onClick={() => act(reopenDeal(d, email), "Reaberta")}><Icon name="arrow-u-up-left" />Voltar ao pipeline</button>
+          {d.etapa === "radar" && <button className="btn lg" onClick={() => act(moveDeal(d, "investida", email), "Passou para as investidas")}><Icon name="check-circle" />Investida</button>}
+          {d.etapa !== "arquivada" && (archiving ? null : <button className="btn lg" onClick={() => setArchiving(true)}><Icon name="prohibit" />Arquivar</button>)}
+          <span className="sp" />
         </>)}
       </div>
     </aside>

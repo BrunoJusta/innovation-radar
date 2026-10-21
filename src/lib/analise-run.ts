@@ -5,9 +5,10 @@ import { post } from "./api";
 import { Analise, AnaliseFonte, AnaliseResumo } from "./types";
 import { nowIso } from "./util";
 import type { DocAnalise } from "./doc-text";
+import { procurarEGuardar } from "./logo";
 
 /** O que se analisa: uma startup do radar (startups/{id}) ou uma do pipeline (deals/{id}). */
-export type AlvoAnalise = { path: string; nome: string; site: string; dominio: string; descricao: string; setor: string; /** Outro documento que também guarda o resumo (ex.: o do pipeline). */ alsoResumo?: string };
+export type AlvoAnalise = { path: string; nome: string; site: string; dominio: string; descricao: string; setor: string; /** Já tem logótipo? Se não, procura-se no fim da análise. */ logo?: string; /** Outro documento que também guarda o resumo (ex.: o do pipeline). */ alsoResumo?: string };
 export type ParteId = "empresa" | "equipa";
 export type Parte = { parte: ParteId; dados: unknown; fontes: AnaliseFonte[] };
 export type Passo = "espera" | "a correr" | "ok" | "erro";
@@ -61,6 +62,11 @@ export async function runAnalise(alvo: AlvoAnalise, email: string, onStep: (p: P
       { etapa: "avaliar", startup, partes: [got.empresa, got.equipa], documentos: docs }, MSG504);
     const a: Analise = { ...r.analise, feitaEm: new Date().toISOString(), por: email, modelo: "gemini" };
     const id = await saveAnalise(alvo.path, a, alvo.alsoResumo);
+    // Sem logótipo: aproveita para o procurar no site (sem bloquear nem avisar se falhar)
+    if (!alvo.logo && alvo.site) {
+      const ids = [alvo.path, alvo.alsoResumo || ""];
+      procurarEGuardar(alvo.site, { startupId: ids.find((p) => p.startsWith("startups/"))?.slice(9), dealId: ids.find((p) => p.startsWith("deals/"))?.slice(6) });
+    }
     st.avaliar = "ok"; onStep({ ...st });
     return { analise: { ...a, id }, comGuidelines: r.comGuidelines };
   } catch (e) {

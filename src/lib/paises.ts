@@ -89,3 +89,13 @@ export function lerPais(txt: string | undefined | null): { id: string | null; no
   for (const p of partes) { const r = IDX.get(fold(p)); if (r) return r; }
   return null;
 }
+
+/** Código ISO de 2 letras de cada país do mapa (para as bandeiras). */
+const ISO2: Record<string, string> = {"620": "PT", "724": "ES", "250": "FR", "826": "GB", "372": "IE", "276": "DE", "380": "IT", "528": "NL", "056": "BE", "442": "LU", "756": "CH", "040": "AT", "208": "DK", "752": "SE", "578": "NO", "246": "FI", "352": "IS", "233": "EE", "428": "LV", "440": "LT", "616": "PL", "203": "CZ", "703": "SK", "348": "HU", "642": "RO", "100": "BG", "300": "GR", "705": "SI", "191": "HR", "688": "RS", "792": "TR", "804": "UA", "196": "CY", "376": "IL", "784": "AE", "682": "SA", "840": "US", "124": "CA", "484": "MX", "076": "BR", "032": "AR", "152": "CL", "858": "UY", "170": "CO", "604": "PE", "710": "ZA", "504": "MA", "818": "EG", "404": "KE", "566": "NG", "024": "AO", "508": "MZ", "356": "IN", "156": "CN", "392": "JP", "410": "KR", "158": "TW", "764": "TH", "704": "VN", "458": "MY", "360": "ID", "608": "PH", "036": "AU", "554": "NZ", "643": "RU"};
+/** Bandeira em emoji a partir do código numérico do mapa (vazio se não houver). */
+export function bandeira(id: string | null | undefined): string {
+  const c = ISO2[id || ""];
+  return c ? String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65)) : "";
+}
+/** Bandeira a partir do nome do país em texto livre. */
+export const bandeiraDe = (pais: string | null | undefined) => { const r = pais ? lerPais(pais) : null; return r?.id ? bandeira(r.id) : ""; };

@@ -11,6 +11,7 @@ import { lisbon } from "./lib/math";
 import { fetchRss, fetchWp, FetchError } from "./lib/feeds";
 import { htmlToText } from "./lib/text";
 import { analisar } from "./lib/analise";
+import { procurarLogo } from "./lib/logo";
 import type { RunSource, Sector, Settings, Signal, Source, Startup, StartupOrigem } from "../src/lib/types";
 import { DEFAULT_SETTINGS, STARTUP_SITES } from "../src/lib/types";
 
@@ -87,6 +88,9 @@ async function main() {
       ...f, cidade: f.cidade || undefined, status: "pending", destaque: false, origens: [origem],
       criadoEm: now(), atualizadoEm: now(),
     };
+    // Logótipo do site (se não houver, fica a inicial e pode ser carregado à mão)
+    const logo = await procurarLogo(c.site).catch(() => null);
+    if (logo) (doc as Omit<Startup, "id">).logo = logo;
     if (!DRY) await db.doc(`startups/${id}`).create(Object.fromEntries(Object.entries(doc).filter(([, v]) => v !== undefined)));
     existing.set(id, new Set([origem.url])); novos++; st.novos++;
     if (corteAnalise > 0 && c.relevancia >= corteAnalise) paraAnalise.push({ id, nome: c.nome, site: c.site, setor: sectors.find((x) => x.id === c.setor)?.nome || "", descricao: c.descricao, relevancia: c.relevancia });

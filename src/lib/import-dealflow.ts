@@ -59,11 +59,11 @@ const FASE: Record<string, FaseDF> = {
 function etapaDaAnalise(a: string): Etapa | null {
   const t = norm(a);
   if (!t || t.startsWith("archi")) return null;
-  if (t.includes("negotiation") || t.includes("mou") || t.includes("investment agreement")) return "negociacao";
+  if (t.includes("negotiation") || t.includes("mou") || t.includes("investment agreement")) return "fecho";
   if (t.includes("deep") || t === "ic") return "aprofundada";
-  if (t.includes("general analysis") || t.includes("beta") || t.includes("bc ")) return "analise-bc";
+  if (t.includes("general analysis") || t.includes("beta") || t.includes("bc ")) return "geral";
   if (t.includes("fit") || t.includes("validation") || t.includes("screening")) return "fit";
-  if (t.includes("reception")) return "contacto";
+  if (t.includes("reception")) return "fit";
   return null;
 }
 
@@ -71,12 +71,12 @@ function etapaDaAnalise(a: string): Etapa | null {
 function etapaDe(stage: string, status: string, analise: string): { etapa: Etapa; interesse: Deal["interesse"]; anterior: Etapa | null } {
   const s = norm(stage), st = norm(status), an = etapaDaAnalise(analise);
   if (s === "invested") return { etapa: "investida", interesse: "investimento", anterior: null };
-  if (s === "archived" || (!s && st === "closed")) return { etapa: "arquivada", interesse: "investimento", anterior: an || "contacto" };
+  if (s === "archived" || (!s && st === "closed")) return { etapa: "arquivada", interesse: "investimento", anterior: an || "fit" };
   if (s.includes("non-investment")) return { etapa: "radar", interesse: "outro", anterior: null };
   if (s.includes("potential investment") || st === "watchlist") return { etapa: "radar", interesse: "investimento", anterior: null };
   if (s.includes("pre-screening")) return { etapa: "fit", interesse: "investimento", anterior: null };
-  if (s.includes("screening") || s.includes("bc evaluation")) return { etapa: "analise-bc", interesse: "investimento", anterior: null };
-  return { etapa: an || "contacto", interesse: "investimento", anterior: null };
+  if (s.includes("screening") || s.includes("bc evaluation")) return { etapa: "geral", interesse: "investimento", anterior: null };
+  return { etapa: an || "fit", interesse: "investimento", anterior: null };
 }
 
 const VEZ: Record<string, Vez> = { "holding startup feedback": "startup", "holding sogrape feedback": "sogrape", "holding beta feedback": "beta", "holding meeting": "reuniao" };

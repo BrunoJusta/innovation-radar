@@ -8,11 +8,11 @@ import { dCurta, Hl, SearchBox, ViewToggle } from "@/components/radar/SearchBits
 import { EmLabels, SearchResults, SearchSummary, where } from "@/components/radar/SearchResults";
 import { search, SearchDoc, snippet, terms } from "@/lib/search";
 import { approveStartup, rejectStartup, startupBackToTriage } from "@/lib/startup-actions";
-import { FaseSelect, SectorSelect } from "@/components/CatSelect";
+import { MultiSelect, SectorSelect } from "@/components/CatSelect";
 import { post } from "@/lib/api";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Area, Category, FASES, Sector, Startup } from "@/lib/types";
+import { Area, Category, ETAPAS, Sector, Startup } from "@/lib/types";
 import { useSession } from "../AuthGate";
 import { useDeals } from "../pipeline/DealsLookup";
 import { cadeiasParaApi } from "@/lib/use-areas";
@@ -32,7 +32,8 @@ const LABELS: EmLabels = { titulo: "nome", resumo: "descrição", entidades: "in
 export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { areas: Area[]; startups: Startup[]; sectors: Sector[]; loaded: boolean }) {
   const { email } = useSession();
   const [fRing, setFRing] = useState<string | null>(null);
-  const [fFase, setFFase] = useState("all");
+  /** Fases do pipeline escolhidas (vazio = todas). */
+  const [fFase, setFFase] = useState<string[]>([]);
   const [fSec, setFSec] = useState("all");
   const [fAno, setFAno] = useState(String(new Date().getFullYear()));
   const { deals } = useDeals();
@@ -55,11 +56,18 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   // As cadeias de valor fazem de anéis e as fases de "categorias" (para reaproveitar a pesquisa e a lista do radar das notícias)
   const rings = useMemo(() => cadeias.map((x) => ({ id: x.id, nome: x.nome, cor: x.cor })), [cadeias]);
   const areas: Area[] = cadeias;
-  const fases: Category[] = useMemo(() => FASES.map((f, i) => ({ id: f.id, nome: f.nome, icone: "chart-line", descricao: f.descricao, ordem: i, palavrasChave: [] })), []);
+  // "Fases": em que ponto do pipeline está cada startup (ou aprovada, fora do pipeline). As arquivadas não entram no radar.
+  const fases: (Category & { cor: string })[] = useMemo(() => [
+    { id: "aprovada", nome: "Aprovada (fora do pipeline)", cor: "#94A3B8", icone: "check-circle", descricao: "Aprovada na triagem, ainda sem ficha no pipeline", ordem: 0, palavrasChave: [] },
+    ...ETAPAS.filter((e) => e.id !== "arquivada").map((e, i) => ({ id: e.id, nome: e.nome, cor: ({ radar: "#2F6B73", investida: "#4F7A3A" } as Record<string, string>)[e.id] || "#B15533", icone: "kanban", descricao: e.desc, ordem: i + 1, palavrasChave: [] })),
+  ], []);
   const area = useCallback((id: string) => areas.find((a) => a.id === id), [areas]);
   const fase = useCallback((id: string) => fases.find((f) => f.id === id), [fases]);
 
-  const aprovadas = useMemo(() => startups.filter((s) => s.status === "approved"), [startups]);
+  // Em que ponto do pipeline está cada startup
+  const etapaDe = useCallback((s: Startup) => deals.find((x) => x.id === s.dealId || x.startupId === s.id)?.etapa || "aprovada", [deals]);
+  // No radar: todas, exceto as da triagem (por decidir ou arquivadas na triagem) e as arquivadas no pipeline
+  const aprovadas = useMemo(() => startups.filter((s) => s.status === "approved" && etapaDe(s) !== "arquivada"), [startups, etapaDe]);
   // Só entram no radar as que têm cadeia de valor; as outras ficam à espera de serem classificadas
   const comCadeia = useMemo(() => aprovadas.filter((s) => cadeias.some((a) => a.id === s.cadeia)), [aprovadas, cadeias]);
   // Ano: o de entrada no pipeline, quando está lá; senão o ano em que a startup entrou no radar.
@@ -89,13 +97,13 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
     setClassificando(false);
   };
   const items: RadarItem[] = useMemo(() => layout(rings, approved.map((s) => {
-    const sec = sectors.find((x) => x.id === s.setor), f = FASES.find((x) => x.id === s.fase), cad = cadeias.find((x) => x.id === s.cadeia);
+    const sec = sectors.find((x) => x.id === s.setor), et = etapaDe(s), f = fases.find((x) => x.id === et), cad = cadeias.find((x) => x.id === s.cadeia);
     return {
-      id: s.id, ring: s.cadeia!, area: s.cadeia!, cat: s.fase, group: s.fase, color: cad?.cor || "#94A3B8",
+      id: s.id, ring: s.cadeia!, area: s.cadeia!, cat: et, group: et, color: cad?.cor || "#94A3B8",
       titulo: s.nome, sub: [sec?.nome, f?.nome].filter(Boolean).join(", "), resumo: [s.descricao, s.porque].filter(Boolean).join("\n\n"),
       entidades: s.investidores || [], fontes: [], data: s.aprovadoEm || s.criadoEm, relevancia: s.relevancia, destaque: s.destaque,
     };
-  })), [approved, sectors, rings, cadeias]);
+  })), [approved, sectors, rings, cadeias, etapaDe, fases]);
   const byId = useMemo(() => new Map(approved.map((s) => [s.id, s])), [approved]);
 
   // Pesquisa (nome, descrição, investidores, país, setor e fase)
@@ -112,9 +120,9 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   const itemById = useMemo(() => new Map(items.map((x) => [x.id, x])), [items]);
   const secOf = useCallback((x: RadarItem) => byId.get(x.id)?.setor || "", [byId]);
   /** Setor e fase (os filtros em dropdown); o anel filtra-se à parte. */
-  const passaSF = useCallback((x: RadarItem) => (fFase === "all" || x.cat === fFase) && (fSec === "all" || secOf(x) === fSec), [fFase, fSec, secOf]);
+  const passaSF = useCallback((x: RadarItem) => (!fFase.length || fFase.includes(x.cat)) && (fSec === "all" || secOf(x) === fSec), [fFase, fSec, secOf]);
   const passa = useCallback((x: RadarItem) => (!fRing || x.area === fRing) && passaSF(x), [fRing, passaSF]);
-  const temFiltroSF = fFase !== "all" || fSec !== "all";
+  const temFiltroSF = fFase.length > 0 || fSec !== "all";
   const hitItems = useMemo(() => hits.map((h) => itemById.get(h.id)!).filter(Boolean), [hits, itemById]);
   const results = useMemo(() => hitItems.filter(passa), [hitItems, passa]);
   const byArea = useMemo(() => {
@@ -148,8 +156,8 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
     if (ordem === "recentes") return [...l].sort((a, b) => b.data.localeCompare(a.data));
     return searching ? l : [...l].sort((a, b) => b.relevancia - a.relevancia || b.data.localeCompare(a.data));
   }, [searching, results, items, passa, ordem]);
-  const pgL = usePaged(rows, `${dq}|${fRing}|${fFase}|${fSec}|${fAno}|${ordem}`);
-  const pgR = usePaged(results, `${dq}|${fRing}|${fFase}|${fSec}|${fAno}`);
+  const pgL = usePaged(rows, `${dq}|${fRing}|${fFase.join(",")}|${fSec}|${fAno}|${ordem}`);
+  const pgR = usePaged(results, `${dq}|${fRing}|${fFase.join(",")}|${fSec}|${fAno}`);
 
   const nav = view === "lista" ? pgL.items : pgR.items;
   useEffect(() => setActive(0), [dq, fRing, fFase, fSec, fAno, view, ordem, pgL.page, pgR.page]);
@@ -175,14 +183,14 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
 
   const counts = (rid: string) => items.filter((x) => x.ring === rid && passaSF(x)).length;
   const faseCount = (fid: string) => items.filter((x) => x.cat === fid && (!fRing || x.area === fRing) && (fSec === "all" || secOf(x) === fSec)).length;
-  const secCount = (sid: string) => items.filter((x) => secOf(x) === sid && (!fRing || x.area === fRing) && (fFase === "all" || x.cat === fFase)).length;
+  const secCount = (sid: string) => items.filter((x) => secOf(x) === sid && (!fRing || x.area === fRing) && (!fFase.length || fFase.includes(x.cat))).length;
   const open = openId ? startups.find((s) => s.id === openId) || null : null;
   const drawerList = (view === "lista" ? rows : searching ? results : items).map((x) => byId.get(x.id)!).filter(Boolean);
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 2600); };
 
   const filtros = (<>
     <SectorSelect sectors={sectors} value={fSec} onChange={setFSec} counts={secCount} />
-    <FaseSelect fases={[...FASES].reverse()} value={fFase} onChange={setFFase} counts={faseCount} />
+    <MultiSelect opcoes={fases} value={fFase} onChange={setFFase} counts={faseCount} allLabel="Todas as fases do pipeline" icone="kanban" />
     <label className="periodo">
       <span>Ano</span>
       <select value={fAno} onChange={(e) => setFAno(e.target.value)} aria-label="Ano">
@@ -196,14 +204,14 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   );
   const summary = (
     <SearchSummary q={dq} n={results.length} total={hits.length} byArea={byArea} areas={areas} fRing={fRing} setFRing={setFRing}
-      cat={fFase !== "all" ? fase(fFase) : undefined} clearCat={() => setFFase("all")} related={related} setQ={setQ}
+      cat={fFase.length === 1 ? fase(fFase[0]) : undefined} clearCat={() => setFFase([])} related={related} setQ={setQ}
       compact={view === "lista"} noun={["startup", "startups"]} />
   );
   const empty = searching ? (
     <>
       <b>Nenhuma startup para «{dq.trim()}»</b>
       <span>{hits.length ? "Há resultados noutras cadeias de valor, categorias, fases ou anos. Tira os filtros para os veres." : "Experimenta outra palavra, um investidor ou um país."}</span>
-      {hits.length ? <button className="chip" onClick={() => { setFRing(null); setFFase("all"); setFSec("all"); setFAno("all"); }}>Tirar filtros</button>
+      {hits.length ? <button className="chip" onClick={() => { setFRing(null); setFFase([]); setFSec("all"); setFAno("all"); }}>Tirar filtros</button>
         : <div className="ssc">{suggestions.slice(0, 6).map((s) => <button key={s.label} className="chip" onClick={() => setQ(s.label)}>{s.icon && <Icon name={s.icon} />}{s.label}</button>)}</div>}
     </>
   ) : (
@@ -280,7 +288,7 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
               <div className="lgroups" id="sres" role={searching ? "listbox" : undefined} aria-label={searching ? "Resultados da pesquisa" : undefined}>
                 <ol className="lrows">
                   {pgL.items.map((x, k) => {
-                    const s = byId.get(x.id), a = area(x.area), f = FASES.find((y) => y.id === x.cat), h = hitsById.get(x.id);
+                    const s = byId.get(x.id), a = area(x.area), f = fases.find((y) => y.id === x.cat), h = hitsById.get(x.id);
                     return (
                       <li key={x.id} style={{ ["--c" as string]: x.color, ["--k" as string]: Math.min(k, 14) }}>
                         <button id={`sr-${x.id}`} className={`lrow${searching && k === active ? " act" : ""}`} onClick={() => setOpenId(x.id)}

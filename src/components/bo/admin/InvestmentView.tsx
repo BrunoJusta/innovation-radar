@@ -7,6 +7,7 @@ import { fdLongo } from "@/lib/util";
 import { Icon } from "@/components/Icon";
 import { useSession } from "../AuthGate";
 import { AdmHead, errMsg, useFlash } from "./common";
+import { SECCAO_DECISAO, temSeccaoDecisao } from "@/lib/guidelines";
 
 /** Guidelines de investimento (privadas, em config/investimento) e regras da análise automática. */
 export function InvestmentView() {
@@ -35,6 +36,8 @@ export function InvestmentView() {
     <div className="form">
       <label className="fld"><span>Guidelines de investimento (texto)</span>
         <textarea className="long" rows={16} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Cola aqui o texto do documento de guidelines: âmbito, critérios por ticket, desafios do ano e conclusões do comité." /></label>
+      {!temSeccaoDecisao(texto) && <div className="notice warn scad"><span>As guidelines ainda não explicam a decisão «Uncertain» (bom encaixe, mas faltam dados para decidir). Junta a secção ao texto e guarda.</span>
+        <button className="btn" onClick={() => setTexto(`${texto.trim()}\n\n${SECCAO_DECISAO}\n`)}><Icon name="plus" />Juntar secção Uncertain</button></div>}
       <p className="hint">{meta.em ? `Atualizadas em ${fdLongo(meta.em)}${meta.por ? ` por ${meta.por}` : ""}. ` : "Ainda não há guidelines. Sem elas, a análise usa só os critérios abaixo e não reconhece os desafios do ano. "}Quando sair a versão de um novo ano, basta substituir o texto.</p>
       <div className="fgrid">
         <label className="fld"><span>Análise automática a partir de (relevância 0 a 100)</span>

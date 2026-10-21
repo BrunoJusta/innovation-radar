@@ -236,11 +236,11 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
 
   return (
     <div className={`rp${inBo ? " rp-embed" : ""}`}>
-      {!inBo && <header className="top"><div className="wrap topin"><a className="brand" href="/">Radar de Inovação</a></div></header>}
+      {!inBo && <header className="top"><div className="wrap topin"><a className="brand" href="/">Inovação</a></div></header>}
       <main>
         <section className={`${inBo ? "" : "wrap "}hero${view === "lista" ? " lmode" : ""}${searching ? " smode" : ""}`} aria-label="Radar">
           <div className="htxt">
-            <h1>O que está a mudar no vinho</h1>
+            <h1>Radar de notícias e tendências</h1>
           </div>
           {/* Pesquisa e vista por cima do radar, à direita do título */}
           <div className="tools">

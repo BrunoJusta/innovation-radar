@@ -4,10 +4,12 @@ import { Icon } from "@/components/Icon";
 import { analiseMarkdown, elegibilidade, euros, nomeCiclo, nomeTicket, nomeVertical, PROCURA } from "@/lib/analise-util";
 import { AlvoAnalise, AnaliseErro, loadAnalises, Parte, ParteId, Passos, runAnalise } from "@/lib/analise-run";
 import { useAnaliseQueue } from "../AnaliseQueue";
-import { Analise, CRITERIOS, GRUPOS_CRITERIOS, MATRIZ, TICKETS, VEREDICTOS, Veredicto } from "@/lib/types";
+import { Analise, CRITERIOS, GRUPOS_CRITERIOS, MATRIZ, TICKETS, VEREDICTOS, Veredicto, nomeDecisao } from "@/lib/types";
 import { fdLongo } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { ACEITES, DocAnalise, lerDocumento, MAX_BINARIO } from "@/lib/doc-text";
+import { PerfilEditor } from "./PerfilEditor";
+import type { AnalisePerfil } from "@/lib/types";
 
 const PASSOS: { id: ParteId | "avaliar"; nome: string; desc: string }[] = [
   { id: "empresa", nome: "Empresa e negócio", desc: "Produto, clientes, modelo de negócio, tração e tecnologia" },
@@ -40,6 +42,8 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
   const [docs, setDocs] = useState<DocAnalise[]>([]);
   const [lendo, setLendo] = useState(false);
   const [erroDoc, setErroDoc] = useState("");
+  // Dados do perfil editados à mão: ao refazer, a avaliação usa-os em vez de voltar a pesquisar na web
+  const [perfilEd, setPerfilEd] = useState<AnalisePerfil | null>(null);
   const juntar = async (fs: FileList | null) => {
     if (!fs?.length) return;
     setLendo(true); setErroDoc("");
@@ -64,6 +68,12 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
 
   const run = useCallback(async (jaTem: Partial<Record<ParteId, Parte>> = {}) => {
     setErro(""); setPedir(false);
+    const base = hist?.[idx];
+    if (perfilEd && base && !Object.keys(jaTem).length) jaTem = {
+      empresa: { parte: "empresa", dados: { ...perfilEd, emFalta: perfilEd.emFalta }, fontes: base.fontes },
+      equipa: { parte: "equipa", dados: { ciclo: perfilEd.ciclo, equipa: perfilEd.equipa, financiamento: perfilEd.financiamento, emFalta: [] }, fontes: [] },
+    };
+    setPerfilEd(null);
     try {
       const r = await runAnalise(alvo, email, setPassos, jaTem, docs);
       setHist((h) => [r.analise, ...(h || [])]); setIdx(0); setPassos(null); setPartes({});
@@ -72,7 +82,7 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
       setErro((e as Error).message);
       if (e instanceof AnaliseErro) setPartes(e.partes);
     }
-  }, [alvo, email, notify, docs]);
+  }, [alvo, email, notify, docs, perfilEd, hist, idx]);
 
   const a = hist?.[idx];
   const copiar = async () => {
@@ -126,6 +136,15 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
             {erroDoc && <p className="gerr" role="alert">{erroDoc}</p>}
           </div>
         )}
+        {!emFundo && !passos && pedir && a && (
+          <div className="an-docs">
+            <div className="an-docs-h"><Icon name="pencil-simple" size={20} /><div><b>Queres corrigir ou completar os dados?</b>
+              <p>Edita qualquer campo do perfil (financiamento, tração, equipa…). Se editares, a nova análise usa estes dados e não volta a pesquisar na web. Se não, faz uma pesquisa nova.</p></div>
+              {perfilEd ? <button className="txtbtn" onClick={() => setPerfilEd(null)}>Usar pesquisa nova</button>
+                : <button className="btn" onClick={() => setPerfilEd(JSON.parse(JSON.stringify(a.perfil)))}><Icon name="pencil-simple" />Editar dados</button>}</div>
+            {perfilEd && <PerfilEditor v={perfilEd} onChange={setPerfilEd} />}
+          </div>
+        )}
         {a && !passos && !pedir && <AnaliseReport a={a} />}
       </div>
 
@@ -141,8 +160,8 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
         {busy ? <button className="btn primary" disabled><span className="spin" aria-hidden="true" />A analisar…</button>
           : passos && erro ? <button className="btn primary" onClick={() => run(partes)}><Icon name="arrows-clockwise" />Tentar outra vez</button>
           : !emFundo && hist !== null && (pedir || !a)
-            ? <>{pedir && <button className="txtbtn" onClick={() => { setPedir(false); setErroDoc(""); }}>Cancelar</button>}
-              <button className="btn primary" onClick={() => run()} disabled={lendo}><Icon name={a ? "arrows-clockwise" : "sparkle"} />{docs.length ? `${a ? "Refazer" : "Fazer"} análise com ${docs.length} ${docs.length === 1 ? "documento" : "documentos"}` : `${a ? "Refazer" : "Fazer"} análise sem documentos`}</button></>
+            ? <>{pedir && <button className="txtbtn" onClick={() => { setPedir(false); setErroDoc(""); setPerfilEd(null); }}>Cancelar</button>}
+              <button className="btn primary" onClick={() => run()} disabled={lendo}><Icon name={a ? "arrows-clockwise" : "sparkle"} />{`${a ? "Refazer" : "Fazer"} análise${perfilEd ? " com os dados editados" : ""}${docs.length ? ` e ${docs.length} ${docs.length === 1 ? "documento" : "documentos"}` : perfilEd ? "" : " sem documentos"}`}</button></>
           : !emFundo && hist !== null && <button className="btn" onClick={() => setPedir(true)}><Icon name="arrows-clockwise" />Refazer análise</button>}
       </div>
     </div>
@@ -155,7 +174,7 @@ export function AnaliseReport({ a }: { a: Analise }) {
           {/* Decisão */}
           <section className={`an-hero ${a.decisao}`}>
             <div className="an-top">
-              <div className="an-dec"><span className="lbl">Decisão</span><b>{a.decisao === "investir" ? "Investir" : "Não investir"}</b></div>
+              <div className="an-dec"><span className="lbl">Decisão</span><b>{nomeDecisao(a.decisao)}</b></div>
               <dl className="an-kpis">
                 <div><dt>Ticket</dt><dd>{nomeTicket(a.ticket)}</dd></div>
                 <div><dt>Follow-on</dt><dd>{a.followOn ? "Sim" : "Não"}</dd></div>

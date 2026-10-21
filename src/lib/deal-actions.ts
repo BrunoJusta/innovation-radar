@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { addDoc, collection, deleteDoc, doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
-import { Deal, ETAPAS, Etapa, Interacao, Passo, MotivoArquivo, MOTIVOS_ARQUIVO, ORIGENS_DF, Startup, VERTICAIS_DF, FASES_DF, VEZES } from "./types";
+import { Deal, ETAPAS, Etapa, emCurso, Interacao, Passo, MotivoArquivo, MOTIVOS_ARQUIVO, ORIGENS_DF, Startup, VERTICAIS_DF, FASES_DF, VEZES, nomeDecisao } from "./types";
 import { hojeLocal, nowIso, slug } from "./util";
 
 const ref = (id: string) => doc(db, "deals", id);
@@ -13,7 +13,7 @@ export const normNome = (s: string) => slug(s.replace(/\(.*?\)/g, "")).replace(/
 
 export const DEAL_VAZIO = (): Omit<Deal, "id"> => ({
   ref: "", nome: "", site: "", dominio: "", fundadores: "", descricao: "", pais: "", vertical: "", fase: "",
-  etapa: "contacto", etapaDesde: hoje(), interesse: "investimento", entrada: hoje(),
+  etapa: "fit", etapaDesde: hoje(), interesse: "investimento", entrada: hoje(),
   vez: "sogrape", proximaAcao: "", prazo: null, responsavel: "", passos: [],
   ronda: { valuation: null, valor: null, ticket: null, lead: "", coinvestidores: [], notas: "" },
   origem: { tipo: "candidatura", nome: "Candidatura", contacto: "" }, documentos: [], arquivo: null,
@@ -65,21 +65,23 @@ export async function savePassos(d: Deal, passos: Passo[], by?: string, log?: st
 
 export async function moveDeal(d: Deal, etapa: Etapa, by: string) {
   if (d.etapa === etapa) return;
-  await updateDoc(ref(d.id), { etapa, etapaDesde: hoje(), arquivo: null, atualizadoEm: nowIso() });
+  // Ao sair para o radar ou para as investidas, guarda a fase em curso de onde saiu (para reabrir e para o funil)
+  const saida = !emCurso(etapa) ? { etapaAnterior: emCurso(d.etapa) ? d.etapa : d.etapaAnterior || d.arquivo?.etapaAnterior || null } : { etapaAnterior: null };
+  await updateDoc(ref(d.id), { etapa, etapaDesde: hoje(), arquivo: null, ...saida, atualizadoEm: nowIso() });
   await addInteracao(d.id, { data: hoje(), tipo: "etapa", texto: `${nomeEtapa(d.etapa)} → ${nomeEtapa(etapa)}`, por: by });
 }
 
 export async function archiveDeal(d: Deal, motivo: MotivoArquivo, nota: string, by: string) {
   await updateDoc(ref(d.id), clean({ etapa: "arquivada", etapaDesde: hoje(), vez: null, proximaAcao: "", prazo: null, atualizadoEm: nowIso(),
-    arquivo: { motivo, nota, em: hoje(), etapaAnterior: d.etapa === "arquivada" ? d.arquivo?.etapaAnterior || null : d.etapa } }));
+    arquivo: { motivo, nota, em: hoje(), etapaAnterior: emCurso(d.etapa) ? d.etapa : d.etapaAnterior || d.arquivo?.etapaAnterior || null } }));
   const m = MOTIVOS_ARQUIVO.find((x) => x.id === motivo)?.nome;
   await addInteracao(d.id, { data: hoje(), tipo: "etapa", texto: `Arquivada: ${m}${nota ? `. ${nota}` : ""}`, por: by });
 }
 
 export async function reopenDeal(d: Deal, by: string) {
-  const etapa = (d.arquivo?.etapaAnterior || "contacto") as Etapa;
+  const etapa = (d.arquivo?.etapaAnterior || d.etapaAnterior || "fit") as Etapa;
   const r = resumoPassos(passosDe(d));
-  await updateDoc(ref(d.id), clean({ etapa, etapaDesde: hoje(), arquivo: null, ...r, vez: r.vez || "sogrape", atualizadoEm: nowIso() }));
+  await updateDoc(ref(d.id), clean({ etapa, etapaDesde: hoje(), arquivo: null, etapaAnterior: null, ...r, vez: r.vez || "sogrape", atualizadoEm: nowIso() }));
   await addInteracao(d.id, { data: hoje(), tipo: "etapa", texto: `Reaberta em ${nomeEtapa(etapa)}`, por: by });
 }
 
@@ -87,7 +89,7 @@ export async function reopenDeal(d: Deal, by: string) {
 export function dealFromStartup(s: Startup, deals: Deal[], setor: string): Omit<Deal, "id"> {
   return {
     ...DEAL_VAZIO(), ref: proximaRef(deals), nome: s.nome, site: s.site, dominio: s.dominio, descricao: s.descricao, ...(s.cadeia ? { cadeia: s.cadeia } : {}), ...(s.setor ? { categoria: s.setor } : {}),
-    pais: s.pais || "", etapa: "radar", interesse: "investimento", vez: "sogrape", proximaAcao: "Fazer o primeiro contacto", passos: [novoPasso({ texto: "Fazer o primeiro contacto" })],
+    pais: s.pais || "", etapa: "fit", interesse: "investimento", vez: "sogrape", proximaAcao: "Fazer o primeiro contacto", passos: [novoPasso({ texto: "Fazer o primeiro contacto" })],
     origem: { tipo: "radar", nome: setor ? `Radar · ${setor}` : "Radar de startups", contacto: "" },
     startupId: s.id, ...(s.analiseResumo ? { analiseResumo: s.analiseResumo } : {}),
   };
@@ -109,6 +111,6 @@ export function dealsCsv(deals: Deal[]) {
   const rows = deals.map((d) => [d.ref, d.entrada, d.nome, d.site, d.fundadores, d.descricao, d.pais, nome(VERTICAIS_DF, d.vertical), nome(FASES_DF, d.fase), nomeEtapa(d.etapa), d.etapaDesde,
     nome(VEZES, d.vez), d.proximaAcao, d.prazo, d.responsavel, passosAbertos(d).slice(1).map((p) => `${p.texto}${p.prazo ? ` (${p.prazo})` : ""}`).join(" | "), d.ronda?.valuation, d.ronda?.valor, d.ronda?.ticket, d.ronda?.lead, (d.ronda?.coinvestidores || []).join(", "), d.ronda?.notas,
     nome(ORIGENS_DF, d.origem?.tipo), d.origem?.nome, d.origem?.contacto, nome(MOTIVOS_ARQUIVO, d.arquivo?.motivo), d.arquivo?.nota,
-    d.analiseResumo ? (d.analiseResumo.decisao === "investir" ? "Investir" : "Não investir") : "", d.analiseResumo?.ticket || ""]);
+    d.analiseResumo ? nomeDecisao(d.analiseResumo.decisao) : "", d.analiseResumo?.ticket || ""]);
   return "﻿" + [head, ...rows].map((r) => r.map(esc).join(";")).join("\r\n");
 }

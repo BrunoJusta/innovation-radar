@@ -8,6 +8,7 @@ import { AREAS_V2, TAGS_V2 } from "../src/lib/taxonomia";
 const ADMIN = (process.env.SEED_ADMIN || "bruno.justa@sogrape.pt").toLowerCase();
 
 import { CATEGORIAS_V2 } from "../src/lib/categorias";
+import { ETAPA_ANTIGA } from "../src/lib/types";
 const DATA: Record<string, Record<string, object>> = {
   // Taxonomia v2: cadeias de valor (anéis) e tags (temáticas, tecnologias e canais)
   areas: AREAS_V2,
@@ -67,6 +68,18 @@ async function main() {
       }
     }
   }
+  // Pipeline: fases da versão anterior → fases atuais (contacto → Validation Fit, análise Beta Capital → General Analysis, negociação → Closing Stage)
+  const deals = await db.collection("deals").get();
+  let mudadas = 0;
+  for (const d of deals.docs) {
+    const x = d.data() as { etapa?: string; arquivo?: { etapaAnterior?: string | null } | null };
+    const upd: Record<string, unknown> = {};
+    if (x.etapa && ETAPA_ANTIGA[x.etapa]) upd.etapa = ETAPA_ANTIGA[x.etapa];
+    const ant = x.arquivo?.etapaAnterior;
+    if (ant && ETAPA_ANTIGA[ant]) upd["arquivo.etapaAnterior"] = ETAPA_ANTIGA[ant];
+    if (Object.keys(upd).length) { await d.ref.update(upd); mudadas++; }
+  }
+  console.log(`Pipeline: ${mudadas} fichas passaram para as fases novas.`);
   console.log("Seed concluído. Nenhuma notícia foi criada.");
 }
 main().catch((e) => { console.error(e); process.exit(1); });

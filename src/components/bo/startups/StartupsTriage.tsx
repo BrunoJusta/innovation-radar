@@ -4,13 +4,14 @@ import { Pager, usePaged } from "@/components/Pager";
 import { Icon } from "@/components/Icon";
 import { approveStartup, purgeStartup, rejectStartup, restoreStartup, SSnapshot, startupBackToTriage } from "@/lib/startup-actions";
 import { agendarApagar, cancelarApagar } from "@/lib/purge";
-import { Area, FASES, Fila, Sector, Startup } from "@/lib/types";
+import { Area, FASES, Fila, Sector, Startup, Status, nomeDecisao } from "@/lib/types";
 import { AreaSelect, FaseSelect, SectorSelect } from "@/components/CatSelect";
 import { fdCurto, relLevel } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { Empty, Gauge } from "../ui";
 import { alvoStartup, SREJECT, StartupDrawer } from "./StartupDrawer";
 import { FindStartups } from "./FindStartups";
+import { Logo } from "./Logo";
 import { StartupsTable } from "./StartupsTable";
 import { useDeals } from "../pipeline/DealsLookup";
 import { nomeEtapa } from "@/lib/deal-actions";
@@ -20,13 +21,14 @@ import { AnaliseView } from "./AnaliseView";
 const VIEW_KEY = "radar.startups.vista";
 const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; } };
 
-const TITLES: Record<Fila, [string, string]> = {
+const TITLES: Record<Status, [string, string]> = {
   pending: ["Triagem", "Startups encontradas na pesquisa semanal, nas notícias e à mão, à espera de decisão."],
+  rejected: ["Arquivo de triagem", "Startups arquivadas na triagem, com quem não chegámos a falar. Não voltam a ser propostas pela recolha semanal. Podes devolvê-las à triagem ou eliminá-las."],
   approved: ["Aprovadas", "Estas startups estão no radar de startups. As que passam para o Pipeline saem desta lista, mas continuam aprovadas e no radar."],
 };
 
 export function StartupsTriage({ areas, status, onStatus, startups, sectors, loaded, search, adding, setAdding }: {
-  areas: Area[]; status: Fila; onStatus: (s: Fila) => void; startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
+  areas: Area[]; status: Status; onStatus: (s: Fila) => void; startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
 }) {
   const { email } = useSession();
   const { dealOf } = useDeals();
@@ -65,8 +67,10 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
   const nCad = (id: string) => doEstado.filter((s) => s.cadeia === id && (fSec === "all" || s.setor === fSec) && (fFase === "all" || s.fase === fFase)).length;
   const pg = usePaged(list, pageKey);
 
-  /** Rejeitar: sai logo da vista e é apagada da base de dados quando o aviso com Anular desaparece. */
-  const rej = (s: Startup, m: string) => rejectStartup(s, m).then((snap) => { agendarApagar(`s:${s.id}`, () => purgeStartup(s, m)); return snap; });
+  /** Arquivar: vai para o arquivo de triagem (fica guardada, a recolha semanal não a volta a propor). */
+  const rej = (s: Startup, m: string) => rejectStartup(s, m);
+  /** Eliminar: sai logo da vista e é apagada da base de dados quando o aviso com Anular desaparece. */
+  const elim = (s: Startup) => rejectStartup(s, s.motivoRejeicao || "Eliminada").then((snap) => { agendarApagar(`s:${s.id}`, () => purgeStartup(s, "eliminada")); return snap; });
   const act = async (p: Promise<SSnapshot>, msg: string, next?: boolean) => {
     const i = list.findIndex((x) => x.id === openId);
     try { const snap = await p; notify(msg, snap); if (next && openId) setOpenId(list[i + 1]?.id || list[i - 1]?.id || null); }
@@ -100,13 +104,13 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
     ) : view === "list" ? (
       <StartupsTable list={list} sectors={sectors} onOpen={setOpenId} onAnalise={setAnFor} pageKey={pageKey}
         onApprove={(s) => act(approveStartup(s, email), `«${s.nome}» aprovada e no radar`)}
-        onReject={(s, m) => act(rej(s, m), `«${s.nome}» rejeitada e apagada`)} onBack={(s) => act(startupBackToTriage(s), `«${s.nome}» voltou à triagem`)}
+        onReject={(s, m) => act(rej(s, m), `«${s.nome}» arquivada no arquivo de triagem`)} onBack={(s) => act(startupBackToTriage(s), `«${s.nome}» voltou à triagem`)} onDelete={(s) => act(elim(s), `«${s.nome}» eliminada`)}
         onBulk={async (ids, acao, motivo) => {
           const sel = startups.filter((s) => ids.includes(s.id));
           try {
-            await Promise.all(sel.map((s) => acao === "approve" ? approveStartup(s, email) : acao === "reject" ? rej(s, motivo || "Pouco relevante") : startupBackToTriage(s)));
+            await Promise.all(sel.map((s) => acao === "approve" ? approveStartup(s, email) : acao === "reject" ? rej(s, motivo || "Pouco relevante") : acao === "delete" ? elim(s) : startupBackToTriage(s)));
             const pl = sel.length > 1 ? "s" : "";
-            notify(`${sel.length} startup${pl} ${acao === "approve" ? `aprovada${pl}` : acao === "reject" ? `rejeitada${pl} e apagada${pl}` : "de volta à triagem"}`);
+            notify(`${sel.length} startup${pl} ${acao === "approve" ? `aprovada${pl}` : acao === "reject" ? `arquivada${pl} no arquivo de triagem` : acao === "delete" ? `eliminada${pl}` : "de volta à triagem"}`);
           } catch { notify("Algumas não foram guardadas. Tenta outra vez."); }
         }} />
     ) : (
@@ -129,7 +133,7 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
                   </div>
                   <Gauge v={s.relevancia} />
                 </div>
-                <div className="sname"><span className="slogo">{s.nome.slice(0, 1).toUpperCase()}</span><div><h3>{s.nome}</h3><span className="sdom">{s.dominio}</span></div></div>
+                <div className="sname"><Logo nome={s.nome} logo={s.logo} /><div><h3>{s.nome}</h3><span className="sdom">{s.dominio}</span></div></div>
                 <p className="snip">{s.descricao}</p>
                 <div className="cfoot">
                   <span>{[s.pais, s.fundacao ? `fundada em ${s.fundacao}` : ""].filter(Boolean).join(", ") || "Sem dados de país"}</span>
@@ -137,16 +141,18 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
                 </div>
               </div>
               {s.status === "pending" ? (rejectCard === s.id ? (
-                <div className="reasons"><div className="rh">Porque rejeitas?<button className="txtbtn" onClick={() => setRejectCard(null)}>Cancelar</button></div>
-                  <div className="rgrid">{SREJECT.map((m) => <button key={m} onClick={() => { setRejectCard(null); act(rej(s, m), `«${s.nome}» rejeitada e apagada`); }}>{m}</button>)}</div></div>
+                <div className="reasons"><div className="rh">Porque arquivas?<button className="txtbtn" onClick={() => setRejectCard(null)}>Cancelar</button></div>
+                  <div className="rgrid">{SREJECT.map((m) => <button key={m} onClick={() => { setRejectCard(null); act(rej(s, m), `«${s.nome}» arquivada no arquivo de triagem`); }}>{m}</button>)}</div></div>
               ) : (
                 <div className="cact">
                   <button className="btn primary" onClick={() => act(approveStartup(s, email), `«${s.nome}» aprovada e no radar`)}><Icon name="check" />Aprovar</button>
-                  <button className="btn" onClick={() => setRejectCard(s.id)}><Icon name="x" />Rejeitar</button><span className="sp" />
+                  <button className="btn" onClick={() => setRejectCard(s.id)}><Icon name="prohibit" />Arquivar</button><span className="sp" />
+                  <button className="btn icon" title="Eliminar" aria-label={`Eliminar ${s.nome}`} onClick={() => act(elim(s), `«${s.nome}» eliminada`)}><Icon name="trash" /></button>
                 </div>
               )) : (
                 <div className="cact">
                   <button className="btn" onClick={() => act(startupBackToTriage(s), `«${s.nome}» voltou à triagem`)}><Icon name="arrow-u-up-left" />Voltar à triagem</button><span className="sp" />
+                  {s.status === "rejected" && <button className="btn icon" title="Eliminar" aria-label={`Eliminar ${s.nome}`} onClick={() => act(elim(s), `«${s.nome}» eliminada`)}><Icon name="trash" /></button>}
                 </div>
               )}
             </article>
@@ -159,7 +165,7 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
     {open && (
       <StartupDrawer s={open} list={list} sectors={sectors} areas={areas} onClose={() => setOpenId(null)} onNav={setOpenId} notify={(m) => notify(m)}
         onApprove={() => act(approveStartup(open, email), `«${open.nome}» aprovada e no radar`, true)}
-        onReason={(m) => act(rej(open, m), `«${open.nome}» rejeitada e apagada`, true)} onBack={() => act(startupBackToTriage(open), `«${open.nome}» voltou à triagem`, true)} />
+        onReason={(m) => act(rej(open, m), `«${open.nome}» arquivada no arquivo de triagem`, true)} onBack={() => act(startupBackToTriage(open), `«${open.nome}» voltou à triagem`, true)} onDelete={() => act(elim(open), `«${open.nome}» eliminada`, true)} />
     )}
     {adding && <FindStartups mode="search" sectors={sectors} areas={areas} startups={startups} onClose={() => setAdding(false)}
       onDone={(msg) => { setAdding(false); onStatus("pending"); notify(msg); }} />}
@@ -177,7 +183,7 @@ export function AnChip({ s, onOpen }: { s: Startup; onOpen: () => void }) {
   const { running } = useAnaliseQueue();
   if (running.has(`startups/${s.id}`)) return null;
   const a = s.analiseResumo;
-  return <button type="button" className={`anchip btn-an ${a ? a.decisao : "none"}`} title={a ? `Análise de investimento: ${a.decisao === "investir" ? "investir" : "não investir"}, ${a.positivos} de 11 critérios positivos` : "Fazer a análise de investimento"}
+  return <button type="button" className={`anchip btn-an ${a ? a.decisao : "none"}`} title={a ? `Análise de investimento: ${nomeDecisao(a.decisao).toLowerCase()}, ${a.positivos} de 11 critérios positivos` : "Fazer a análise de investimento"}
     onClick={(e) => { e.stopPropagation(); onOpen(); }} onKeyDown={(e) => e.stopPropagation()}>
     <Icon name="scales" />{a ? "Ver análise" : "Fazer análise"}</button>;
 }

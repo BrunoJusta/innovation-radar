@@ -64,9 +64,6 @@ export function SignalModal({ item: x, items, areas, R, area, cat, tags, onClose
         </header>
         <div className="mbody">
           <div className="txt"><p className="lede">{lede}</p>{paras.map((t, i) => <p key={i}>{t}</p>)}</div>
-          {x.entidades.length > 0 && (
-            <aside className="aside"><h5>Entidades referidas</h5><div className="who">{x.entidades.map((e) => <span key={e}>{e}</span>)}</div></aside>
-          )}
         </div>
         <section className="msrc">
           <h4>Fontes</h4>

@@ -55,7 +55,7 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
     <div className="bo-app">
       <header className="top">
         <div className="wrap topin">
-          <a className="brand" href="/" title="Abrir o radar"><b>Radar de Inovação</b></a>
+          <a className="brand" href="/" title="Abrir o radar"><b>Inovação</b></a>
           <nav className="tabs" aria-label="Secções">
             <button aria-current={view === "dashboard"} onClick={() => setView("dashboard")}><span className="l">Dashboard</span></button>
             <button aria-current={view === "news"} onClick={() => setView("news")}><span className="l">Notícias</span>{counts.pending > 0 && <span className="c">{counts.pending}</span>}</button>

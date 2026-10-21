@@ -1,4 +1,5 @@
 "use client";
+import { nomeDecisao } from "@/lib/types";
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 import { AlvoAnalise, runAnalise } from "@/lib/analise-run";
 import { useSession } from "./AuthGate";
@@ -23,7 +24,7 @@ export function AnaliseQueueProvider({ notify, children }: { notify: (m: string)
     setAtual(alvo.path);
     try {
       const r = await runAnalise(alvo, email);
-      notify(`Análise de investimento de «${alvo.nome}» pronta: ${r.analise.decisao === "investir" ? "investir" : "não investir"}`);
+      notify(`Análise de investimento de «${alvo.nome}» pronta: ${nomeDecisao(r.analise.decisao).toLowerCase()}`);
     } catch (e) {
       notify(`A análise de «${alvo.nome}» falhou (${(e as Error).message.slice(0, 80)}). Podes refazê-la na ficha.`);
     } finally {

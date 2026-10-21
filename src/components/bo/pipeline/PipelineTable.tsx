@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { nomeEtapa, passosAbertos } from "@/lib/deal-actions";
-import { Deal, ETAPAS, MOTIVOS_ARQUIVO, ORIGENS_DF, VERTICAIS_DF, VEZES } from "@/lib/types";
+import { Deal, ETAPAS, MOTIVOS_ARQUIVO, ORIGENS_DF, VERTICAIS_DF, VEZES, nomeDecisao } from "@/lib/types";
 import { fdCurto, nDias } from "@/lib/util";
 
 const F_DATA = new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "2-digit", year: "2-digit" });
@@ -10,22 +10,23 @@ const fdData = (iso: string) => { const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(
 import { diasDesde, prazoEstado } from "./PipelineBoard";
 import { AnaliseLoading, useAnaliseQueue } from "../AnaliseQueue";
 import { alvoDeal } from "./DealDrawer";
+import { Logo } from "../startups/Logo";
 
 type Col = "ref" | "nome" | "etapa" | "vez" | "prazo" | "vertical" | "pais" | "origem" | "entrada" | "motivo" | "arquivo";
 const nm = <T extends { id: string; nome: string }>(l: T[], id: string | null | undefined) => l.find((x) => x.id === id)?.nome || "";
 const ORD = Object.fromEntries(ETAPAS.map((e, i) => [e.id, i]));
 
 /** Vista em lista do pipeline (ativas ou arquivadas), com colunas ordenáveis. */
-export function PipelineTable({ deals, arquivadas, onOpen }: { deals: Deal[]; arquivadas: boolean; onOpen: (id: string) => void }) {
+export function PipelineTable({ deals, arquivadas, final = false, onOpen }: { deals: Deal[]; arquivadas: boolean; /** Radar ou investidas */ final?: boolean; onOpen: (id: string) => void }) {
   const { running } = useAnaliseQueue();
-  const [sort, setSort] = useState<{ col: Col; dir: 1 | -1 }>(arquivadas ? { col: "arquivo", dir: -1 } : { col: "etapa", dir: 1 });
+  const [sort, setSort] = useState<{ col: Col; dir: 1 | -1 }>(arquivadas || final ? { col: "arquivo", dir: -1 } : { col: "etapa", dir: 1 });
   const rows = useMemo(() => {
     const v = (d: Deal): string | number => {
       switch (sort.col) {
         case "ref": return d.ref || "zzz"; case "nome": return d.nome.toLowerCase(); case "etapa": return ORD[d.etapa] ?? 99;
         case "vez": return d.vez || "zzz"; case "prazo": return d.prazo || "9999"; case "vertical": return nm(VERTICAIS_DF, d.vertical) || "zzz";
         case "pais": return d.pais || "zzz"; case "origem": return d.origem?.nome || "zzz"; case "entrada": return d.entrada || "";
-        case "motivo": return nm(MOTIVOS_ARQUIVO, d.arquivo?.motivo) || "zzz"; case "arquivo": return d.arquivo?.em || "";
+        case "motivo": return nm(MOTIVOS_ARQUIVO, d.arquivo?.motivo) || "zzz"; case "arquivo": return (arquivadas ? d.arquivo?.em : d.etapaDesde) || "";
       }
     };
     return [...deals].sort((a, b) => { const x = v(a), y = v(b); return (x < y ? -1 : x > y ? 1 : 0) * sort.dir || a.nome.localeCompare(b.nome); });
@@ -41,7 +42,7 @@ export function PipelineTable({ deals, arquivadas, onOpen }: { deals: Deal[]; ar
       <table>
         <thead><tr>
           {Th({ col: "ref", children: "Ref" })}{Th({ col: "nome", children: "Startup" })}
-          {arquivadas ? <>{Th({ col: "motivo", children: "Motivo" })}{Th({ col: "arquivo", cls: "n", children: "Arquivada" })}</> : <>{Th({ col: "etapa", children: "Fase" })}{Th({ col: "vez", children: "Vez" })}<th>Próximo passo</th>{Th({ col: "prazo", cls: "n", children: "Prazo" })}</>}
+          {final ? <><th>Saiu de</th>{Th({ col: "arquivo", cls: "n", children: "Desde" })}</> : arquivadas ? <>{Th({ col: "motivo", children: "Motivo" })}{Th({ col: "arquivo", cls: "n", children: "Arquivada" })}</> : <>{Th({ col: "etapa", children: "Fase" })}{Th({ col: "vez", children: "Vez" })}<th>Próximo passo</th>{Th({ col: "prazo", cls: "n", children: "Prazo" })}</>}
           {Th({ col: "vertical", children: "Vertical" })}{Th({ col: "pais", children: "País" })}{Th({ col: "origem", children: "Origem" })}{Th({ col: "entrada", cls: "n", children: "Entrada" })}<th>Análise</th>
         </tr></thead>
         <tbody>{rows.map((d) => {
@@ -49,8 +50,11 @@ export function PipelineTable({ deals, arquivadas, onOpen }: { deals: Deal[]; ar
           return (
             <tr key={d.id} tabIndex={0} onClick={() => onOpen(d.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) onOpen(d.id); }}>
               <td className="mut refc">{d.ref}</td>
-              <td><div className="tname"><span className="slogo">{d.nome.slice(0, 1).toUpperCase()}</span><div><b>{d.nome}</b><span className="mut sm">{d.fundadores}</span></div></div></td>
-              {arquivadas ? <>
+              <td><div className="tname"><Logo nome={d.nome} logo={d.logo} /><div><b>{d.nome}</b><span className="mut sm">{d.fundadores}</span></div></div></td>
+              {final ? <>
+                <td>{d.etapaAnterior ? nomeEtapa(d.etapaAnterior) : <span className="mut">-</span>}</td>
+                <td className="n mut">{d.etapaDesde ? fdData(d.etapaDesde) : ""}</td>
+              </> : arquivadas ? <>
                 <td title={d.arquivo?.nota || ""}>{nm(MOTIVOS_ARQUIVO, d.arquivo?.motivo)}{d.arquivo?.nota && <span className="mut sm clip">{d.arquivo.nota}</span>}</td>
                 <td className="n mut">{d.arquivo?.em ? fdData(d.arquivo.em) : ""}</td>
               </> : <>
@@ -63,7 +67,7 @@ export function PipelineTable({ deals, arquivadas, onOpen }: { deals: Deal[]; ar
               <td>{d.pais || <span className="mut">-</span>}</td>
               <td>{d.origem?.nome || nm(ORIGENS_DF, d.origem?.tipo)}</td>
               <td className="n mut">{d.entrada ? fdData(d.entrada) : ""}</td>
-              <td>{running.has(alvoDeal(d).path) ? <AnaliseLoading path={alvoDeal(d).path} /> : d.analiseResumo ? <span className={`anchip ${d.analiseResumo.decisao}`}>{d.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}</span> : <span className="mut">-</span>}</td>
+              <td>{running.has(alvoDeal(d).path) ? <AnaliseLoading path={alvoDeal(d).path} /> : d.analiseResumo ? <span className={`anchip ${d.analiseResumo.decisao}`}>{nomeDecisao(d.analiseResumo.decisao)}</span> : <span className="mut">-</span>}</td>
             </tr>
           );
         })}</tbody>

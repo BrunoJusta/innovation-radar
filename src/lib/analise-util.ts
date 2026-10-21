@@ -1,4 +1,4 @@
-import { Analise, CICLOS, CRITERIOS, GRUPOS_CRITERIOS, MATRIZ, Startup, TICKETS, VEREDICTOS, VERTICAIS, Veredicto } from "./types";
+import { Analise, CICLOS, CRITERIOS, GRUPOS_CRITERIOS, MATRIZ, Startup, TICKETS, VEREDICTOS, VERTICAIS, Veredicto, nomeDecisao } from "./types";
 import { fdLongo } from "./util";
 
 export type Elegibilidade = "sim" | "dados" | "nao";
@@ -28,7 +28,7 @@ export function analiseMarkdown(s: Pick<Startup, "nome" | "site">, a: Analise): 
   const p = a.perfil, f = p.financiamento, L: string[] = [];
   const li = (xs: string[]) => (xs.length ? xs.map((x) => `- ${x}`) : ["- Sem dados"]);
   L.push(`# Análise de investimento: ${s.nome}`, "", `${s.site} · ${fdLongo(a.feitaEm)}`, "");
-  L.push(`**Decisão:** ${a.decisao === "investir" ? "Investir" : "Não investir"}${a.condicoes ? ` (${a.condicoes})` : ""}`);
+  L.push(`**Decisão:** ${nomeDecisao(a.decisao)}${a.condicoes ? ` (${a.condicoes})` : ""}`);
   L.push(`**Ticket:** ${nomeTicket(a.ticket)} · **Follow-on:** ${a.followOn ? "Sim" : "Não"}${a.desafio ? ` · **Desafio 2026:** ${a.desafio}` : ""}`, "", a.racional, "");
   L.push("## Perfil", "", p.resumo, "",
     `- Vertical: ${nomeVertical(p.vertical)}`, `- Ciclo de vida: ${nomeCiclo(p.ciclo)}`, `- Fundação: ${p.fundacao || "Sem dados"}`,

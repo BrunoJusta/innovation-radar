@@ -159,3 +159,48 @@ export function FaseSelect({ fases, value, onChange, counts }: { fases: { id: st
   const itens = fases.map((f, i) => ({ id: f.id, nome: f.nome, cor: f.cor, icone: "", descricao: f.descricao, ordem: i, palavrasChave: [] })) as (Category & { cor: string })[];
   return <CatSelect cats={itens} value={value} onChange={onChange} counts={counts} simples allLabel="Todas as fases" procurar="Procurar fase" />;
 }
+
+/** Dropdown de escolha múltipla (por exemplo, as fases do pipeline). Lista vazia = todas. */
+export function MultiSelect({ opcoes, value, onChange, counts, allLabel, icone = "funnel" }: {
+  opcoes: { id: string; nome: string; cor?: string }[]; value: string[]; onChange: (v: string[]) => void;
+  counts?: (id: string) => number; allLabel: string; icone?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const uid = useId();
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc); document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+  const toggle = (id: string) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+  const nomes = opcoes.filter((o) => value.includes(o.id)).map((o) => o.nome);
+  const label = !nomes.length ? allLabel : nomes.length === 1 ? nomes[0] : `${nomes.length} fases`;
+  return (
+    <div className={`cds${open ? " open" : ""}${value.length ? " on" : ""}`} ref={box}>
+      <button type="button" className="cdt" aria-haspopup="listbox" aria-expanded={open} aria-controls={`${uid}l`} onClick={() => setOpen(!open)}>
+        <Icon name={icone} /><span className="cdl">{label}</span><Icon name="caret-down" className="cdc" />
+      </button>
+      {value.length > 0 && <button type="button" className="cdx" aria-label="Tirar filtro" onClick={() => onChange([])}><Icon name="x" /></button>}
+      {open && (
+        <div className="cdp">
+          <div className="cdo" role="listbox" id={`${uid}l`} aria-multiselectable aria-label={allLabel}>
+            <button type="button" role="option" aria-selected={!value.length} className="cdi" onClick={() => onChange([])}>
+              <Icon name="stack" /><span>{allLabel}</span>{!value.length && <Icon name="check" className="cdk" />}</button>
+            {opcoes.map((o) => {
+              const n = counts?.(o.id), on = value.includes(o.id);
+              return (
+                <button type="button" role="option" key={o.id} aria-selected={on} className={`cdi${n === 0 ? " zero" : ""}`} onClick={() => toggle(o.id)}>
+                  <span className={`mck${on ? " on" : ""}`} aria-hidden="true">{on && <Icon name="check" />}</span>
+                  {o.cor && <i className="cdot" style={{ background: o.cor }} aria-hidden="true" />}<span>{o.nome}</span>{n !== undefined && <em>{n}</em>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

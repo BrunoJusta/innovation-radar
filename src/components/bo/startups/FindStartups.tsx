@@ -10,6 +10,7 @@ import { Icon } from "@/components/Icon";
 import { useSession } from "../AuthGate";
 import { StartupFields } from "./StartupFields";
 import { useAnaliseQueue } from "../AnaliseQueue";
+import { procurarEGuardar } from "@/lib/logo";
 import { cadeiasParaApi } from "@/lib/use-areas";
 
 type Cand = StartupEdit & { id: string; dominio: string; fonte: { titulo: string; url: string }; siteOk?: boolean };
@@ -74,7 +75,7 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
       let novas = 0, juntas = 0;
       for (const c of sel) {
         const r = await createStartup(c.id, { ...toEdit(c), dominio: c.dominio }, { tipo: "pesquisa", titulo: c.fonte.titulo, url: c.fonte.url, data: nowIso(), pesquisa: query }, email);
-        if (r === "criada") { novas++; if (analisar) analisa(c.id, toEdit(c), c.dominio); } else juntas++;
+        if (r === "criada") { novas++; procurarEGuardar(c.site, { startupId: c.id }); if (analisar) analisa(c.id, toEdit(c), c.dominio); } else juntas++;
       }
       onDone(`${novas} startup${novas === 1 ? "" : "s"} na triagem${juntas ? `, ${juntas} já existia${juntas === 1 ? "" : "m"}` : ""}${analisar && novas ? ". A análise de investimento corre em segundo plano." : ""}`);
     } catch (e) { setErro((e as { code?: string }).code === "permission-denied" ? "Sem permissão para gravar. Confirma que as regras do Firestore estão atualizadas." : "Não foi possível guardar. Tenta outra vez."); setBusy(false); }
@@ -93,6 +94,7 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
     try {
       const r = await createStartup(ficha.c.id, { ...ficha.e, dominio: ficha.c.dominio },
         { tipo: "manual", titulo: ficha.c.fonte.titulo || ficha.e.nome, url: ficha.c.fonte.url || ficha.e.site, data: nowIso() }, email, aprovar);
+      if (r === "criada") procurarEGuardar(ficha.e.site, { startupId: ficha.c.id });
       if (r === "criada" && analisar) analisa(ficha.c.id, ficha.e, ficha.c.dominio);
       const extra = r === "criada" && analisar ? ". A análise de investimento corre em segundo plano." : "";
       onDone(r === "existia" ? `«${ficha.e.nome}» já existia; juntei a origem` : (aprovar ? `«${ficha.e.nome}» aprovada e no radar` : `«${ficha.e.nome}» na triagem`) + extra);

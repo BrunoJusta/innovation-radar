@@ -1296,3 +1296,62 @@
 .bo .arqbox .arqe{flex:none;align-self:flex-start;color:var(--ink-muted)}
 .bo .arqed{margin:16px 0 4px;border:0;border-radius:12px;padding:14px 16px;gap:12px}
 .bo .arqed .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* Decisão incerta: bom encaixe, faltam dados para decidir */
+.bo .an-hero.incerto{background:linear-gradient(135deg,var(--warn-tint),#FFFAF0)}
+.bo .an-hero.incerto .an-dec b{color:var(--warn)}
+.bo .anbox.incerto .d{color:var(--warn)}
+.bo .anchip.incerto{background:var(--warn-tint);color:var(--warn)}
+.bo .an-docs-h>div{flex:1}
+.bo .an-docs-h>.btn,.bo .an-docs-h>.txtbtn{flex:none;align-self:flex-start}
+.bo .pfed{background:var(--surface-1);border-radius:12px;padding:16px;box-shadow:var(--ring)}
+.bo .pf-eq{display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:8px;margin-bottom:8px}
+.bo .pf-eq input{height:36px;border-radius:8px;border:0;box-shadow:var(--ring);padding:0 10px;font:inherit;font-size:13.5px;background:var(--surface-1);min-width:0}
+@media (max-width:760px){.bo .pf-eq{grid-template-columns:1fr 1fr}}
+/* Quadro: última coluna com os três destinos finais, um por baixo do outro */
+.bo .bcol.bfim{display:flex;flex-direction:column;gap:8px;background:none;padding:0;position:sticky;top:12px;align-self:start;min-height:0;height:min(560px,calc(100dvh - 220px))}
+.bo .bdest{flex:1;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:14px;border:1.5px dashed var(--hairline-strong);background:var(--surface-1);color:var(--ink-muted);text-align:center;padding:12px;transition:background .15s,border-color .15s,transform .15s}
+.bo .bdest b{font:600 13.5px/1.2 var(--f-display);color:var(--ink)}
+.bo .bdest span{font:650 20px/1 var(--f-display);font-variant-numeric:tabular-nums;color:var(--ink)}
+.bo .bdest em{font-style:normal;font-size:11.5px;color:var(--ink-tertiary)}
+.bo .bdest.d-radar .i{color:#2F6B73}.bo .bdest.d-investida .i{color:#4F7A3A}.bo .bdest.d-arquivada .i{color:#B15533}
+.bo .bdest.over{border-style:solid;transform:scale(1.02)}
+.bo .bdest.d-radar.over{border-color:#2F6B73;background:#EAF3F4}
+.bo .bdest.d-investida.over{border-color:#4F7A3A;background:#EEF4EA}
+.bo .bdest.d-arquivada.over{border-color:#B15533;background:#FBEDE7}
+.bo .reasons.bare{border:0;background:none;padding:0}
+.bo .fimbox{display:flex;gap:12px;align-items:flex-start;margin:16px 0 4px;padding:14px 16px;border-radius:12px}
+.bo .fimbox.f-radar{background:#EAF3F4;color:#2F6B73}.bo .fimbox.f-investida{background:#EEF4EA;color:#4F7A3A}
+.bo .fimbox .i{flex:none;margin-top:2px}.bo .fimbox b{display:block;font:600 14px/1.35 var(--f-display)}
+.bo .fimbox span{display:block;margin-top:4px;font-size:12px;color:var(--ink-subtle)}
+.bo .tll{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.bo .tll a{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--ink-muted);text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bo .tll a:hover{color:var(--ink);background:var(--hairline)}
+/* Review: listas ao clicar, seletor do gráfico, bandeiras */
+.bo .rev-st,.bo .rev-vb li,.bo .rev-map path.on,.bo .rev-pr{cursor:pointer}
+.bo .rev-st:focus-visible,.bo .rev-vb li:focus-visible,.bo .rev-pr:focus-visible{outline:2px solid #B15533;outline-offset:2px}
+.bo .rev-h .rev-por{height:30px;font-size:13px;margin-right:auto}
+.bo .rev-h h2+.rev-por{margin-left:-6px}
+.bo .rev-tab .flag{margin-right:6px;font-size:15px;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.bo .rev-pr:hover td{background:var(--surface-2)}
+.bo .rev-sel{grid-column:1/-1;margin-top:12px;scroll-margin-top:80px}
+.bo .rev-sel .rev-h{align-items:center}
+.bo .rev-sel .rev-h .btn{margin-left:auto}
+.bo .rev-ls{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:6px}
+.bo .rev-ls button{width:100%;display:grid;grid-template-columns:1fr auto;gap:4px 8px;text-align:left;padding:10px 12px;border-radius:10px;border:0;background:var(--surface-2);cursor:pointer}
+.bo .rev-ls button:hover{background:var(--hairline)}
+.bo .rev-ls b{font-size:13.5px}
+.bo .rev-ls .mut{font-size:12px;color:var(--ink-subtle)}
+.bo .rev-ls .tg{justify-self:end}
+.bo .tg.e-investida{background:#EEF4EA;color:#4F7A3A}.bo .tg.e-radar{background:#EAF3F4;color:#2F6B73}.bo .tg.e-arquivada{background:#F1F1F1;color:var(--ink-subtle)}
+/* Logótipos das startups */
+.bo .slogo.haslogo{background:#fff!important;box-shadow:inset 0 0 0 1px var(--hairline);overflow:hidden;padding:3px}
+.bo .slogo.haslogo img{width:100%;height:100%;object-fit:contain;display:block}
+.bo .slogo.lg{width:52px;height:52px;border-radius:12px;display:grid;place-items:center;font:600 22px/1 var(--f-display);color:#fff;background:var(--c,#B15533)}
+.bo .logoed{position:relative;display:inline-block;margin-bottom:8px}
+.bo .logobtn{position:relative;border:0;background:none;padding:0;cursor:pointer;border-radius:12px}
+.bo .logobtn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.bo .logobtn .logoe,.bo .logobtn .spin{position:absolute;right:-6px;bottom:-6px;width:22px;height:22px;border-radius:50%;background:var(--surface-1);box-shadow:var(--ring);display:grid;place-items:center;color:var(--ink-muted)}
+.bo .logomenu{position:absolute;left:0;top:calc(100% + 6px);z-index:5;min-width:200px;background:var(--surface-1);border-radius:12px;box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column}
+.bo .logomenu button{display:flex;align-items:center;gap:8px;border:0;background:none;padding:8px 10px;border-radius:8px;font-size:13.5px;text-align:left;cursor:pointer;color:var(--ink)}
+.bo .logomenu button:hover{background:var(--surface-2)}
+.bo .dcard .slogo{width:22px;height:22px;border-radius:6px;font-size:11px;display:inline-grid;place-items:center;flex:none;font-family:var(--f-display);font-weight:600;color:#fff;background:#B15533;margin-right:6px}

@@ -5,7 +5,7 @@ import { db } from "@/lib/firebase";
 import { Icon } from "@/components/Icon";
 import { nomeTicket } from "@/lib/analise-util";
 import { nomeEtapa, passosAbertos } from "@/lib/deal-actions";
-import { Deal, ETAPAS_ATIVAS, Interacao, TIPOS_INTERACAO, VERTICAIS_DF, VEZES } from "@/lib/types";
+import { Deal, ETAPAS_ATIVAS, Interacao, TIPOS_INTERACAO, VERTICAIS_DF, VEZES, nomeDecisao, emCurso } from "@/lib/types";
 import { fdCurto, fdLongo, nDias } from "@/lib/util";
 import { logout, useSession } from "../AuthGate";
 import { DealsLookup, useDeals } from "../pipeline/DealsLookup";
@@ -44,7 +44,7 @@ function MobilePipeline() {
   const [q, setQ] = useState("");
   const [fase, setFase] = useState<string>("all");
   const [openId, setOpenId] = useState<string | null>(null);
-  const ativas = useMemo(() => deals.filter((d) => d.etapa !== "arquivada"), [deals]);
+  const ativas = useMemo(() => deals.filter((d) => emCurso(d.etapa)), [deals]);
   const late = ativas.filter((d) => prazoEstado(d) === "atrasado").length;
   const lista = useMemo(() => {
     const k = norm(q.trim());
@@ -126,7 +126,7 @@ function MobileDeal({ d, onClose }: { d: Deal; onClose: () => void }) {
           <div><dt>Na fase</dt><dd>{nDias(diasDesde(d.etapaDesde))}</dd></div>
           <div><dt>Ronda</dt><dd>{fmtEur(d.ronda?.valor) || "Sem dados"}</dd></div>
           <div><dt>Ticket</dt><dd>{fmtEur(d.ronda?.ticket) || "Sem dados"}</dd></div>
-          {d.analiseResumo && <div><dt>Análise</dt><dd className={d.analiseResumo.decisao === "investir" ? "ok" : "no"}>{d.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}{d.analiseResumo.ticket ? ` · ${nomeTicket(d.analiseResumo.ticket)}` : ""}</dd></div>}
+          {d.analiseResumo && <div><dt>Análise</dt><dd className={d.analiseResumo.decisao === "investir" ? "ok" : d.analiseResumo.decisao === "incerto" ? "" : "no"}>{nomeDecisao(d.analiseResumo.decisao)}{d.analiseResumo.ticket ? ` · ${nomeTicket(d.analiseResumo.ticket)}` : ""}</dd></div>}
         </dl>
         {d.descricao && <p className="mob-desc">{d.descricao}</p>}
         {d.site && <a className="btn mob-site" href={d.site} target="_blank" rel="noopener noreferrer"><Icon name="globe" />{d.dominio || d.site}</a>}

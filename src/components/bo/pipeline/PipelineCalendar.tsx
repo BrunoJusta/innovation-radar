@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { Deal, Passo, VEZES } from "@/lib/types";
+import { Deal, Passo, VEZES, emCurso } from "@/lib/types";
 import { fdCurto, hojeLocal } from "@/lib/util";
 import { nomeEtapa, passosAbertos } from "@/lib/deal-actions";
 import { estadoPrazo } from "./PipelineBoard";
@@ -9,7 +9,7 @@ import { estadoPrazo } from "./PipelineBoard";
 /** Um passo com prazo, com a startup a que pertence. */
 export type Item = { d: Deal; p: Passo };
 /** Todos os passos em aberto com prazo, do mais antigo para o mais recente. */
-export const itensComPrazo = (deals: Deal[]): Item[] => deals.filter((d) => d.etapa !== "arquivada")
+export const itensComPrazo = (deals: Deal[]): Item[] => deals.filter((d) => emCurso(d.etapa))
   .flatMap((d) => passosAbertos(d).filter((p) => p.prazo).map((p) => ({ d, p })))
   .sort((a, b) => a.p.prazo!.localeCompare(b.p.prazo!));
 
@@ -39,7 +39,7 @@ export function PipelineCalendar({ deals, onOpen, compact = false }: { deals: De
   const hoje = hojeLocal();
   const [mes, setMes] = useState(() => hoje.slice(0, 7));
   const [sel, setSel] = useState<string | null>(null);
-  const ativas = useMemo(() => deals.filter((d) => d.etapa !== "arquivada"), [deals]);
+  const ativas = useMemo(() => deals.filter((d) => emCurso(d.etapa)), [deals]);
   const comPrazo = useMemo(() => itensComPrazo(ativas), [ativas]);
   const semPrazo = ativas.filter((d) => !passosAbertos(d).some((p) => p.prazo)).length;
   const porDia = useMemo(() => {

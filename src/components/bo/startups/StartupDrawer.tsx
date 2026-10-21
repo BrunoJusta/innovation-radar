@@ -2,10 +2,11 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { approveStartup, saveStartup, saveStartupLink, StartupEdit } from "@/lib/startup-actions";
-import { Area, FASES, Sector, Startup } from "@/lib/types";
+import { Area, FASES, Sector, Startup, nomeDecisao } from "@/lib/types";
 import { fdLongo, relLevel } from "@/lib/util";
 import { Gauge } from "../ui";
 import { StartupFields } from "./StartupFields";
+import { LogoEditor } from "./Logo";
 import { AnaliseView } from "./AnaliseView";
 import { nomeTicket } from "@/lib/analise-util";
 import { useDeals } from "../pipeline/DealsLookup";
@@ -17,9 +18,9 @@ const ORIGEM: Record<string, string> = { pesquisa: "Pesquisa online", noticia: "
 export const pickEdit = (s: Startup): StartupEdit => ({ nome: s.nome, site: s.site, pais: s.pais || "", cidade: s.cidade || "", fundacao: s.fundacao ?? null, fase: s.fase, setor: s.setor, cadeia: s.cadeia,
   descricao: s.descricao || "", porque: s.porque || "", relevancia: s.relevancia, financiamento: s.financiamento || "", investidores: s.investidores || [] });
 
-export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onApprove, onReason, onBack, notify }: {
+export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onApprove, onReason, onBack, onDelete, notify }: {
   s: Startup; list: Startup[]; sectors: Sector[]; areas: Area[]; onClose: () => void; onNav: (id: string) => void;
-  onApprove: () => void; onReason: (m: string) => void; onBack: () => void; notify: (m: string) => void;
+  onApprove: () => void; onReason: (m: string) => void; onBack: () => void; /** Eliminar de vez (triagem e arquivo de triagem) */ onDelete?: () => void; notify: (m: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -68,7 +69,7 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
           {cad && <span className="tg"><i className="cdot" style={{ background: cad.cor }} />{cad.nome}</span>}
           <span className="tg">{fase?.nome}</span>
           {s.status === "approved" && <span className="badge ok"><Icon name="check" />Aprovada</span>}
-          {s.status === "rejected" && <span className="badge no"><Icon name="x" />{s.motivoRejeicao}</span>}
+          {s.status === "rejected" && <span className="badge no"><Icon name="prohibit" />Arquivo de triagem: {s.motivoRejeicao}</span>}
           {s.manual && <span className="badge"><Icon name="pencil-simple" />Adicionada à mão</span>}
         </div>
         {editing ? (
@@ -77,6 +78,7 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
             <StartupFields value={f} onChange={(p) => setF({ ...f, ...p })} sectors={sectors} areas={areas} />
           </div>
         ) : (<>
+          <LogoEditor nome={s.nome} logo={s.logo} site={s.site} alvo={{ startupId: s.id, dealId: deal?.id || s.dealId }} notify={notify} />
           <h2>{s.nome}</h2>
           <a className="sweb" href={s.site} target="_blank" rel="noopener noreferrer">{s.dominio}<Icon name="arrow-up-right" /></a>
           <div className="relbox"><Gauge v={s.relevancia} lg /><div>
@@ -89,7 +91,7 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
                 <span className="m">A análise de investimento está a correr em segundo plano. Avisamos quando estiver pronta.</span><span className="go">Ver estado</span></button>
             ) : s.analiseResumo ? (
               <button className={`anbox ${s.analiseResumo.decisao}`} onClick={() => setAnalise(true)}>
-                <span className="d">{s.analiseResumo.decisao === "investir" ? "Investir" : "Não investir"}</span>
+                <span className="d">{nomeDecisao(s.analiseResumo.decisao)}</span>
                 <span className="m">{nomeTicket(s.analiseResumo.ticket)} · {s.analiseResumo.positivos} de 11 critérios positivos{s.analiseResumo.desafio ? ` · ${s.analiseResumo.desafio}` : ""}</span>
                 <span className="m">{fdLongo(s.analiseResumo.feitaEm)}</span>
                 <span className="go">Ver análise<Icon name="arrow-up-right" /></span>
@@ -136,14 +138,16 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
       </div>
       <div className="dbar">
         {s.status === "pending" ? (rejecting ? (
-          <div className="reasons"><div className="rh">Porque rejeitas?<button className="txtbtn" onClick={() => setRejecting(false)}>Cancelar</button></div>
+          <div className="reasons"><div className="rh">Porque arquivas? Vai para o arquivo de triagem.<button className="txtbtn" onClick={() => setRejecting(false)}>Cancelar</button></div>
             <div className="rgrid">{SREJECT.map((m) => <button key={m} onClick={() => onReason(m)}>{m}</button>)}</div></div>
         ) : (<>
           <button className="btn primary lg" onClick={onApprove}><Icon name="check" />Aprovar</button>
-          <button className="btn lg" onClick={() => setRejecting(true)}><Icon name="x" />Rejeitar</button><span className="sp" />
+          <button className="btn lg" onClick={() => setRejecting(true)}><Icon name="prohibit" />Arquivar</button>
+          {onDelete && <button className="btn lg" onClick={onDelete}><Icon name="trash" />Eliminar</button>}<span className="sp" />
           <button className="btn lg icon" title="Editar" aria-label="Editar" onClick={() => setEditing(true)}><Icon name="pencil-simple" /></button>
         </>)) : (<>
-          <button className="btn lg" onClick={onBack}><Icon name="arrow-u-up-left" />Voltar à triagem</button><span className="sp" />
+          <button className="btn lg" onClick={onBack}><Icon name="arrow-u-up-left" />Voltar à triagem</button>
+          {s.status === "rejected" && onDelete && <button className="btn lg" onClick={onDelete}><Icon name="trash" />Eliminar</button>}<span className="sp" />
         </>)}
       </div>
     </aside>
@@ -151,6 +155,6 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
   </>);
 }
 
-export const alvoStartup = (s: Startup, setor = "") => ({ path: `startups/${s.id}`, nome: s.nome, site: s.site, dominio: s.dominio, descricao: s.descricao, setor });
+export const alvoStartup = (s: Startup, setor = "") => ({ path: `startups/${s.id}`, nome: s.nome, site: s.site, dominio: s.dominio, descricao: s.descricao, setor, logo: s.logo, ...(s.dealId ? { alsoResumo: `deals/${s.dealId}` } : {}) });
 
 export const SREJECT = ["Fora de tema", "Pouco relevante", "Não é startup", "Já não existe"];

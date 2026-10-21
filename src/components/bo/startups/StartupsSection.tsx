@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Area, Fila, Sector, Startup } from "@/lib/types";
+import { Area, Fila, Sector, Startup, Status, emCurso } from "@/lib/types";
 import { useAreas } from "@/lib/use-areas";
 import { Icon } from "@/components/Icon";
 import { StartupsTriage } from "./StartupsTriage";
@@ -13,8 +13,8 @@ import { PipelineSection } from "../pipeline/PipelineSection";
 import { ReviewView } from "./ReviewView";
 import { useSession } from "../AuthGate";
 
-/** Secção Startups do backoffice: Triagem, Aprovadas, (admins) Pipeline e Radar. As rejeitadas são apagadas. */
-type Page = Fila | "radar" | "pipeline" | "review";
+/** Secção Startups do backoffice: Triagem, Aprovadas, Arquivo de triagem, (admins) Pipeline, Radar e Review. */
+type Page = Status | "radar" | "pipeline" | "review";
 export function StartupsSection({ initial = "pending" }: { initial?: Page }) {
   return <DealsLookup><Section initial={initial} /></DealsLookup>;
 }
@@ -39,9 +39,9 @@ function Section({ initial }: { initial: Page }) {
   // As aprovadas que passaram para o pipeline saem da lista de Aprovadas (continuam aprovadas na base de dados e no radar)
   const noPipe = new Set(deals.map((d) => d.startupId).filter(Boolean));
   const lista = startups.filter((s) => !(s.status === "approved" && (s.dealId || noPipe.has(s.id))));
-  const cnt = (st: Fila) => lista.filter((s) => s.status === st).length;
-  const TABS: { id: Fila; label: string; icon: string }[] = [
-    { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" },
+  const cnt = (st: Status) => lista.filter((s) => s.status === st).length;
+  const TABS: { id: Status; label: string; icon: string }[] = [
+    { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" }, { id: "rejected", label: "Arquivo de triagem", icon: "prohibit" },
   ];
   const Tab = ({ t }: { t: (typeof TABS)[number] }) => (
     <button key={t.id} aria-current={page === t.id} onClick={() => setPage(t.id)}><Icon name={t.icon} />{t.label}
@@ -62,13 +62,13 @@ function Section({ initial }: { initial: Page }) {
         </div>
       )}
     </div>
-    {page === "review" ? <ReviewView /> : page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage areas={areas} status={page as Fila} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar areas={areas} startups={startups} sectors={sectors} loaded={loaded} />}
+    {page === "review" ? <ReviewView /> : page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage areas={areas} status={page as Status} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar areas={areas} startups={startups} sectors={sectors} loaded={loaded} />}
   </>);
 }
 
 /** Número de startups em curso no pipeline (no separador). */
 function PipeCount() {
   const { deals } = useDeals();
-  const n = deals.filter((d) => d.etapa !== "arquivada").length;
+  const n = deals.filter((d) => emCurso(d.etapa)).length;
   return n ? <span className="c soft">{n}</span> : null;
 }

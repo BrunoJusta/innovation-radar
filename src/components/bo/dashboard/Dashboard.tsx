@@ -1,10 +1,11 @@
 "use client";
+import { normDeal } from "../pipeline/DealsLookup";
 import { useEffect, useMemo, useState } from "react";
 import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Icon } from "@/components/Icon";
 import { nomeEtapa } from "@/lib/deal-actions";
-import { Area, Deal, Run, Signal, Startup, VEZES } from "@/lib/types";
+import { Area, Deal, Run, Signal, Startup, VEZES, emCurso } from "@/lib/types";
 import { fdCurto, fdLongo, hojeLocal } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { estadoPrazo } from "../pipeline/PipelineBoard";
@@ -23,7 +24,7 @@ export function Dashboard({ signals, areas, go }: { signals: Signal[]; areas: Ar
   const [runs, setRuns] = useState<Run[]>([]);
   useEffect(() => {
     const u = [onSnapshot(collection(db, "startups"), (s) => setStartups(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Startup)), () => {})];
-    if (canPipeline) u.push(onSnapshot(collection(db, "deals"), (s) => setDeals(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Deal)), () => {}));
+    if (canPipeline) u.push(onSnapshot(collection(db, "deals"), (s) => setDeals(s.docs.map((d) => normDeal({ id: d.id, ...d.data() } as Deal))), () => {}));
     if (isAdmin) u.push(onSnapshot(query(collection(db, "runs"), orderBy("inicio", "desc"), limit(20)), (s) => setRuns(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Run)), () => {}));
     return () => u.forEach((f) => f());
   }, [canPipeline, isAdmin]);
@@ -39,7 +40,7 @@ export function DashboardView({ signals, areas, go, startups, deals, runs, isAdm
   const hoje = hojeLocal();
   const nPend = signals.filter((s) => s.status === "pending").length;
   const sPend = startups.filter((s) => s.status === "pending").length;
-  const ativas = deals.filter((d) => d.etapa !== "arquivada");
+  const ativas = deals.filter((d) => emCurso(d.etapa));
   const semana = useMemo(() => itensComPrazo(ativas).filter((x) => x.p.prazo! <= addDays(hoje, 7)), [ativas, hoje]);
   const atrasadas = semana.filter((x) => estadoPrazo(x.p.prazo) === "atrasado").length;
   const recentes = useMemo(() => signals.filter((s) => s.status === "approved").sort((a, b) => (b.aprovadoEm || b.criadoEm).localeCompare(a.aprovadoEm || a.criadoEm)).slice(0, 5), [signals]);
