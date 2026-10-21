@@ -195,7 +195,7 @@ export function StartupPicker({ startups, startupId, nome, onPick, label = "Star
             {lista.map((s, i) => (
               <button type="button" role="option" key={s.id} aria-selected={s.id === startupId} className={`inv-spo${i === hi ? " hi" : ""}`}
                 onMouseEnter={() => setHi(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => escolher(s)}>
-                <Logo nome={s.nome} logo={s.logo} /><b>{s.nome}</b><small>{s.dominio}</small><span className="sp" /><em>{ondeEsta(s)}</em>
+                {s.logo && <Logo nome={s.nome} logo={s.logo} />}<b>{s.nome}</b><small>{s.dominio}</small><span className="sp" /><em>{ondeEsta(s)}</em>
               </button>))}
             {!lista.length && <p className="inv-spe">Nenhuma startup com «{q}». Fica como texto, sem ligação.</p>}
           </div>

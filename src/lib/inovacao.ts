@@ -22,7 +22,6 @@ export type Projeto = {
   /** Ficha do projeto (como no one-pager de Inovação). */
   desafio?: string; proposta?: string; casoUso?: string; fase?: string;
   equipa?: { nome: string; papel: string }[]; kpis?: string[]; condicoes?: string[];
-  /** Imagem do projeto (data URL pequeno, reduzido no browser). */ imagem?: string;
 };
 
 /** Fases (stage) de um projeto ou piloto. */

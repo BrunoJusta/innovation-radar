@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import type { Area, Startup } from "@/lib/types";
 import { ESTADOS_PROJ, FASES_PROJ, HORIZONTES, MWB, PAPEIS_EQUIPA, Projeto, RELACOES, corDe, dataPt, eur } from "@/lib/inovacao";
@@ -20,7 +20,7 @@ export function ProjetoFicha({ p, cadeia, startup }: { p: Projeto; cadeia: strin
     { l: "Cadeia de valor", i: "wine", v: cadeia || "Por definir" },
     { l: "Stage", i: "kanban", v: p.fase || "Por definir" },
     { l: "Tipo", i: "users", v: p.relacao || "Por definir" },
-    { l: "Parceiro", i: "briefcase", v: p.parceiro ? <span className="pf-par">{startup && <Logo nome={startup.nome} logo={startup.logo} />}<span title={p.parceiro}>{p.parceiro}</span></span> : "Sem parceiro" },
+    { l: "Parceiro", i: "briefcase", v: p.parceiro ? <span className="pf-par">{startup?.logo && <Logo nome={startup.nome} logo={startup.logo} />}<span title={p.parceiro}>{p.parceiro}</span></span> : "Sem parceiro" },
     { l: "Estado", i: p.estado === "Finished" ? "check-circle" : "clock", v: p.estado, c: est?.cor },
   ];
   return (
@@ -29,7 +29,6 @@ export function ProjetoFicha({ p, cadeia, startup }: { p: Projeto; cadeia: strin
         {p.desafio && <section><h3>Desafio</h3><p className="pf-hmw">{p.desafio}</p></section>}
         {proposta && <section><h3>Proposta de valor</h3><p>{proposta}</p></section>}
         {p.casoUso && <section><h3>Caso de uso Sogrape</h3><p>{p.casoUso}</p></section>}
-        {p.imagem && <img className="pf-img" src={p.imagem} alt={`Imagem do projeto ${p.nome}`} width={640} height={360} loading="lazy" />}
         {equipa.length > 0 && (
           <section><h3>Equipa</h3>
             <ul className="pf-team">{equipa.map((m, i) => (
@@ -67,26 +66,12 @@ function Linhas({ label, v, on, ph }: { label: string; v: string[]; on: (l: stri
     onChange={(e) => { setT(e.target.value); on(e.target.value.split("\n").map((x) => x.trim()).filter(Boolean)); }} /><small className="fhint">Um por linha.</small></label>;
 }
 
-/** Reduz a imagem no browser (máx. 960 px, JPEG) para caber no documento. */
-async function reduzir(f: File): Promise<string> {
-  const url = URL.createObjectURL(f);
-  try {
-    const img = await new Promise<HTMLImageElement>((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
-    const k = Math.min(1, 960 / Math.max(img.width, img.height));
-    const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-    const g = c.getContext("2d")!; g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
-    return c.toDataURL("image/jpeg", 0.8);
-  } finally { URL.revokeObjectURL(url); }
-}
-
 /** Formulário do projeto, por secções. */
 export function ProjetoForm({ ed, setEd, areas, startups, parceiros }: {
   ed: Projeto; setEd: (p: Projeto) => void; areas: Area[]; startups: Startup[]; parceiros: { ref: string; nome: string }[];
 }) {
   const set = (x: Partial<Projeto>) => setEd({ ...ed, ...x });
   const equipa = ed.equipa || [];
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [imgErro, setImgErro] = useState("");
   return (
     <div className="pfo">
       <section><h4>Identificação</h4>
@@ -140,21 +125,6 @@ export function ProjetoForm({ ed, setEd, areas, startups, parceiros }: {
           <label className="fld"><span>Fim</span><input type="date" value={ed.fim} min={ed.inicio || undefined} onChange={(e) => set({ fim: e.target.value })} /></label>
           <Eur label="Orçamento estimado (€)" v={ed.orcamento} on={(n) => set({ orcamento: n })} />
           <Eur label="Gasto até agora (€)" v={ed.gasto} on={(n) => set({ gasto: n })} />
-        </div>
-      </section>
-      <section><h4>Imagem</h4>
-        <div className="pfo-img">
-          {ed.imagem ? <img src={ed.imagem} alt="Imagem atual do projeto" width={160} height={90} /> : <span className="pfo-noimg"><Icon name="upload-simple" /></span>}
-          <div>
-            <button type="button" className="btn" onClick={() => fileRef.current?.click()}><Icon name="upload-simple" />{ed.imagem ? "Trocar imagem" : "Carregar imagem"}</button>
-            {ed.imagem && <button type="button" className="txtbtn" onClick={() => set({ imagem: "" })}>Tirar</button>}
-            <small className="fhint">Por exemplo, os produtos do caso de uso. É reduzida para 960 px.</small>
-            {imgErro && <em className="ferr" role="alert">{imgErro}</em>}
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={async (e) => {
-            const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
-            try { setImgErro(""); set({ imagem: await reduzir(f) }); } catch { setImgErro("Não foi possível ler a imagem. Experimenta um JPG ou PNG."); }
-          }} />
         </div>
       </section>
       <section><h4>Observações</h4>
