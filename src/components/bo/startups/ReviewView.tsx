@@ -45,6 +45,8 @@ export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }
   const [openId, setOpenId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const [porQ, setPorQ] = useState<"cadeia" | "categoria">("cadeia");
+  /** Tirar as arquivadas do gráfico por cadeia de valor ou categoria. */
+  const [semArq, setSemArq] = useState(false);
   const areas = useAreas(), categorias = useCategorias();
   useEffect(() => setSel(null), [ano]);
   useEffect(() => {
@@ -97,8 +99,9 @@ export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }
           <div className="rev-h"><h2>Startups por</h2>
             <label className="fsel on rev-por"><select value={porQ} onChange={(e) => setPorQ(e.target.value as "cadeia" | "categoria")} aria-label="Agrupar por">
               <option value="cadeia">cadeia de valor</option><option value="categoria">categoria</option></select></label>
-            <span className="rev-lg"><i style={{ background: COR_EST.investida }} />Investida<i style={{ background: COR_EST.curso }} />Em curso<i style={{ background: COR_EST.radar }} />Radar<i style={{ background: COR_EST.arquivada }} />Arquivada</span></div>
-          <Verticais lista={lista} setTip={setTip} k={`${ano}${porQ}`} grupos={(porQ === "cadeia" ? areas : categorias).map((x) => ({ id: x.id, nome: x.nome }))} campo={porQ} onPick={ver} />
+            <button type="button" className="chipf rev-arq" aria-pressed={semArq} onClick={() => setSemArq(!semArq)}>{semArq && <Icon name="check" />}Excluir arquivadas</button>
+            <span className="rev-lg"><i style={{ background: COR_EST.investida }} />Investida<i style={{ background: COR_EST.curso }} />Em curso<i style={{ background: COR_EST.radar }} />Radar{!semArq && <><i style={{ background: COR_EST.arquivada }} />Arquivada</>}</span></div>
+          <Verticais lista={semArq ? lista.filter((d) => estado(d) !== "arquivada") : lista} setTip={setTip} k={`${ano}${porQ}${semArq}`} grupos={(porQ === "cadeia" ? areas : categorias).map((x) => ({ id: x.id, nome: x.nome }))} campo={porQ} onPick={ver} />
         </section>
         <section className="rev-c full">
           <div className="rev-h"><h2>De onde vêm</h2><span>Quanto mais escuro, mais startups.</span></div>

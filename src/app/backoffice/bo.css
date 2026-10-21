@@ -1331,6 +1331,8 @@
 .bo .rev-st:focus-visible,.bo .rev-vb li:focus-visible,.bo .rev-pr:focus-visible{outline:2px solid #B15533;outline-offset:2px}
 .bo .rev-h .rev-por{height:30px;font-size:13px;margin-right:auto}
 .bo .rev-h h2+.rev-por{margin-left:-6px}
+.bo .rev-h .rev-por:has(+.rev-arq){margin-right:0}
+.bo .rev-h .rev-arq{align-self:center;margin-right:auto}
 .bo .rev-tab .flag{margin-right:6px;font-size:15px;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
 .bo .rev-pr:hover td{background:var(--surface-2)}
 .bo .rev-sel{grid-column:1/-1;margin-top:12px;scroll-margin-top:80px}
