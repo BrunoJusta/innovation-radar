@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const lista = (body.startups || []).filter((s) => s && typeof s.id === "string" && s.nome).slice(0, 80)
     .map((s) => ({ id: s.id, nome: String(s.nome).slice(0, 120), descricao: String(s.descricao || "").slice(0, 600) }));
   const sectors = (body.sectors || []).filter((s) => s && typeof s.id === "string" && s.nome).slice(0, 20)
-    .map((s) => ({ id: s.id, nome: String(s.nome).slice(0, 80), descricao: String(s.descricao || "").slice(0, 400) }));
+    .map((s) => ({ id: s.id, nome: String(s.nome).slice(0, 80), descricao: String(s.descricao || "").slice(0, 1500) }));
   if (!lista.length || !sectors.length) return NextResponse.json({ setores: {} });
   try {
     return NextResponse.json({ setores: await classificarSetores(lista, sectors, { timeoutMs: 50000 }) });

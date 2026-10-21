@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   }));
   if (!lista.length) return NextResponse.json({ startups: [] });
   try {
-    return NextResponse.json({ startups: await sitesECadeias(lista, { fast: true, timeoutMs: 38000, think: 1024 }, cadeiasDe(body.cadeias), (Array.isArray(body.categorias) ? body.categorias : []).filter((x) => x && typeof x.id === "string" && x.nome).slice(0, 20).map((x) => ({ id: String(x.id), nome: String(x.nome).slice(0, 80), descricao: String(x.descricao || "").slice(0, 400) }))) });
+    return NextResponse.json({ startups: await sitesECadeias(lista, { fast: true, timeoutMs: 38000, think: 1024 }, cadeiasDe(body.cadeias), (Array.isArray(body.categorias) ? body.categorias : []).filter((x) => x && typeof x.id === "string" && x.nome).slice(0, 20).map((x) => ({ id: String(x.id), nome: String(x.nome).slice(0, 80), descricao: String(x.descricao || "").slice(0, 1500) }))) });
   } catch (e) {
     return fail(`A pesquisa falhou: ${(e as Error).message.slice(0, 200)}`, 502);
   }

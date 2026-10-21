@@ -7,7 +7,7 @@ import { AREAS_V2, TAGS_V2 } from "../src/lib/taxonomia";
 
 const ADMIN = (process.env.SEED_ADMIN || "bruno.justa@sogrape.pt").toLowerCase();
 
-import { CATEGORIAS_V2 } from "../src/lib/categorias";
+import { CATEGORIAS_V3 } from "../src/lib/categorias";
 import { ETAPA_ANTIGA } from "../src/lib/types";
 const DATA: Record<string, Record<string, object>> = {
   // Taxonomia v2: cadeias de valor (anéis) e tags (temáticas, tecnologias e canais)
@@ -37,7 +37,6 @@ const DATA: Record<string, Record<string, object>> = {
     "the-spoon": { nome: "The Spoon", tipo: "rss", url: "https://thespoon.tech/feed/", lingua: "en", ativo: true, para: "startups" },
   },
   settings: { geral: { corteRelevancia: 50, janelaDias: 90, corteStartups: 50 } },
-  sectors: CATEGORIAS_V2,
   users: { [ADMIN]: { role: "admin", nome: "Bruno Justa", adicionadoEm: new Date().toISOString(), adicionadoPor: "seed" } },
 };
 
@@ -54,6 +53,10 @@ async function main() {
     if (!(await ref.get()).exists) continue;
     await ref.delete();
     console.log(`setor antigo ${old} removido (as startups dele são reclassificadas na recolha semanal)`);
+  }
+  // Categorias das startups: só se a coleção estiver vazia (as categorias são geridas nas Definições)
+  if ((await db.collection("sectors").limit(1).get()).empty) {
+    for (const [id, c] of Object.entries(CATEGORIAS_V3)) { await db.collection("sectors").doc(id).set(c); console.log(`criado   sectors/${id}`); }
   }
   for (const [col, docs] of Object.entries(DATA)) for (const [id, data] of Object.entries(docs)) {
     try { await db.collection(col).doc(id).create(data); console.log(`criado   ${col}/${id}`); }

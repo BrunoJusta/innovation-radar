@@ -1364,7 +1364,7 @@
 .bo .cfi{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);color:var(--ink-muted)}
 .bo .cfi.danger{background:#FDECEC;color:#C42B31}
 /* A coluna dos destinos é estreita; as fases dividem o resto */
-@media (min-width:1101px){.bo .board{grid-auto-flow:row;grid-template-columns:repeat(5,minmax(0,1fr)) 128px}}
+@media (min-width:1101px){.bo .board{grid-auto-flow:row;grid-template-columns:repeat(5,minmax(0,1fr)) 128px;align-items:stretch}.bo .bcol:not(.bfim){min-height:max(440px,min(560px,calc(100dvh - 220px)),calc(100dvh - 300px))}}
 @media (max-width:1100px){.bo .bcol.bfim{position:static;height:auto;flex-direction:row;grid-column:1/-1}.bo .bdest{min-height:90px}}
 .bo .bdest{padding:10px 6px}
 .bo .bdest b{font-size:12.5px}

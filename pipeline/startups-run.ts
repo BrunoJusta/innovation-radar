@@ -133,6 +133,22 @@ async function main() {
     }
   } catch (e) { log("  ! categorias:", (e as Error).message); }
 
+  // Deals do pipeline: herdam a categoria e a cadeia da ficha ligada quando não têm uma válida
+  try {
+    const okSet = new Set(sectors.map((x) => x.id)), okCad = new Set(cadeias.map((x) => x.id));
+    const fichas = new Map<string, { setor?: string; cadeia?: string }>((await db.collection("startups").select("setor", "cadeia").get()).docs.map((d) => [d.id, d.data() as { setor?: string; cadeia?: string }] as const));
+    let n = 0;
+    for (const d of (await db.collection("deals").select("startupId", "categoria", "cadeia").get()).docs) {
+      const x = d.data() as { startupId?: string; categoria?: string; cadeia?: string }, f = x.startupId ? fichas.get(x.startupId) : undefined;
+      if (!f) continue;
+      const upd: Record<string, string> = {};
+      if (!okSet.has(x.categoria || "") && f.setor && okSet.has(f.setor)) upd.categoria = f.setor;
+      if (!okCad.has(x.cadeia || "") && f.cadeia && okCad.has(f.cadeia)) upd.cadeia = f.cadeia;
+      if (Object.keys(upd).length) { n++; if (!DRY) await d.ref.update(upd); }
+    }
+    if (n) log(`Categoria ou cadeia acertada em ${n} deals do pipeline`);
+  } catch (e) { log("  ! deals:", (e as Error).message); }
+
   try {
     // 1) Pesquisas online por setor
     for (const sec of sectors) {

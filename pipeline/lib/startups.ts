@@ -78,7 +78,7 @@ ${GUARD}
 Usa SÓ a informação do texto fornecido. Não inventes startups, sites, números nem investidores. Se um dado não estiver no texto, deixa vazio ("" ou 0).
 Inclui apenas empresas jovens e independentes (startups ou scale-ups), não grandes grupos, consultoras, agências nem associações. Cada uma tem de ter o site oficial próprio (não LinkedIn nem Crunchbase).
 Escreve em português de Portugal, factual, sem emojis.
-SETORES (setor = id):
+CATEGORIAS (setor = id; o tipo de solução que a startup oferece, escolhe a que melhor encaixa seguindo as regras de desempate de cada descrição):
 ${sectorList(sectors)}
 ${cadeiasTxt(cadeias)}
 ${FASES_TXT}
