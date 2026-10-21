@@ -154,15 +154,6 @@ const fold = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").t
 export const chave = (s: string) => fold(s).replace(/[^a-z0-9]/g, "");
 const ondeEsta = (s: Startup) => s.status === "pending" ? "Triagem" : s.status === "rejected" ? "Arquivo de triagem" : s.dealId ? "Pipeline" : "Aprovada";
 
-/** Startup da base de dados que melhor corresponde a um nome (igual, ou um começa pelo outro, ou o domínio). */
-export function sugerirStartup(nome: string, startups: Startup[]): Startup | null {
-  const k = chave(nome);
-  if (k.length < 3) return null;
-  return startups.find((s) => chave(s.nome) === k)
-    || startups.find((s) => chave((s.dominio || "").split(".")[0]) === k)
-    || (k.length >= 4 ? startups.find((s) => { const c = chave(s.nome); return c.length >= 4 && (c.startsWith(k) || k.startsWith(c)); }) : undefined) || null;
-}
-
 /** Escolher a startup parceira na base de dados, com pesquisa. Escrever sem escolher deixa o parceiro sem ligação. */
 export function StartupPicker({ startups, startupId, nome, onPick, label = "Startup parceira", cls = "fld wide" }: {
   startups: Startup[]; startupId?: string; nome: string; onPick: (s: Startup | null, nomeLivre: string) => void; label?: string; cls?: string;

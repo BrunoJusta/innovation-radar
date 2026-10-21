@@ -10,8 +10,7 @@ import { Empty, SearchField } from "../ui";
 import { errMsg, useFlash } from "../admin/common";
 import { useConfirm } from "../Confirm";
 import { ProjetoFicha, ProjetoForm } from "./ProjetoFicha";
-import { Detalhe, ImportarExcel, Kpis, opcoes, ordenar, StartupPicker, sugerirStartup, Tag, th, useLive } from "./shared";
-import { FormModal } from "../admin/common";
+import { Detalhe, ImportarExcel, Kpis, opcoes, ordenar, Tag, th, useLive } from "./shared";
 import type { Startup } from "@/lib/types";
 
 type Col = "ref" | "nome" | "estado" | "mwb" | "parceiro" | "inicio" | "orcamento";
@@ -33,7 +32,6 @@ export function ProjetosView() {
   }, [brutos]);
   const { list: startups } = useLive<Startup>("startups");
   const [tab, setTab] = useState<"ativos" | "finished">("ativos");
-  const [ligar, setLigar] = useState<Record<string, string> | null>(null);
   const { list: eventos } = useLive<Evento>("events");
   const areas = useAreas();
   const { flash, el } = useFlash();
@@ -58,17 +56,6 @@ export function ProjetosView() {
   const rows = useMemo(() => ordenar(filtrados, (p) => sort.col === "estado" ? ESTADOS_PROJ.findIndex((e) => e.id === p.estado) : sort.col === "orcamento" ? p.orcamento : (p[sort.col] || "").toString().toLowerCase(), sort.dir), [filtrados, sort]);
   const soma = (k: "orcamento" | "gasto") => filtrados.reduce((t, p) => t + (p[k] || 0), 0);
   const nTab = (fin: boolean) => list.filter((p) => (p.estado === FINISHED) === fin && (f.ano === "all" || anosDoProjeto(p).includes(f.ano))).length;
-  // Ligação provisória dos projetos com startups às fichas da base de dados
-  const porLigar = list.filter((p) => p.relacao === "Startup" && !p.startupId && p.parceiro.trim());
-  const abrirLigar = () => setLigar(Object.fromEntries(porLigar.map((p) => [p.id, sugerirStartup(p.parceiro, startups)?.id || ""])));
-  const guardarLigar = async () => {
-    if (!ligar) return;
-    const l = Object.entries(ligar).filter(([, sid]) => sid);
-    try {
-      const b = writeBatch(db); l.forEach(([id, startupId]) => b.update(doc(db, "projects", id), { startupId, atualizadoEm: new Date().toISOString() })); await b.commit();
-      setLigar(null); flash(`${l.length} ${l.length === 1 ? "projeto ligado" : "projetos ligados"} a startups`);
-    } catch (e) { flash(errMsg(e)); }
-  };
   const atual = aberto ? list.find((p) => p.id === aberto) || null : null;
 
   const guardar = async () => {
@@ -120,7 +107,6 @@ export function ProjetosView() {
       <div><h1>Projetos</h1><p>Os projetos e pilotos de Inovação, com parceiros, datas e orçamento.</p></div>
       <div className="pageact">
         <SearchField value={q} onChange={setQ} placeholder="Pesquisar projetos" />
-        {porLigar.length > 0 && startups.length > 0 && <button className="btn" onClick={abrirLigar} title="Provisório: ligar os projetos com startups às fichas que já existem"><Icon name="lightbulb" />Ligar a startups · {porLigar.length}</button>}
         {loaded && !erro && !list.length && <ImportarExcel folha="Fact_Projects" col="projects" conv={projetosDoExcel} nome="projetos" notify={flash} />}
         <button className="btn primary" onClick={novo} disabled={!!erro}><Icon name="plus" />Novo projeto</button>
       </div>
@@ -190,17 +176,6 @@ export function ProjetosView() {
           </table>
         </div>)}
     </>}
-    {ligar && (
-      <FormModal title="Ligar os projetos às startups" saveLabel={`Ligar ${Object.values(ligar).filter(Boolean).length}`} onClose={() => setLigar(null)} onSave={guardarLigar}>
-        <p className="hint">Projetos com a relação «Startup» que ainda não estão ligados a uma ficha. A sugestão vem do nome do parceiro; confirma ou escolhe outra. Os que ficarem vazios não mudam.</p>
-        <div className="inv-lig">{porLigar.map((p) => (
-          <div key={p.id} className="inv-ligr">
-            <div className="inv-ligp"><span className="inv-ref">{p.ref}</span><b>{p.nome}</b><small>Parceiro: {p.parceiro}</small></div>
-            <StartupPicker startups={startups} startupId={ligar[p.id]} nome={startups.find((x) => x.id === ligar[p.id])?.nome || ""} label="Startup" cls="fld"
-              onPick={(st) => setLigar({ ...ligar, [p.id]: st?.id || "" })} />
-          </div>))}</div>
-      </FormModal>
-    )}
     {cfEl}
     {el}
   </>);
