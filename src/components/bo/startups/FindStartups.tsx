@@ -97,7 +97,7 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
       if (r === "criada") procurarEGuardar(ficha.e.site, { startupId: ficha.c.id });
       if (r === "criada" && analisar) analisa(ficha.c.id, ficha.e, ficha.c.dominio);
       const extra = r === "criada" && analisar ? ". A análise de investimento corre em segundo plano." : "";
-      onDone(r === "existia" ? `«${ficha.e.nome}» já existia; juntei a origem` : (aprovar ? `«${ficha.e.nome}» aprovada e no radar` : `«${ficha.e.nome}» na triagem`) + extra);
+      onDone(r === "existia" ? `«${ficha.e.nome}» já existia; juntei a origem` : (aprovar ? `«${ficha.e.nome}» aprovada` : `«${ficha.e.nome}» na triagem`) + extra);
     } catch (e) { setErro((e as { code?: string }).code === "permission-denied" ? "Sem permissão para gravar. Confirma que as regras do Firestore estão atualizadas." : "Não foi possível guardar. Tenta outra vez."); setBusy(false); }
   };
 

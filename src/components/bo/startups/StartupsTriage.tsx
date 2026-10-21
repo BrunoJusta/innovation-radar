@@ -25,7 +25,7 @@ const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIE
 const TITLES: Record<Status, [string, string]> = {
   pending: ["Triagem", "Startups encontradas na pesquisa semanal, nas notícias e à mão, à espera de decisão."],
   rejected: ["Arquivo de triagem", "Startups arquivadas na triagem, com quem não chegámos a falar. Não voltam a ser propostas pela recolha semanal. Podes devolvê-las à triagem ou eliminá-las."],
-  approved: ["Aprovadas", "Estas startups estão no radar de startups. As que passam para o Pipeline saem desta lista, mas continuam aprovadas e no radar."],
+  approved: ["Aprovadas", "Startups aprovadas na triagem que ainda não estão no Pipeline. Entram no radar de startups quando passam para o Pipeline."],
 };
 
 export function StartupsTriage({ areas, status, onStatus, startups, sectors, loaded, search, adding, setAdding }: {
@@ -125,7 +125,7 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
         : <Empty icon={<Icon name="magnifying-glass" size={22} />} title="Nada por aqui" text="Nenhuma startup corresponde a este estado ou filtro." />
     ) : view === "list" ? (
       <StartupsTable list={list} sectors={sectors} onOpen={setOpenId} onAnalise={setAnFor} pageKey={pageKey}
-        onApprove={(s) => act(approveStartup(s, email), `«${s.nome}» aprovada e no radar`)}
+        onApprove={(s) => act(approveStartup(s, email), `«${s.nome}» aprovada`)}
         onReject={(s, m) => act(rej(s, m), `«${s.nome}» arquivada no arquivo de triagem`)} onBack={(s) => act(startupBackToTriage(s), `«${s.nome}» voltou à triagem`)} onDelete={(s) => act(elim(s), `«${s.nome}» eliminada`)}
         onBulk={async (ids, acao, motivo) => {
           const sel = startups.filter((s) => ids.includes(s.id));
@@ -167,7 +167,7 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
                   <div className="rgrid">{SREJECT.map((m) => <button key={m} onClick={() => { setRejectCard(null); act(rej(s, m), `«${s.nome}» arquivada no arquivo de triagem`); }}>{m}</button>)}</div></div>
               ) : (
                 <div className="cact">
-                  <button className="btn primary" onClick={() => act(approveStartup(s, email), `«${s.nome}» aprovada e no radar`)}><Icon name="check" />Aprovar</button>
+                  <button className="btn primary" onClick={() => act(approveStartup(s, email), `«${s.nome}» aprovada`)}><Icon name="check" />Aprovar</button>
                   <button className="btn" onClick={() => setRejectCard(s.id)}><Icon name="prohibit" />Arquivar</button><span className="sp" />
                   <button className="btn icon" title="Eliminar" aria-label={`Eliminar ${s.nome}`} onClick={() => act(elim(s), `«${s.nome}» eliminada`)}><Icon name="trash" /></button>
                 </div>
@@ -186,7 +186,7 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
 
     {open && (
       <StartupDrawer s={open} list={list} sectors={sectors} areas={areas} onClose={() => setOpenId(null)} onNav={setOpenId} notify={(m) => notify(m)}
-        onApprove={() => act(approveStartup(open, email), `«${open.nome}» aprovada e no radar`, true)}
+        onApprove={() => act(approveStartup(open, email), `«${open.nome}» aprovada`, true)}
         onReason={(m) => act(rej(open, m), `«${open.nome}» arquivada no arquivo de triagem`, true)} onBack={() => act(startupBackToTriage(open), `«${open.nome}» voltou à triagem`, true)} onDelete={() => act(elim(open), `«${open.nome}» eliminada`, true)} />
     )}
     {adding && <FindStartups mode="search" sectors={sectors} areas={areas} startups={startups} onClose={() => setAdding(false)}

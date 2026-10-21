@@ -37,7 +37,7 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
       // Fica registada como aprovada (se ainda não estava) e ligada ao pipeline; sai da lista de Aprovadas
       if (s.status !== "approved") await approveStartup(s, email);
       await saveStartupLink(s.id, id);
-      notify(`«${s.nome}» passou para o pipeline (${id.replace("df-", "")}). Continua aprovada e no radar de startups.`);
+      notify(`«${s.nome}» passou para o pipeline (${id.replace("df-", "")}). Aparece no radar de startups.`);
     } catch { notify("Não foi possível pôr no pipeline. Confirma o acesso e as regras do Firestore."); }
   };
   useEffect(() => { setEditing(false); setRejecting(false); setAnalise(false); setF(pickEdit(s)); }, [s.id]); // eslint-disable-line react-hooks/exhaustive-deps

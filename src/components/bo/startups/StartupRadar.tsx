@@ -12,7 +12,7 @@ import { MultiSelect, SectorSelect } from "@/components/CatSelect";
 import { post } from "@/lib/api";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Area, Category, ETAPAS, Sector, Startup } from "@/lib/types";
+import { Area, Category, ETAPAS, Sector, Startup, emCurso } from "@/lib/types";
 import { useSession } from "../AuthGate";
 import { useDeals } from "../pipeline/DealsLookup";
 import { cadeiasParaApi } from "@/lib/use-areas";
@@ -26,7 +26,7 @@ const LS_VISTA = "startups:radar:vista";
 const LABELS: EmLabels = { titulo: "nome", resumo: "descrição", entidades: "investidores", area: "cadeia de valor", categoria: "fase", fontes: "origem" };
 
 /**
- * Radar das startups aprovadas: anéis = cadeias de valor (como no radar das notícias), cor = cadeia; a categoria, a fase e o ano são filtros.
+ * Radar das startups do pipeline (em curso, investidas e no radar): anéis = cadeias de valor (como no radar das notícias), cor = cadeia; a categoria, a fase e o ano são filtros.
  * Igual ao radar das notícias: pesquisa que acende os resultados no radar, vista em lista e paginação.
  */
 export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { areas: Area[]; startups: Startup[]; sectors: Sector[]; loaded: boolean }) {
@@ -56,18 +56,17 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   // As cadeias de valor fazem de anéis e as fases de "categorias" (para reaproveitar a pesquisa e a lista do radar das notícias)
   const rings = useMemo(() => cadeias.map((x) => ({ id: x.id, nome: x.nome, cor: x.cor })), [cadeias]);
   const areas: Area[] = cadeias;
-  // "Fases": em que ponto do pipeline está cada startup (ou aprovada, fora do pipeline). As arquivadas não entram no radar.
+  // "Fases": em que ponto do pipeline está cada startup (em curso, investida ou no radar). As arquivadas não entram no radar.
   const fases: (Category & { cor: string })[] = useMemo(() => [
-    { id: "aprovada", nome: "Aprovada (fora do pipeline)", cor: "#94A3B8", icone: "check-circle", descricao: "Aprovada na triagem, ainda sem ficha no pipeline", ordem: 0, palavrasChave: [] },
     ...ETAPAS.filter((e) => e.id !== "arquivada").map((e, i) => ({ id: e.id, nome: e.nome, cor: ({ radar: "#2F6B73", investida: "#4F7A3A" } as Record<string, string>)[e.id] || "#B15533", icone: "kanban", descricao: e.desc, ordem: i + 1, palavrasChave: [] })),
   ], []);
   const area = useCallback((id: string) => areas.find((a) => a.id === id), [areas]);
   const fase = useCallback((id: string) => fases.find((f) => f.id === id), [fases]);
 
   // Em que ponto do pipeline está cada startup
-  const etapaDe = useCallback((s: Startup) => deals.find((x) => x.id === s.dealId || x.startupId === s.id)?.etapa || "aprovada", [deals]);
-  // No radar: todas, exceto as da triagem (por decidir ou arquivadas na triagem) e as arquivadas no pipeline
-  const aprovadas = useMemo(() => startups.filter((s) => s.status === "approved" && etapaDe(s) !== "arquivada"), [startups, etapaDe]);
+  const etapaDe = useCallback((s: Startup) => deals.find((x) => x.id === s.dealId || x.startupId === s.id)?.etapa || "", [deals]);
+  // No radar: só as dos separadores Pipeline (em curso), Investidas e Radar. Ficam de fora a triagem, as aprovadas sem ficha no pipeline e o arquivo
+  const aprovadas = useMemo(() => startups.filter((s) => { const e = etapaDe(s); return emCurso(e) || e === "investida" || e === "radar"; }), [startups, etapaDe]);
   // Só entram no radar as que têm cadeia de valor; as outras ficam à espera de serem classificadas
   const comCadeia = useMemo(() => aprovadas.filter((s) => cadeias.some((a) => a.id === s.cadeia)), [aprovadas, cadeias]);
   // Ano: o de entrada no pipeline, quando está lá; senão o ano em que a startup entrou no radar.
@@ -199,7 +198,7 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
     </label>
   </>);
   const aviso = semCadeia.length > 0 && (
-    <div className="notice warn scad"><span>{semCadeia.length} {semCadeia.length === 1 ? "startup aprovada ainda não tem" : "startups aprovadas ainda não têm"} cadeia de valor e não {semCadeia.length === 1 ? "aparece" : "aparecem"} no radar.</span>
+    <div className="notice warn scad"><span>{semCadeia.length} {semCadeia.length === 1 ? "startup do pipeline ainda não tem" : "startups do pipeline ainda não têm"} cadeia de valor e não {semCadeia.length === 1 ? "aparece" : "aparecem"} no radar.</span>
       <button className="btn" onClick={classificar} disabled={classificando}>{classificando ? <><span className="spin" aria-hidden="true" />A classificar…</> : <><Icon name="sparkle" />Atribuir com a Gemini</>}</button></div>
   );
   const summary = (
@@ -254,7 +253,7 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
             <RadarChart rings={rings} items={items} fRing={fRing} fGroup={temFiltroSF ? "sf" : "all"} pass={temFiltroSF ? (x) => passaSF(x as RadarItem) : undefined} regrowKey={searching ? "search" : ""} onOpen={setOpenId}
               state={loaded ? "ok" : "loading"} idPrefix="s" hits={hitSet} focusId={focusId} scanKey={searching ? dq : ""} onHover={setHover}
               center={searching ? { n: results.length, label: results.length === 1 ? "startup" : "startups" } : null}
-              emptyTitle="Ainda sem startups aprovadas" emptyText="Aprova startups na triagem e elas aparecem aqui." ariaLabel="Radar das startups aprovadas" />
+              emptyTitle="Ainda sem startups no pipeline" emptyText="As startups do Pipeline, das Investidas e do Radar aparecem aqui." ariaLabel="Radar das startups" />
           </>
         ) : (
           <div className="lv">
