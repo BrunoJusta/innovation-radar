@@ -115,8 +115,8 @@ export function Dados({ itens }: { itens: [string, React.ReactNode][] }) {
 }
 
 /** Página do detalhe: abre em modo de leitura, com o botão para editar; os novos abrem logo em edição. */
-export function Detalhe({ titulo, tags, editando, onEditar, onCancelar, onGuardar, onApagar, onClose, leitura, edicao, voltar }: {
-  titulo: string; tags?: React.ReactNode; editando: boolean; onEditar: () => void; onCancelar: () => void;
+export function Detalhe({ titulo, icone, tags, editando, onEditar, onCancelar, onGuardar, onApagar, onClose, leitura, edicao, voltar }: {
+  titulo: string; /** Imagem ao lado do título. */ icone?: string; tags?: React.ReactNode; editando: boolean; onEditar: () => void; onCancelar: () => void;
   onGuardar: () => Promise<unknown> | void; onApagar?: () => void; onClose: () => void; leitura: React.ReactNode; edicao: React.ReactNode; voltar: string;
 }) {
   const [busy, setBusy] = useState(false);
@@ -146,7 +146,7 @@ export function Detalhe({ titulo, tags, editando, onEditar, onCancelar, onGuarda
     <div ref={box} className={`inv-page${editando ? " ed" : ""}`}>
       <button type="button" className="txtbtn inv-back" onClick={editando ? onCancelar : onClose}><Icon name="caret-left" />{voltar}</button>
       <header className="inv-phd">
-        <div className="inv-mh"><h1>{titulo || "Sem nome"}</h1>{!editando && tags && <div className="inv-tags">{tags}</div>}</div>
+        <div className="inv-mh"><h1>{icone && <img className="pj-ic lg" src={icone} alt="" width={40} height={40} />}{titulo || "Sem nome"}</h1>{!editando && tags && <div className="inv-tags">{tags}</div>}</div>
         <div className="inv-act">{acoes}</div>
       </header>
       <form id="inv-form" className="inv-body" onSubmit={guardar}>{editando ? edicao : leitura}</form>
@@ -210,4 +210,13 @@ export function StartupPicker({ startups, startupId, nome, onPick, label = "Star
       <em className="inv-sph">{ligada ? `Ligada a «${ligada.nome}» (${ondeEsta(ligada)})` : q.trim() ? "Sem ligação: escolhe uma startup da lista" : "Escolhe uma startup da lista"}</em>
     </div>
   );
+}
+
+/** Imagem do projeto: o ícone escolhido ou, por defeito, o logótipo da startup ligada. */
+export const imagemDoProjeto = (p: { icone?: string; startupId?: string }, startups: Startup[]) => p.icone || (p.startupId ? startups.find((s) => s.id === p.startupId)?.logo : undefined) || "";
+
+/** Ícone do projeto (nada quando não há imagem). */
+export function ProjIcone({ p, startups, size = 24 }: { p: { icone?: string; startupId?: string; nome: string }; startups: Startup[]; size?: number }) {
+  const src = imagemDoProjeto(p, startups);
+  return src ? <img className="pj-ic" src={src} alt="" width={size} height={size} /> : null;
 }

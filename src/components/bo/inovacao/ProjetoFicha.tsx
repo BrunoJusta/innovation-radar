@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { reduzirImagem } from "@/lib/logo";
 import { Icon } from "@/components/Icon";
 import type { Area, Startup } from "@/lib/types";
 import { ESTADOS_PROJ, FASES_PROJ, HORIZONTES, MWB, PAPEIS_EQUIPA, Projeto, RELACOES, corDe, dataPt, eur } from "@/lib/inovacao";
@@ -95,6 +96,9 @@ export function ProjetoForm({ ed, setEd, areas, startups, parceiros }: {
           <label className="fld full"><span>Resumo para a lista</span><textarea rows={2} value={ed.descricao} onChange={(e) => set({ descricao: e.target.value })} /><small className="fhint">Aparece na tabela dos projetos. Se não houver proposta de valor, é ela que aparece na ficha.</small></label>
         </div>
       </section>
+      <section><h4>Ícone</h4>
+        <IconeEditor ed={ed} startup={startups.find((x) => x.id === ed.startupId)} onChange={(icone) => set({ icone })} />
+      </section>
       <section><h4>Parceiro</h4>
         <div className="fgrid">
           <Sel label="Tipo de parceiro" value={ed.relacao} opcoes={RELACOES} onChange={(v) => set({ relacao: v, ...(v !== "Startup" ? { startupId: "" } : {}) })} />
@@ -131,6 +135,30 @@ export function ProjetoForm({ ed, setEd, areas, startups, parceiros }: {
       <section><h4>Observações</h4>
         <label className="fld full"><span className="vh">Observações</span><textarea rows={2} value={ed.observacoes} onChange={(e) => set({ observacoes: e.target.value })} /></label>
       </section>
+    </div>
+  );
+}
+
+/** Ícone do projeto: carregar uma imagem ou usar o logótipo da startup ligada (o que acontece por defeito). */
+function IconeEditor({ ed, startup, onChange }: { ed: Projeto; startup?: Startup; onChange: (icone: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [erro, setErro] = useState("");
+  const src = ed.icone || startup?.logo || "";
+  return (
+    <div className="pfo-ic">
+      {src ? <img src={src} alt="" width={56} height={56} /> : <span className="pfo-noic" aria-hidden="true"><Icon name="target" size={22} /></span>}
+      <div>
+        <div className="pfo-icb">
+          <button type="button" className="btn" onClick={() => ref.current?.click()}><Icon name="upload-simple" />{ed.icone ? "Trocar imagem" : "Carregar imagem"}</button>
+          {ed.icone && <button type="button" className="txtbtn" onClick={() => onChange("")}>{startup?.logo ? "Usar o logo da startup" : "Tirar"}</button>}
+        </div>
+        <small className="fhint">{ed.icone ? "Imagem própria do projeto." : startup?.logo ? `Por defeito, o logo de ${startup.nome}.` : "Sem imagem. Se ligares uma startup com logo, usa o dela."}</small>
+        {erro && <em className="ferr" role="alert">{erro}</em>}
+      </div>
+      <input ref={ref} type="file" accept="image/*" hidden onChange={async (e) => {
+        const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
+        try { setErro(""); onChange(await reduzirImagem(f, 128)); } catch { setErro("Não foi possível ler a imagem. Experimenta um PNG, JPG ou SVG."); }
+      }} />
     </div>
   );
 }

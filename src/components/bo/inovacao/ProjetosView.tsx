@@ -11,7 +11,7 @@ import { Empty, SearchField } from "../ui";
 import { errMsg, useFlash } from "../admin/common";
 import { useConfirm } from "../Confirm";
 import { ProjetoFicha, ProjetoForm } from "./ProjetoFicha";
-import { Detalhe, ImportarExcel, Kpis, opcoes, ordenar, Tag, th, useLive } from "./shared";
+import { ProjIcone, imagemDoProjeto, Detalhe, ImportarExcel, Kpis, opcoes, ordenar, Tag, th, useLive } from "./shared";
 import type { Startup } from "@/lib/types";
 import { useCategorias } from "@/lib/use-areas";
 import { approveStartup, rejectStartup, startupBackToTriage } from "@/lib/startup-actions";
@@ -138,7 +138,7 @@ export function ProjetosView() {
   const S = (k: Col, l: string, cls = "", desc = false) => th(sort, setSort, k, l, cls, desc);
   const set = (k: keyof F) => (v: string) => setF({ ...f, [k]: v });
   const det = ed || atual;
-  const pagina = det && (<Detalhe voltar="Projetos" titulo={det.nome} editando={!!ed}
+  const pagina = det && (<Detalhe voltar="Projetos" titulo={det.nome} icone={imagemDoProjeto(det, startups)} editando={!!ed}
         tags={<><span className="tg inv-kind">{det.piloto ? "Piloto" : "Projeto"}</span><Tag v={det.estado} dot />{det.fase && <span className="tg">{det.fase}</span>}</>}
         onClose={() => { setEd(null); setAberto(null); }} onEditar={() => atual && setEd({ ...atual })} onCancelar={sair}
         onGuardar={guardar} onApagar={ed?._novo ? undefined : () => apagar(det)}
@@ -207,7 +207,7 @@ export function ProjetosView() {
                   {l.map((p) => (
                     <article key={p.id} className="pm-card" draggable onDragStart={(ev) => { ev.dataTransfer.setData("text/proj", p.id); ev.dataTransfer.effectAllowed = "move"; }}
                       role="button" tabIndex={0} aria-label={`Abrir ${p.nome}`} onClick={() => setAberto(p.id)} onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setAberto(p.id); } }}>
-                      <b>{p.nome}</b>
+                      <b className="pm-t"><ProjIcone p={p} startups={startups} size={20} />{p.nome}</b>
                       {(p.parceiro || cadNome(p.cadeia)) && <span>{[p.parceiro, cadNome(p.cadeia)].filter(Boolean).join(", ")}</span>}
                       {(p.piloto || p.orcamento) ? <em>{p.piloto && <span className="tg">Piloto</span>}<i className="sp" />{p.orcamento ? eur(p.orcamento) : ""}</em> : null}
                     </article>))}
@@ -233,7 +233,7 @@ export function ProjetosView() {
             </tr></thead>
             <tbody>{rows.map((p) => (
               <tr key={p.id} tabIndex={0} onClick={() => setAberto(p.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) setAberto(p.id); }}>
-                <td><b className="inv-n">{p.nome}</b><span className="mut sm clip" title={p.descricao}>{p.descricao}</span></td>
+                <td><b className="inv-n pj-n"><ProjIcone p={p} startups={startups} size={22} />{p.nome}</b><span className="mut sm clip" title={p.descricao}>{p.descricao}</span></td>
                 <td>{p.estado === "To Start" ? <span className="mut">-</span> : p.fase}{p.piloto && <span className="mut sm">Com piloto</span>}</td>
                 <td>{p.mwb ? <Tag v={p.mwb} /> : <span className="mut">-</span>}</td>
                 <td>{p.parceiro || <span className="mut">-</span>}{p.relacao && <span className="mut sm">{p.relacao}</span>}</td>

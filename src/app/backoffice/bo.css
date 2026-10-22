@@ -1621,18 +1621,22 @@
 .bo .pm-cell.ent.over{box-shadow:inset 0 0 0 2px color-mix(in srgb,#B15533 50%,transparent);background:color-mix(in srgb,#B15533 6%,var(--canvas))}
 /* Projetos e eventos: espaço no fim da página */
 .bo .inv-pg{padding-bottom:96px}
-/* Review dos projetos: cadeias de valor em colunas, Must Win Battles em faixas */
+/* Review dos projetos: cadeias de valor em colunas contínuas, Must Win Battles em caixas por cima, com os projetos dentro */
 .bo .rv-wrap{margin:0 0 24px}
-.bo .rv{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));column-gap:8px;row-gap:0;position:relative}
-.bo .rv-h{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:14px 8px 12px;text-align:center;border-radius:12px 12px 0 0;background:color-mix(in srgb,#B15533 12%,var(--surface-1));color:#6E2E17;font:600 13px/1.25 var(--f-display);text-wrap:balance}
+.bo .rv{--g:10px;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));column-gap:var(--g);row-gap:14px;padding-bottom:14px;position:relative}
+.bo .rv-col{grid-row:1/-1;border-radius:12px;background:color-mix(in srgb,#B15533 9%,var(--canvas));box-shadow:inset 0 0 0 1px color-mix(in srgb,#B15533 16%,transparent);margin-bottom:-14px}
+.bo .rv-col.sem{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--hairline)}
+.bo .rv-h{grid-row:1;position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:16px 8px 10px;text-align:center;color:#6E2E17;font:600 13px/1.25 var(--f-display);text-wrap:balance}
 .bo .rv-h .i{color:#9A4529}
-.bo .rv-h.sem{background:var(--surface-2);color:var(--ink-subtle)}.bo .rv-h.sem .i{color:var(--ink-tertiary)}
-.bo .rv-band{--c:#94A3B8;grid-column:1/-1;position:relative;z-index:1;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:baseline;gap:4px 14px;margin:10px 0 0;padding:10px 14px;border-radius:10px;background:var(--surface-1);box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 30%,var(--hairline)),0 1px 2px rgba(11,13,58,.05);border-left:4px solid var(--c)}
-.bo .rv-band b{font:650 14px/1.3 var(--f-display);color:color-mix(in srgb,var(--c) 85%,#000);white-space:nowrap}
-.bo .rv-band span{font-size:12.5px;line-height:1.45;color:var(--ink-subtle);min-width:0}
-.bo .rv-band em{font-style:normal;font-size:12px;color:var(--ink-tertiary);white-space:nowrap;font-variant-numeric:tabular-nums}
-.bo .rv-band.vazia{opacity:.65}
-.bo .rv-cell{display:flex;flex-direction:column;gap:6px;padding:8px 6px 4px;min-width:0;background:color-mix(in srgb,#B15533 5%,var(--canvas));align-items:stretch}
+.bo .rv-h.sem{color:var(--ink-subtle)}.bo .rv-h.sem .i{color:var(--ink-tertiary)}
+.bo .rv-mwb{--c:#94A3B8;position:relative;z-index:1;display:flex;flex-direction:column;gap:10px;margin:0 -4px;padding:12px 4px 10px;border-radius:14px;border:1.5px dashed color-mix(in srgb,var(--c) 55%,transparent);background:color-mix(in srgb,var(--surface-1) 55%,transparent);min-width:0}
+.bo .rv-mwb header{display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 12px;text-align:center}
+.bo .rv-mwb header b{font:650 14px/1.3 var(--f-display);color:color-mix(in srgb,var(--c) 85%,#000)}
+.bo .rv-mwb header span{font-size:12px;line-height:1.4;color:var(--ink-subtle);max-width:70ch;text-wrap:pretty}
+.bo .rv-mwb header em{font-style:normal;font-size:11.5px;color:var(--ink-tertiary)}
+.bo .rv-mwb.vazia{opacity:.7}
+.bo .rv-in{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:var(--g);padding:0 4px}
+.bo .rv-cell{display:flex;flex-direction:column;gap:6px;min-width:0}
 .bo .rv-chip{display:flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:6px 10px;border-radius:8px;font:600 12.5px/1.25 var(--f-display);text-align:center;min-width:0;transition:box-shadow .15s,transform .15s}
 .bo .rv-chip span{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
 .bo .rv-chip .slogo{width:20px;height:20px;flex:none}
@@ -1641,8 +1645,24 @@
 .bo button.rv-chip:hover{box-shadow:inset 0 0 0 1.5px currentColor,0 4px 12px rgba(11,13,58,.08)}
 .bo button.rv-chip:active{transform:translateY(1px)}
 .bo button.rv-chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.bo .rv-leg{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:16px}
+.bo .rv-leg{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:20px}
 .bo .rv-leg .rv-chip{min-height:30px;font-size:12px;padding:4px 12px}
 .bo .rv-leg small{font-size:12.5px;color:var(--ink-subtle)}
-@media (max-width:1023px){.bo .rv-wrap{overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:6px}.bo .rv{grid-template-columns:repeat(var(--n),150px);min-width:calc(var(--n) * 158px)}.bo .rv-band{grid-template-columns:1fr;position:sticky;left:0;max-width:calc(100vw - 32px)}}
+@media (max-width:1023px){.bo .rv-wrap{overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:6px}.bo .rv{grid-template-columns:repeat(var(--n),150px);min-width:calc(var(--n) * 160px)}}
 @media (prefers-reduced-motion:reduce){.bo .rv-chip{transition:none}.bo button.rv-chip:active{transform:none}}
+/* Ícone dos projetos */
+.bo .pj-ic{width:24px;height:24px;flex:none;border-radius:6px;object-fit:contain;background:var(--surface-1);box-shadow:0 0 0 1px var(--hairline)}
+.bo .pj-ic.lg{width:40px;height:40px;border-radius:10px;vertical-align:middle;margin-right:12px}
+.bo .pm-t{display:flex;align-items:center;gap:7px}
+.bo .pm-t .pj-ic{width:20px;height:20px;border-radius:5px}
+.bo .pj-n{display:flex!important;align-items:center;gap:8px}
+.bo .inv-mh h1{display:flex;align-items:center}
+.bo .rv-chip .pj-ic{width:22px;height:22px;border-radius:5px;box-shadow:none}
+.bo .pfo-ic{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.bo .pfo-ic>img{width:56px;height:56px;border-radius:12px;object-fit:contain;background:var(--surface-1);box-shadow:0 0 0 1px var(--hairline)}
+.bo .pfo-noic{width:56px;height:56px;border-radius:12px;display:grid;place-items:center;border:1.5px dashed var(--hairline-strong);color:var(--ink-tertiary)}
+.bo .pfo-ic>div{display:flex;flex-direction:column;gap:6px}
+.bo .pfo-icb{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bo .rv-mwb{align-self:start}
+.bo .rv-mwb.uma header span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.bo .rv-mwb.vazia{padding:8px 4px}

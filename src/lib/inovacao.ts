@@ -12,6 +12,7 @@ export type Projeto = {
   mwb: string; horizonte: string; relacao: string;
   parceiro: string; parceiroRef: string;
   /** Startup da base de dados ligada, quando o parceiro é uma startup. */ startupId?: string;
+  /** Ícone do projeto (data URL pequeno). Sem ícone, usa o logótipo da startup ligada. */ icone?: string;
   piloto: boolean; pilotoDesde: string;
   inicio: string; fim: string; estado: string;
   orcamento: number | null; gasto: number | null;
