@@ -1,6 +1,9 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Deal, ETAPAS, emCurso } from "@/lib/types";
+import { Area, Deal, ETAPAS, Sector, Startup, emCurso } from "@/lib/types";
+import { StartupDrawer } from "./StartupDrawer";
+import { approveStartup, rejectStartup, startupBackToTriage } from "@/lib/startup-actions";
+import { useSession } from "../AuthGate";
 import { bandeira, bandeiraDe } from "@/lib/paises";
 import { useAreas, useCategorias } from "@/lib/use-areas";
 import { DealDrawer } from "../pipeline/DealDrawer";
@@ -14,10 +17,14 @@ const AZUL = ["#F2D6C8", "#E3AB8F", "#CC7D5A", "#B15533", "#7F3A22"];
 const ZERO = "#ECECEC";
 
 const idx = (e: string | null | undefined) => Math.max(0, ETAPAS.findIndex((x) => x.id === e));
+/** As aprovadas que não estão no pipeline entram na review como uma etapa à parte, antes do pipeline. */
+const APROVADA = "aprovada";
+const aprovada = (d: Deal) => (d.etapa as string) === APROVADA;
 /** Fase mais avançada a que a startup chegou (uma arquivada ou no radar conta até onde estava; uma investida passou por todas). */
-const chegou = (d: Deal) => d.etapa === "arquivada" ? idx(d.arquivo?.etapaAnterior || "fit") : d.etapa === "radar" ? idx(d.etapaAnterior || "fit") : idx(d.etapa);
+const chegou = (d: Deal) => aprovada(d) ? -1 : d.etapa === "arquivada" ? idx(d.arquivo?.etapaAnterior || "fit") : d.etapa === "radar" ? idx(d.etapaAnterior || "fit") : idx(d.etapa);
 const FUNIL: { nome: string; desde: number; desc: string }[] = [
-  { nome: "Entraram", desde: 0, desc: "Todas as startups que entraram no pipeline no período (começam em Validation Fit)." },
+  { nome: "Aprovadas", desde: -1, desc: "Todas as startups aprovadas na triagem, estejam ou não no pipeline." },
+  { nome: "Pipeline", desde: 0, desc: "Entraram no pipeline (começam em Validation Fit)." },
   { nome: "General Analysis", desde: idx("geral"), desc: "Passaram a análise geral (com a Beta Capital)." },
   { nome: "Deep Analysis", desde: idx("aprofundada"), desc: "Análise aprofundada e due diligence." },
   { nome: "Investment Committee", desde: idx("comite"), desc: "Chegaram ao comité de investimento." },
@@ -28,12 +35,16 @@ const FUNIL: { nome: string; desde: number; desc: string }[] = [
 type Tip = { x: number; y: number; t: string; s: string } | null;
 
 /** Review do dealflow: funil, startups por vertical e mapa por país, por ano de entrada. */
-export function ReviewView() {
-  const { deals, loaded } = useDeals();
-  return <ReviewBody deals={deals} loaded={loaded} />;
+export function ReviewView({ startups, sectors, areas: cadeias }: { startups: Startup[]; sectors: Sector[]; areas: Area[] }) {
+  const { deals: pipe, loaded, dealOf } = useDeals();
+  // Entram todas as startups das tabs Aprovadas e Pipeline (em curso, radar, investidas e arquivo)
+  const deals = useMemo(() => [...pipe, ...startups.filter((s) => s.status === "approved" && !(s.dealId && pipe.some((d) => d.id === s.dealId)) && !dealOf(s))
+    .map((s) => ({ id: `st:${s.id}`, startupId: s.id, nome: s.nome, pais: s.pais, cadeia: s.cadeia, categoria: s.setor, descricao: s.descricao, etapa: APROVADA,
+      entrada: s.aprovadoEm || s.criadoEm || "", criadoEm: s.criadoEm }) as unknown as Deal)], [pipe, startups, dealOf]);
+  return <ReviewBody deals={deals} loaded={loaded} startups={startups} sectors={sectors} cadeias={cadeias} />;
 }
 
-export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }) {
+function ReviewBody({ deals, loaded, startups, sectors, cadeias }: { deals: Deal[]; loaded: boolean; startups: Startup[]; sectors: Sector[]; cadeias: Area[] }) {
   // Por defeito, o ano atual (aparece sempre na lista, mesmo sem startups)
   const anoAtual = String(new Date().getFullYear());
   const anos = useMemo(() => [...new Set([anoAtual, ...deals.map((d) => (d.entrada || d.criadoEm || "").slice(0, 4)).filter((a) => /^\d{4}$/.test(a))])].sort().reverse(), [deals, anoAtual]);
@@ -48,6 +59,10 @@ export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }
   /** Tirar as arquivadas do gráfico por cadeia de valor ou categoria. */
   const [semArq, setSemArq] = useState(false);
   const areas = useAreas(), categorias = useCategorias();
+  const { email } = useSession();
+  // Uma aprovada fora do pipeline abre a ficha da startup; as do pipeline abrem o deal
+  const stOpen = openId?.startsWith("st:") ? startups.find((s) => s.id === openId.slice(3)) || null : null;
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 2600); };
   useEffect(() => setSel(null), [ano]);
   useEffect(() => {
     if (!sel || openId) return;
@@ -58,12 +73,13 @@ export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }
   const ver = (titulo: string, l: Deal[]) => setSel({ titulo, lista: l });
 
   if (!loaded) return <div className="loading">A carregar…</div>;
-  if (!deals.length) return <p className="hint">Ainda não há startups no pipeline.</p>;
+  if (!deals.length) return <p className="hint">Ainda não há startups aprovadas nem no pipeline.</p>;
 
   const total = lista.length;
   const investidas = lista.filter((d) => d.etapa === "investida").length;
   const curso = lista.filter((d) => emCurso(d.etapa)).length;
   const arquivadas = lista.filter((d) => d.etapa === "arquivada").length;
+  const aprov = lista.filter(aprovada).length;
   const fit = lista.filter((d) => chegou(d) >= idx("geral")).length;
   const pct = (n: number) => total ? `${Math.round((n / total) * 100)}%` : "0%";
   const periodo = ano === "all" ? "Desde o início" : `Em ${ano}`;
@@ -71,7 +87,7 @@ export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }
   return (
     <div className="rev" onMouseLeave={() => setTip(null)}>
       <div className="head">
-        <div><h1>Review</h1><p>O dealflow da Sogrape Ventures: quantas startups entraram, até onde chegaram, em que cadeias de valor e de onde vêm. Clica numa fase, numa barra ou num país para ver as startups.</p></div>
+        <div><h1>Review</h1><p>As startups aprovadas e o dealflow da Sogrape Ventures: quantas entraram, até onde chegaram, em que cadeias de valor e de onde vêm. Clica numa fase, numa barra ou num país para ver as startups.</p></div>
       </div>
       <div className="toolbar">
         <label className="fsel on">
@@ -84,6 +100,7 @@ export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }
 
       <div className="rev-k" key={ano}>
         <div className="rk main"><b><Conta n={total} /></b><span>startups analisadas</span></div>
+        <div className="rk"><b><Conta n={aprov} /></b><span>aprovadas fora do pipeline</span><em>{pct(aprov)}</em></div>
         <div className="rk"><b><Conta n={fit} /></b><span>passaram à General Analysis</span><em>{pct(fit)}</em></div>
         <div className="rk"><b><Conta n={curso} /></b><span>em curso</span><em>{pct(curso)}</em></div>
         <div className="rk hi"><b><Conta n={investidas} /></b><span>{investidas === 1 ? "investida" : "investidas"}</span><em>{pct(investidas)}</em></div>
@@ -100,7 +117,7 @@ export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }
             <label className="fsel on rev-por"><select value={porQ} onChange={(e) => setPorQ(e.target.value as "cadeia" | "categoria")} aria-label="Agrupar por">
               <option value="cadeia">cadeia de valor</option><option value="categoria">categoria</option></select></label>
             <button type="button" className="chipf rev-arq" aria-pressed={semArq} onClick={() => setSemArq(!semArq)}>{semArq && <Icon name="check" />}Excluir arquivadas</button>
-            <span className="rev-lg"><i style={{ background: COR_EST.investida }} />Investida<i style={{ background: COR_EST.curso }} />Em curso<i style={{ background: COR_EST.radar }} />Radar{!semArq && <><i style={{ background: COR_EST.arquivada }} />Arquivada</>}</span></div>
+            <span className="rev-lg"><i style={{ background: COR_EST.investida }} />Investida<i style={{ background: COR_EST.curso }} />Em curso<i style={{ background: COR_EST.radar }} />Radar<i style={{ background: COR_EST.aprovada }} />Aprovada{!semArq && <><i style={{ background: COR_EST.arquivada }} />Arquivada</>}</span></div>
           <Verticais lista={semArq ? lista.filter((d) => estado(d) !== "arquivada") : lista} setTip={setTip} k={`${ano}${porQ}${semArq}`} grupos={(porQ === "cadeia" ? areas : categorias).map((x) => ({ id: x.id, nome: x.nome }))} campo={porQ} onPick={ver} />
         </section>
         <section className="rev-c full">
@@ -116,15 +133,19 @@ export function ReviewBody({ deals, loaded }: { deals: Deal[]; loaded: boolean }
           <div className="mdl-b scroll">
             {sel.lista.length ? <ul className="rev-ls">{[...sel.lista].sort((a, b) => a.nome.localeCompare(b.nome)).map((d) => (
               <li key={d.id}><button onClick={() => setOpenId(d.id)}>
-                <b>{d.nome}</b><span className={`tg e-${d.etapa}`}>{ETAPAS.find((e) => e.id === d.etapa)?.nome}</span>
+                <b>{d.nome}</b><span className={`tg e-${d.etapa}`}>{aprovada(d) ? "Aprovada" : ETAPAS.find((e) => e.id === d.etapa)?.nome}</span>
                 <span className="mut">{[bandeiraDe(d.pais), d.pais].filter(Boolean).join(" ")}</span>
                 <span className="mut">{areas.find((a) => a.id === d.cadeia)?.nome || ""}</span></button></li>
             ))}</ul> : <p className="hint">Nenhuma startup.</p>}
           </div>
         </div>
       </>)}
-      {openId && deals.find((d) => d.id === openId) && <DealDrawer d={deals.find((d) => d.id === openId)!} list={sel?.lista || []} origens={[]} pessoas={[]}
-        onClose={() => setOpenId(null)} onNav={setOpenId} notify={(m) => { setMsg(m); setTimeout(() => setMsg(""), 2600); }} />}
+      {openId && !stOpen && deals.find((d) => d.id === openId && !aprovada(d)) && <DealDrawer d={deals.find((d) => d.id === openId)!} list={(sel?.lista || []).filter((d) => !aprovada(d))} origens={[]} pessoas={[]}
+        onClose={() => setOpenId(null)} onNav={setOpenId} notify={flash} />}
+      {stOpen && <StartupDrawer s={stOpen} list={[stOpen]} sectors={sectors} areas={cadeias} onClose={() => setOpenId(null)} onNav={(id) => setOpenId(`st:${id}`)} notify={flash}
+        onApprove={() => approveStartup(stOpen, email).then(() => flash(`«${stOpen.nome}» aprovada`)).catch(() => flash("Não foi possível guardar. Tenta outra vez."))}
+        onReason={(m) => rejectStartup(stOpen, m).then(() => { setOpenId(null); flash(`«${stOpen.nome}» arquivada no arquivo de triagem`); }).catch(() => flash("Não foi possível guardar. Tenta outra vez."))}
+        onBack={() => startupBackToTriage(stOpen).then(() => { setOpenId(null); flash(`«${stOpen.nome}» voltou à triagem`); }).catch(() => flash("Não foi possível guardar. Tenta outra vez."))} />}
       {msg && <div className="toast" role="status"><span>{msg}</span></div>}
       {tip && <div className="rev-tip" role="status" style={{ left: tip.x, top: tip.y }}><b>{tip.t}</b><span>{tip.s}</span></div>}
     </div>
@@ -145,8 +166,8 @@ function Conta({ n }: { n: number }) {
 }
 
 /** Estados para o gráfico das verticais (o cinzento das arquivadas é de propósito: recua). */
-const COR_EST = { investida: "#7F3A22", curso: "#D8906D", radar: "#EBC3AD", arquivada: "#E6E6E6" };
-const estado = (d: Deal) => d.etapa === "investida" ? "investida" : d.etapa === "arquivada" ? "arquivada" : d.etapa === "radar" ? "radar" : "curso";
+const COR_EST = { investida: "#7F3A22", curso: "#D8906D", radar: "#EBC3AD", aprovada: "#C9B79C", arquivada: "#E6E6E6" };
+const estado = (d: Deal) => aprovada(d) ? "aprovada" : d.etapa === "investida" ? "investida" : d.etapa === "arquivada" ? "arquivada" : d.etapa === "radar" ? "radar" : "curso";
 
 const pos = (e: React.MouseEvent) => ({ x: e.clientX + 14, y: e.clientY + 14 });
 
@@ -206,14 +227,14 @@ function Verticais({ lista, setTip, k, grupos, campo, onPick }: { lista: Deal[];
   return (
     <ol className="rev-vb" key={k}>
       {rows.map((r, ri) => {
-        const c = { investida: 0, curso: 0, radar: 0, arquivada: 0 }; r.l.forEach((d) => c[estado(d)]++);
+        const c = { investida: 0, curso: 0, radar: 0, aprovada: 0, arquivada: 0 }; r.l.forEach((d) => c[estado(d)]++);
         return (
           <li key={r.nome} role="button" tabIndex={0} aria-label={`Ver as ${r.l.length} startups de ${r.nome}`} onClick={() => onPick(r.nome, r.l)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(r.nome, r.l); } }}
-            onMouseMove={(e) => setTip({ ...pos(e), t: `${r.nome}: ${r.l.length}`, s: `${Math.round((r.l.length / total) * 100)}% do total. ${c.investida} ${c.investida === 1 ? "investida" : "investidas"}, ${c.curso} em curso, ${c.radar} no radar, ${c.arquivada} ${c.arquivada === 1 ? "arquivada" : "arquivadas"}. Clica para ver quais.` })} onMouseLeave={() => setTip(null)}>
+            onMouseMove={(e) => setTip({ ...pos(e), t: `${r.nome}: ${r.l.length}`, s: `${Math.round((r.l.length / total) * 100)}% do total. ${c.investida} ${c.investida === 1 ? "investida" : "investidas"}, ${c.curso} em curso, ${c.radar} no radar, ${c.aprovada} ${c.aprovada === 1 ? "aprovada" : "aprovadas"} fora do pipeline, ${c.arquivada} ${c.arquivada === 1 ? "arquivada" : "arquivadas"}. Clica para ver quais.` })} onMouseLeave={() => setTip(null)}>
             <span className="vbn">{r.l.length}</span>
             <span className="vbt">
               <span className="vbb" style={{ height: `${(r.l.length / max) * 100}%`, ["--k" as string]: ri }}>
-                {(["arquivada", "radar", "curso", "investida"] as const).map((e) => c[e] > 0 && <i key={e} style={{ flexGrow: c[e], background: COR_EST[e] }} />)}
+                {(["arquivada", "aprovada", "radar", "curso", "investida"] as const).map((e) => c[e] > 0 && <i key={e} style={{ flexGrow: c[e], background: COR_EST[e] }} />)}
               </span>
             </span>
             <span className="vbl">{r.nome}</span>

@@ -129,6 +129,10 @@ export function ProjetosView() {
     updateDoc(doc(db, "projects", id), { estado, ...fase, atualizadoEm: new Date().toISOString() }).then(() => flash(`«${p.nome}» passou para ${estado}`)).catch((e) => flash(errMsg(e)));
   };
 
+  /** Easy action do To Start: o projeto passa para Ongoing, na primeira coluna do quadro. */
+  const iniciar = (p: Projeto) => updateDoc(doc(db, "projects", p.id), { estado: ONGOING, fase: FASES_PROJ[0], atualizadoEm: new Date().toISOString() })
+    .then(() => flash(`«${p.nome}» passou para Ongoing, em ${FASES_PROJ[0]}`)).catch((e) => flash(errMsg(e)));
+
   /** Sair da edição: avisa se houver alterações por guardar. */
   const sair = async () => {
     if (!ed) return;
@@ -231,6 +235,7 @@ export function ProjetosView() {
           <table>
             <thead><tr>
               {S("nome", "Projeto")}{S("fase", "Stage")}{S("mwb", "Must Win Battle")}{S("parceiro", "Parceiro")}{S("inicio", "Início", "n", true)}{S("orcamento", "Orçamento", "n", true)}
+              {tab === TO_START && <th className="acts"><span className="sr">Ações</span></th>}
             </tr></thead>
             <tbody>{rows.map((p) => (
               <tr key={p.id} tabIndex={0} onClick={() => setAberto(p.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) setAberto(p.id); }}>
@@ -240,6 +245,8 @@ export function ProjetosView() {
                 <td>{p.parceiro || <span className="mut">-</span>}{p.relacao && <span className="mut sm">{p.relacao}</span>}</td>
                 <td className="n mut">{dataPt(p.inicio)}</td>
                 <td className="n">{eur(p.orcamento) || <span className="mut">-</span>}</td>
+                {tab === TO_START && <td className="acts" onClick={(e) => e.stopPropagation()}>
+                  <button type="button" className="btn sm" title={`Passar para Ongoing, em ${FASES_PROJ[0]}`} aria-label={`Iniciar ${p.nome}: passa para Ongoing, em ${FASES_PROJ[0]}`} onClick={() => iniciar(p)}>Iniciar<Icon name="caret-right" /></button></td>}
               </tr>))}</tbody>
           </table>
         </div>)}

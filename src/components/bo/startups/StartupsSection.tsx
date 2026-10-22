@@ -1,8 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, doc, onSnapshot, orderBy, query, writeBatch } from "firebase/firestore";
+import { post } from "@/lib/api";
+import { useConfirm } from "../Confirm";
+import { errMsg, useFlash } from "../admin/common";
 import { db } from "@/lib/firebase";
-import { Area, Fila, Sector, Startup, Status, emCurso } from "@/lib/types";
+import { Area, Deal, Fila, Sector, Startup, Status, emCurso } from "@/lib/types";
 import { useAreas } from "@/lib/use-areas";
 import { Icon } from "@/components/Icon";
 import { StartupsTriage } from "./StartupsTriage";
@@ -11,8 +14,6 @@ import { SearchField } from "../ui";
 import { DealsLookup, useDeals } from "../pipeline/DealsLookup";
 import { PipelineSection } from "../pipeline/PipelineSection";
 import { ReviewView } from "./ReviewView";
-import { ImportRadar } from "./ImportRadar";
-import { useFlash } from "../admin/common";
 import { useSession } from "../AuthGate";
 
 /** Secção Startups do backoffice: Triagem, Aprovadas, Arquivo de triagem, (admins) Pipeline, Radar e Review. */
@@ -30,8 +31,6 @@ function Section({ initial }: { initial: Page }) {
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
-  const [impRadar, setImpRadar] = useState(false);
-  const { flash, el: flashEl } = useFlash();
   useEffect(() => {
     const u1 = onSnapshot(collection(db, "startups"), (s) => { setStartups(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Startup)); setLoaded(true); },
       (e) => { console.error(e); setLoaded(true); });
@@ -62,14 +61,12 @@ function Section({ initial }: { initial: Page }) {
       {page !== "radar" && page !== "review" && (
         <div className="pageact">
           <SearchField value={search} onChange={setSearch} placeholder={page === "pipeline" ? "Pesquisar no pipeline" : "Pesquisar startups"} />
-          {page !== "pipeline" && canPipeline && <button className="btn" onClick={() => setImpRadar(true)} title="Importar o Excel do Radar Sogrape Ventures"><Icon name="upload-simple" />Importar Radar</button>}
+          <AtribuirCategorias startups={startups} sectors={sectors} deals={canPipeline ? deals : []} />
           {page !== "pipeline" && <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" />Adicionar startups</button>}
         </div>
       )}
     </div>
-    {impRadar && <ImportRadar onClose={() => setImpRadar(false)} onDone={flash} />}
-    {flashEl}
-    {page === "review" ? <ReviewView /> : page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage areas={areas} status={page as Status} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar areas={areas} startups={startups} sectors={sectors} loaded={loaded} />}
+    {page === "review" ? <ReviewView startups={startups} sectors={sectors} areas={areas} /> : page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage areas={areas} status={page as Status} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar areas={areas} startups={startups} sectors={sectors} loaded={loaded} />}
   </>);
 }
 
@@ -78,4 +75,54 @@ function PipeCount() {
   const { deals } = useDeals();
   const n = deals.filter((d) => emCurso(d.etapa)).length;
   return n ? <span className="c soft">{n}</span> : null;
+}
+
+/**
+ * Atribui com a Gemini uma categoria às startups que não têm (ou têm uma que já não existe), e aos deals do pipeline sem categoria:
+ * os ligados a uma ficha ficam com a categoria dela, os outros são classificados pela descrição.
+ */
+function AtribuirCategorias({ startups, sectors, deals }: { startups: Startup[]; sectors: Sector[]; deals: Deal[] }) {
+  const { confirmar, el: cfEl } = useConfirm();
+  const { flash, el } = useFlash();
+  const [prog, setProg] = useState<{ feitas: number; total: number } | null>(null);
+  const valida = (c?: string) => !!c && sectors.some((x) => x.id === c);
+  const st = startups.filter((s) => s.nome && !valida(s.setor));
+  const stIds = new Set(startups.map((s) => s.id));
+  const dl = deals.filter((d) => d.nome && !valida(d.categoria));
+  const soltos = dl.filter((d) => !d.startupId || !stIds.has(d.startupId));
+  const total = st.length + soltos.length;
+  if (!sectors.length || (!total && !dl.length)) return null;
+  const atribuir = async () => {
+    if (!(await confirmar({ titulo: `Atribuir categoria a ${total === 1 ? "1 startup" : `${total} startups`} sem categoria?`, texto: "A Gemini classifica pela descrição só as startups que ainda não têm categoria. As outras ficam como estão.", ok: "Atribuir" }))) return;
+    const cats = sectors.map(({ id, nome, descricao }) => ({ id, nome, descricao }));
+    const itens = [...st.map((s) => ({ id: s.id, nome: s.nome, descricao: s.descricao || s.nome })), ...soltos.map((d) => ({ id: `deal:${d.id}`, nome: d.nome, descricao: d.descricao || d.nome }))];
+    const res: Record<string, string> = {};
+    setProg({ feitas: 0, total: itens.length });
+    try {
+      for (let i = 0; i < itens.length; i += 80) {
+        const lote = itens.slice(i, i + 80);
+        const j = await post<{ setores: Record<string, string> }>("/api/startups/setores", { startups: lote, sectors: cats });
+        Object.assign(res, j.setores);
+        const b = writeBatch(db);
+        for (const x of lote) if (valida(res[x.id]) && !x.id.startsWith("deal:")) b.update(doc(db, "startups", x.id), { setor: res[x.id] });
+        await b.commit();
+        setProg({ feitas: Math.min(i + 80, itens.length), total: itens.length });
+      }
+      // Deals sem categoria: herdam a da ficha (nova ou a que já tinha) ou a que a Gemini deu
+      const setorDe = new Map(startups.map((s) => [s.id, res[s.id] || s.setor]));
+      for (let i = 0; i < dl.length; i += 400) {
+        const b = writeBatch(db);
+        let n = 0;
+        for (const d of dl.slice(i, i + 400)) { const c = (d.startupId && setorDe.get(d.startupId)) || res[`deal:${d.id}`]; if (valida(c)) { b.update(doc(db, "deals", d.id), { categoria: c }); n++; } }
+        if (n) await b.commit();
+      }
+      flash(`Categoria atribuída a ${Object.keys(res).filter((k) => valida(res[k])).length} de ${itens.length} startups`);
+    } catch (e) { flash((e as Error).message || errMsg(e)); }
+    setProg(null);
+  };
+  return (<>
+    <button className="btn" onClick={atribuir} disabled={!!prog} title="Atribuir com a Gemini uma categoria às startups sem categoria">
+      {prog ? <><span className="spin" aria-hidden="true" />{prog.feitas} de {prog.total}</> : <><Icon name="sparkle" />Atribuir categorias{total > 0 ? ` (${total})` : ""}</>}</button>
+    {cfEl}{el}
+  </>);
 }

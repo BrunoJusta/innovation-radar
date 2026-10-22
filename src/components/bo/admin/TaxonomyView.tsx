@@ -38,7 +38,6 @@ export function TaxonomyView({ areas, cats, parte }: { areas: Area[]; cats: Cate
 
     {parte === "areas" && <section className="adm-sec">
       <div className="gh"><h2>Cadeias de valor</h2><span>{areas.length}</span><span className="sp" />
-        {areas.some((a) => PALETA_CADEIAS[a.id] && PALETA_CADEIAS[a.id] !== a.cor) && <button className="btn" onClick={() => Promise.all(areas.filter((a) => PALETA_CADEIAS[a.id]).map((a) => setDoc(doc(db, "areas", a.id), { cor: PALETA_CADEIAS[a.id] }, { merge: true }))).then(() => flash("Paleta Sogrape aplicada")).catch((e) => flash(errMsg(e)))}><Icon name="sparkle" />Aplicar paleta Sogrape</button>}
         <button className="btn" onClick={() => setAe({ id: "", nome: "", descricao: "", cor: AREA_COLORS[areas.length % AREA_COLORS.length], ordem: areas.length + 1, _new: true })}><Icon name="plus" />Nova cadeia de valor</button></div>
       <div className="rows">{areas.map((a) => (
         <div className="row" key={a.id}>

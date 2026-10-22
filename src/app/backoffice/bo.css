@@ -1203,7 +1203,7 @@
 .bo .fsel.on:hover{box-shadow:none;opacity:.92}
 
 /* Review: números, funil em fluxo e unidades por vertical */
-.bo .rev-k{display:grid;grid-template-columns:1.4fr repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.bo .rev-k{display:grid;grid-template-columns:1.4fr repeat(5,minmax(0,1fr));gap:12px;margin-bottom:12px}
 .bo .rk{position:relative;display:flex;flex-direction:column;gap:6px;padding:18px 20px;border-radius:14px;background:var(--surface-1);box-shadow:var(--e2);overflow:hidden}
 .bo .rk b{font:650 34px/1 var(--f-display);letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--ink)}
 .bo .rk span{font-size:13px;color:var(--ink-muted);line-height:1.35}
@@ -1666,13 +1666,4 @@
 .bo .rv-mwb{align-self:start}
 .bo .rv-mwb.uma header span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .bo .rv-mwb.vazia{padding:8px 4px}
-/* Import do Radar Sogrape Ventures */
-.bo .ir-file{align-self:flex-start;cursor:pointer}
-.bo .ir-f{display:flex;align-items:center;gap:8px;margin:0;font:600 14px/1.3 var(--f-display)}
-.bo .ir-f .i{color:#4F7A3A}
-.bo .ir-dest{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(170px,100%),1fr));gap:8px}
-.bo .ir-dest li{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;background:var(--surface-2)}
-.bo .ir-dest b{font:650 22px/1.1 var(--f-display);font-variant-numeric:tabular-nums}
-.bo .ir-dest span{font:600 13px/1.3 var(--f-display);color:var(--ink)}
-.bo .ir-dest em{font-style:normal;font-size:11.5px;color:var(--ink-subtle)}
-.bo .ir-prog{display:flex;align-items:center;gap:10px;margin:0;font-size:13.5px;color:var(--ink-muted)}
+.bo .stbl .acts .btn.sm{height:30px;padding:0 8px 0 12px;font-size:12.5px;gap:4px}
