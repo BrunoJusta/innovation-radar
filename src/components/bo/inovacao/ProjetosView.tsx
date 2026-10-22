@@ -82,9 +82,11 @@ export function ProjetosView() {
   const nTab = (estado: string) => list.filter((p) => p.estado === estado && passaF(p)).length;
   // Quadro: linhas por Must Win Battle e colunas por stage (com «por definir» só quando há projetos sem um ou sem o outro)
   // No quadro de Ongoing, os projetos em To Start aparecem na coluna de entrada, à esquerda dos stages
-  const noQuadro = useMemo(() => tab === ONGOING ? list.filter((p) => (p.estado === ONGOING || p.estado === TO_START) && passaF(p)) : filtrados, [tab, list, filtrados, f, q]); // eslint-disable-line react-hooks/exhaustive-deps
+  // O quadro só existe no separador Ongoing; os outros estados mostram a lista
+  const noQuadro = filtrados;
+  const comQuadro = tab === ONGOING;
   const linhas = useMemo(() => [...MWB.map((m) => ({ id: m, nome: m })), ...(noQuadro.some((p) => !MWB.includes(p.mwb)) ? [{ id: SEM, nome: "Sem Must Win Battle" }] : [])], [noQuadro]);
-  const colunas = tab === TO_START ? [ENTRADA] : tab === ONGOING ? [ENTRADA, ...FASES_PROJ] : FASES_PROJ;
+  const colunas: string[] = FASES_PROJ;
   const naCelula = (m: string, fs: string) => noQuadro.filter((p) => (m === SEM ? !MWB.includes(p.mwb) : p.mwb === m) && (fs === ENTRADA ? p.estado === TO_START : p.estado !== TO_START && (FASES_PROJ.includes(p.fase || "") ? p.fase : FASES_PROJ[0]) === fs));
   const destinos = [...(tab !== ONGOING ? [ONGOING] : []), ...DESTINOS_PROJ.filter((d) => d !== tab)];
   /** Largar um cartão numa célula: muda o stage e a Must Win Battle. */
@@ -111,7 +113,7 @@ export function ProjetosView() {
     const agora = new Date().toISOString();
     const parceiroRef = x.parceiro.trim() && !x.parceiroRef ? proximaRef("PA", [...list, ...eventos].map((y) => y.parceiroRef || "")) : x.parceiro.trim() ? x.parceiroRef : "";
     try {
-      await setDoc(doc(db, "projects", id), { ...x, parceiro: x.parceiro.trim(), parceiroRef, atualizadoEm: agora, criadoEm: x.criadoEm || agora });
+      await setDoc(doc(db, "projects", id), { ...x, fase: x.estado !== TO_START && !FASES_PROJ.includes(x.fase || "") ? FASES_PROJ[0] : x.fase || "", parceiro: x.parceiro.trim(), parceiroRef, atualizadoEm: agora, criadoEm: x.criadoEm || agora });
       setEd(null); setAberto(id); flash(_novo ? "Projeto criado" : "Projeto guardado");
     } catch (e) { flash(errMsg(e)); }
   };
@@ -184,7 +186,7 @@ export function ProjetosView() {
         {tab === REVIEW && <MultiSelect opcoes={ESTADOS_PROJ.map((e) => ({ id: e.id, nome: e.id, cor: e.cor }))} value={revEst} onChange={setRevEst}
           counts={(id) => list.filter((p) => p.estado === id && passaF(p)).length} allLabel="Todos os estados" />}
         <span className="sp" />
-        {tab !== REVIEW && <div className="seg" role="group" aria-label="Vista">
+        {comQuadro && <div className="seg" role="group" aria-label="Vista">
           <button aria-pressed={vista === "lista"} onClick={() => setVista("lista")} title="Lista"><Icon name="list-bullets" />Lista</button>
           <button aria-pressed={vista === "quadro"} onClick={() => setVista("quadro")} title="Quadro"><Icon name="kanban" />Quadro</button>
         </div>}
@@ -192,7 +194,7 @@ export function ProjetosView() {
       {tab === REVIEW ? (
         filtrados.length ? <ProjetosReview projetos={filtrados} areas={areas} startups={startups} onOpen={setAberto} />
           : <Empty title="Nada para mostrar" text="Escolhe outros estados ou muda os filtros." />
-      ) : vista === "quadro" ? (
+      ) : comQuadro && vista === "quadro" ? (
         <div className="pm-wrap">
           <div className="pm" style={{ ["--n" as string]: colunas.length }} role="grid" aria-label={`Quadro dos projetos ${tab}`}>
             <div className="pm-c0" aria-hidden="true" />
@@ -223,7 +225,7 @@ export function ProjetosView() {
                 </div>)}
             </div>))}
           </div>
-          <p className="pm-hint">{tab === ONGOING ? "Os projetos em To Start são a porta de entrada: arrasta-os para um stage para passarem a Ongoing. " : ""}Arrasta um projeto para outra célula para mudar o stage ou a Must Win Battle, ou para a direita para mudar o estado. No detalhe do projeto também dá para mudar tudo.</p>
+          <p className="pm-hint">Arrasta um projeto para outra célula para mudar o stage ou a Must Win Battle, ou para a direita para mudar o estado. No detalhe do projeto também dá para mudar tudo.</p>
         </div>
       ) : !rows.length ? <Empty title="Nada encontrado" text="Muda a pesquisa, o ano ou os filtros." /> : (
         <div className="tbl stbl ptbl inv-tbl">
