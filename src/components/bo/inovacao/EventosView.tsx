@@ -55,7 +55,8 @@ export function EventosView() {
     const agora = new Date().toISOString();
     const parceiroRef = x.parceiro.trim() && !x.parceiroRef ? proximaRef("PA", [...projetos, ...list].map((y) => y.parceiroRef || "")) : x.parceiro.trim() ? x.parceiroRef : "";
     try {
-      await setDoc(doc(db, "events", id), { ...x, fim: x.fim || x.inicio, parceiro: x.parceiro.trim(), parceiroRef, parceria: x.parceria || !!x.parceiro.trim(), atualizadoEm: agora, criadoEm: x.criadoEm || agora });
+      const links = (x.links || []).filter((l) => l.url.trim()).map((l) => ({ titulo: l.titulo.trim(), url: /^https?:\/\//i.test(l.url.trim()) ? l.url.trim() : `https://${l.url.trim()}` }));
+      await setDoc(doc(db, "events", id), { ...x, links, fim: x.fim || x.inicio, parceiro: x.parceiro.trim(), parceiroRef, parceria: x.parceria || !!x.parceiro.trim(), atualizadoEm: agora, criadoEm: x.criadoEm || agora });
       setEd(null); setAberto(id); flash(_novo ? "Evento criado" : "Evento guardado");
     } catch (e) { flash(errMsg(e)); }
   };

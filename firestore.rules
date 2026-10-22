@@ -8,8 +8,8 @@ service cloud.firestore {
     function profile() { return /databases/$(database)/documents/users/$(me()); }
     function member() { return signedIn() && exists(profile()); }
     function admin() { return member() && get(profile()).data.role == 'admin'; }
-    // Projetos e eventos de Inovação: por agora só o Bruno
-    function inovacao() { return member() && me() == 'bruno.justa@sogrape.pt'; }
+    // Projetos e eventos de Inovação: toda a equipa do backoffice
+    function inovacao() { return member(); }
     // Pipeline da Sogrape Ventures: só administradores
     function ventures() { return admin(); }
 

@@ -5,7 +5,7 @@ import { db } from "@/lib/firebase";
 import { Icon } from "@/components/Icon";
 import { AreaSelect, CatSelect } from "@/components/CatSelect";
 import { useAreas } from "@/lib/use-areas";
-import { ESTADOS_ATIVOS, ESTADOS_PROJ, FINISHED, estadoNorm, MWB, Projeto, RELACOES, anosDoProjeto, dataPt, eur, parceirosDe, projetoVazio, projetosDoExcel, proximaRef, type Evento } from "@/lib/inovacao";
+import { DESTINOS_PROJ, ESTADOS_PROJ, FASES_PROJ, ONGOING, corDe, estadoNorm, faseNorm, MWB, Projeto, RELACOES, anosDoProjeto, dataPt, eur, parceirosDe, projetoVazio, projetosDoExcel, proximaRef, type Evento } from "@/lib/inovacao";
 import { Empty, SearchField } from "../ui";
 import { errMsg, useFlash } from "../admin/common";
 import { useConfirm } from "../Confirm";
@@ -18,36 +18,39 @@ import { StartupDrawer } from "../startups/StartupDrawer";
 import { DealsLookup } from "../pipeline/DealsLookup";
 import { useSession } from "../AuthGate";
 
-type Col = "ref" | "nome" | "estado" | "mwb" | "parceiro" | "inicio" | "orcamento";
-type F = { ano: string; estado: string; mwb: string; cadeia: string; relacao: string };
+type Col = "ref" | "nome" | "fase" | "mwb" | "parceiro" | "inicio" | "orcamento";
+type F = { ano: string; mwb: string; cadeia: string; relacao: string };
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const ANO = String(new Date().getFullYear());
-const OPC_ESTADO = opcoes(ESTADOS_ATIVOS.map((e) => ({ id: e.id, nome: e.id, cor: e.cor })));
+/** Cores dos cabeçalhos dos stages (do mais escuro ao mais claro, como no quadro de Inovação). */
+const COR_FASE = ["#9DD9C7", "#ACDDD1", "#B4E3D6", "#CDEAE2"];
+const SEM = "_";
 const OPC_MWB = opcoes(MWB), OPC_REL = opcoes(RELACOES);
 
 /** Projetos de Inovação: lista ou quadro por estado, filtros, detalhe, criar, editar e apagar. */
 export function ProjetosView() {
   const { list: brutos, loaded, erro } = useLive<Projeto>("projects");
-  // «Ended» (nome antigo) passou a «Finished»
-  const list = useMemo(() => brutos.map((p) => (estadoNorm(p.estado) === p.estado ? p : { ...p, estado: estadoNorm(p.estado) })), [brutos]);
+  // Estados e stages com nomes antigos passam para os atuais (On Going → Ongoing, Transferred to BU → Graduated, Ended → Shelved)
+  const velho = (p: Projeto) => estadoNorm(p.estado) !== p.estado || faseNorm(p.fase) !== (p.fase || "");
+  const list = useMemo(() => brutos.map((p) => (velho(p) ? { ...p, estado: estadoNorm(p.estado), fase: faseNorm(p.fase) } : p)), [brutos]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const velhos = brutos.filter((p) => estadoNorm(p.estado) !== p.estado);
+    const velhos = brutos.filter(velho);
     if (!velhos.length) return;
-    const b = writeBatch(db); velhos.forEach((p) => b.update(doc(db, "projects", p.id), { estado: estadoNorm(p.estado) })); b.commit().catch(() => {});
-  }, [brutos]);
+    const b = writeBatch(db); velhos.forEach((p) => b.update(doc(db, "projects", p.id), { estado: estadoNorm(p.estado), fase: faseNorm(p.fase) })); b.commit().catch(() => {});
+  }, [brutos]); // eslint-disable-line react-hooks/exhaustive-deps
   const { list: startups } = useLive<Startup>("startups");
   // Detalhe da startup parceira, aberto a partir da ficha do projeto
   const [stId, setStId] = useState<string | null>(null);
   const categorias = useCategorias();
   const { email } = useSession();
-  const [tab, setTab] = useState<"ativos" | "finished">("ativos");
+  const [tab, setTab] = useState<string>(ONGOING);
   const { list: eventos } = useLive<Evento>("events");
   const areas = useAreas();
   const { flash, el } = useFlash();
   const { confirmar, el: cfEl } = useConfirm();
   const [q, setQ] = useState("");
-  const [f, setF] = useState<F>({ ano: ANO, estado: "all", mwb: "all", cadeia: "all", relacao: "all" });
-  const [vista, setVista] = useState<"lista" | "quadro">("lista");
+  const [f, setF] = useState<F>({ ano: ANO, mwb: "all", cadeia: "all", relacao: "all" });
+  const [vista, setVista] = useState<"lista" | "quadro">("quadro");
   const [sort, setSort] = useState<{ col: Col; dir: 1 | -1 }>({ col: "ref", dir: -1 });
   const [aberto, setAberto] = useState<string | null>(null);
   const [ed, setEd] = useState<(Projeto & { _novo?: boolean }) | null>(null);
@@ -57,14 +60,32 @@ export function ProjetosView() {
   const cadNome = (id: string) => areas.find((a) => a.id === id)?.nome || "";
   const anos = useMemo(() => opcoes([...new Set([ANO, ...list.flatMap(anosDoProjeto)])].sort().reverse(), false), [list]);
   // Cada filtro conta com os outros aplicados (o próprio não conta)
-  const passa = (p: Projeto, sem?: keyof F) => (tab === "finished" ? p.estado === FINISHED : p.estado !== FINISHED) && (sem === "ano" || f.ano === "all" || anosDoProjeto(p).includes(f.ano)) && (sem === "estado" || tab === "finished" || f.estado === "all" || p.estado === f.estado) &&
+  const passaF = (p: Projeto, sem?: keyof F) => (sem === "ano" || f.ano === "all" || anosDoProjeto(p).includes(f.ano)) &&
     (sem === "mwb" || f.mwb === "all" || p.mwb === f.mwb) && (sem === "cadeia" || f.cadeia === "all" || p.cadeia === f.cadeia) && (sem === "relacao" || f.relacao === "all" || p.relacao === f.relacao) &&
     (!q.trim() || norm([p.ref, p.nome, p.descricao, p.parceiro, p.observacoes].join(" ")).includes(norm(q.trim())));
+  const passa = (p: Projeto, sem?: keyof F) => p.estado === tab && passaF(p, sem);
   const conta = (k: keyof F, campo: (p: Projeto) => boolean) => list.filter((p) => passa(p, k) && campo(p)).length;
   const filtrados = useMemo(() => list.filter((p) => passa(p)), [list, f, q, tab]); // eslint-disable-line react-hooks/exhaustive-deps
-  const rows = useMemo(() => ordenar(filtrados, (p) => sort.col === "estado" ? ESTADOS_PROJ.findIndex((e) => e.id === p.estado) : sort.col === "orcamento" ? p.orcamento : (p[sort.col] || "").toString().toLowerCase(), sort.dir), [filtrados, sort]);
+  const rows = useMemo(() => ordenar(filtrados, (p) => sort.col === "fase" ? (FASES_PROJ.indexOf(p.fase || "") + 1 || 99) : sort.col === "orcamento" ? p.orcamento : (p[sort.col] || "").toString().toLowerCase(), sort.dir), [filtrados, sort]);
   const soma = (k: "orcamento" | "gasto") => filtrados.reduce((t, p) => t + (p[k] || 0), 0);
-  const nTab = (fin: boolean) => list.filter((p) => (p.estado === FINISHED) === fin && (f.ano === "all" || anosDoProjeto(p).includes(f.ano))).length;
+  /** Quantos projetos há em cada estado, com os filtros aplicados. */
+  const nTab = (estado: string) => list.filter((p) => p.estado === estado && passaF(p)).length;
+  // Quadro: linhas por Must Win Battle e colunas por stage (com «por definir» só quando há projetos sem um ou sem o outro)
+  const linhas = useMemo(() => [...MWB.map((m) => ({ id: m, nome: m })), ...(filtrados.some((p) => !MWB.includes(p.mwb)) ? [{ id: SEM, nome: "Sem Must Win Battle" }] : [])], [filtrados]);
+  const colunas = useMemo(() => [...(filtrados.some((p) => !FASES_PROJ.includes(p.fase || "")) ? [SEM] : []), ...FASES_PROJ], [filtrados]);
+  const naCelula = (m: string, fs: string) => filtrados.filter((p) => (m === SEM ? !MWB.includes(p.mwb) : p.mwb === m) && (fs === SEM ? !FASES_PROJ.includes(p.fase || "") : p.fase === fs));
+  const destinos = [...(tab !== ONGOING ? [ONGOING] : []), ...DESTINOS_PROJ.filter((d) => d !== tab)];
+  /** Largar um cartão numa célula: muda o stage e a Must Win Battle. */
+  const moverCelula = (id: string, m: string, fs: string) => {
+    const p = list.find((x) => x.id === id);
+    if (!p) return;
+    const upd: Partial<Projeto> = {};
+    if (m !== SEM && p.mwb !== m) upd.mwb = m;
+    if (fs !== SEM && p.fase !== fs) upd.fase = fs;
+    if (!Object.keys(upd).length) return;
+    updateDoc(doc(db, "projects", id), { ...upd, atualizadoEm: new Date().toISOString() })
+      .then(() => flash(`«${p.nome}» passou para ${[upd.fase, upd.mwb].filter(Boolean).join(", ")}`)).catch((e) => flash(errMsg(e)));
+  };
   const atual = aberto ? list.find((p) => p.id === aberto) || null : null;
 
   const guardar = async () => {
@@ -131,60 +152,66 @@ export function ProjetosView() {
     </div>
     {!loaded ? <div className="loading">A carregar…</div> : erro ? <Empty title="Sem acesso aos projetos" text={erro} /> : !list.length ? <Empty title="Ainda não há projetos" text="Cria o primeiro ou importa a folha «Fact_Projects» do Excel de Inovação." /> : <>
       <Kpis itens={[
-        { l: "Projetos", v: filtrados.length }, { l: "On Going", v: filtrados.filter((p) => p.estado === "On Going").length },
+        { l: "Projetos", v: filtrados.length },
         { l: "Com piloto", v: filtrados.filter((p) => p.piloto).length }, { l: "Orçamento estimado", v: eur(soma("orcamento")) || "0 €" }, { l: "Gasto", v: eur(soma("gasto")) || "0 €" },
       ]} />
-      <div className="seg trseg" role="group" aria-label="Projetos">
-        <button aria-pressed={tab === "ativos"} onClick={() => setTab("ativos")}><Icon name="target" />Ativos<span className="sc">{nTab(false)}</span></button>
-        <button aria-pressed={tab === "finished"} onClick={() => setTab("finished")}><Icon name="check-circle" />Finished<span className="sc">{nTab(true)}</span></button>
+      <div className="seg trseg" role="group" aria-label="Estado dos projetos">
+        {ESTADOS_PROJ.map((e) => <button key={e.id} aria-pressed={tab === e.id} onClick={() => setTab(e.id)}><i className="inv-dot" style={{ background: e.cor }} />{e.id}<span className="sc">{nTab(e.id)}</span></button>)}
       </div>
       <div className="toolbar">
         <CatSelect cats={anos} value={f.ano} onChange={set("ano")} simples counts={(a) => conta("ano", (p) => anosDoProjeto(p).includes(a))} allLabel="Todos os anos" procurar="Procurar ano" />
-        {tab === "ativos" && <CatSelect cats={OPC_ESTADO} value={f.estado} onChange={set("estado")} simples counts={(id) => conta("estado", (p) => p.estado === id)} allLabel="Todos os estados" procurar="Procurar estado" />}
         <CatSelect cats={OPC_MWB} value={f.mwb} onChange={set("mwb")} simples counts={(id) => conta("mwb", (p) => p.mwb === id)} allLabel="Todas as Must Win Battles" procurar="Procurar" />
         <AreaSelect areas={areas} value={f.cadeia} onChange={set("cadeia")} counts={(id) => conta("cadeia", (p) => p.cadeia === id)} />
         <CatSelect cats={OPC_REL} value={f.relacao} onChange={set("relacao")} simples counts={(id) => conta("relacao", (p) => p.relacao === id)} allLabel="Todas as relações" procurar="Procurar" />
         <span className="sp" />
-        {tab === "ativos" && <div className="seg" role="group" aria-label="Vista">
+        <div className="seg" role="group" aria-label="Vista">
           <button aria-pressed={vista === "lista"} onClick={() => setVista("lista")} title="Lista"><Icon name="list-bullets" />Lista</button>
           <button aria-pressed={vista === "quadro"} onClick={() => setVista("quadro")} title="Quadro"><Icon name="kanban" />Quadro</button>
-        </div>}
+        </div>
       </div>
-      {vista === "quadro" && tab === "ativos" ? (
-        <div className="board inv-board">
-          {ESTADOS_ATIVOS.map((e) => { const l = rows.filter((p) => p.estado === e.id); return (
-            <section key={e.id} className={`bcol${over === e.id ? " over" : ""}`} aria-label={e.id}
-              onDragOver={(ev) => { ev.preventDefault(); setOver(e.id); }} onDragLeave={() => setOver(null)} onDrop={(ev) => { ev.preventDefault(); setOver(null); mudarEstado(ev.dataTransfer.getData("text/proj"), e.id); }}>
-              <header><i className="inv-dot" style={{ background: e.cor }} /><b>{e.id}</b><span className="c soft">{l.length}</span></header>
-              <div className="bcards">
-                {l.map((p) => (
-                  <article key={p.id} className="dcard inv-card" draggable onDragStart={(ev) => { ev.dataTransfer.setData("text/proj", p.id); ev.dataTransfer.effectAllowed = "move"; }}
-                    role="button" tabIndex={0} aria-label={`Abrir ${p.nome}`} onClick={() => setAberto(p.id)} onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setAberto(p.id); } }}>
-                    <div className="dc1"><b>{p.nome}</b></div>
-                    <div className="dc2">{[p.parceiro, cadNome(p.cadeia)].filter(Boolean).join(" · ") || "Sem parceiro"}</div>
-                    <div className="dc3"><Tag v={p.mwb} />{p.piloto && <span className="tg">Piloto</span>}<span className="sp" />{p.orcamento ? <span className="mut sm">{eur(p.orcamento)}</span> : null}</div>
-                  </article>))}
-                {!l.length && <p className="bempty">Sem projetos</p>}
-              </div>
-            </section>); })}
-          <section className="bcol bfim" aria-label="Finished">
-            <div className={`bdest d-finished${over === FINISHED ? " over" : ""}`} title="Larga aqui para marcar como Finished"
-              onDragOver={(ev) => { ev.preventDefault(); setOver(FINISHED); }} onDragLeave={() => setOver(null)}
-              onDrop={(ev) => { ev.preventDefault(); setOver(null); mudarEstado(ev.dataTransfer.getData("text/proj"), FINISHED); }}>
-              <Icon name="check-circle" size={20} /><b>Finished</b><span>{nTab(true)}</span><em>Larga aqui</em>
-            </div>
-          </section>
+      {vista === "quadro" ? (
+        <div className="pm-wrap">
+          <div className="pm" style={{ ["--n" as string]: colunas.length }} role="grid" aria-label={`Quadro dos projetos ${tab}`}>
+            <div className="pm-c0" aria-hidden="true" />
+            {colunas.map((fs) => <div key={fs} className="pm-h" role="columnheader" style={{ background: fs === SEM ? "var(--surface-2)" : COR_FASE[FASES_PROJ.indexOf(fs)] }}>{fs === SEM ? "Stage por definir" : fs}</div>)}
+            <div className="pm-dh" aria-hidden="true" />
+            {linhas.map((m, li) => (<div key={m.id} className="pm-row" role="row" style={{ display: "contents" }}>
+              <div className="pm-l" role="rowheader" style={{ ["--c" as string]: m.id === SEM ? "#94A3B8" : corDe(m.id) }}><span>{m.nome}</span></div>
+              {colunas.map((fs) => { const k = `${m.id}|${fs}`, l = naCelula(m.id, fs); return (
+                <div key={k} role="gridcell" className={`pm-cell${over === k ? " over" : ""}`} aria-label={`${m.nome}, ${fs === SEM ? "stage por definir" : fs}: ${l.length}`}
+                  onDragOver={(ev) => { ev.preventDefault(); setOver(k); }} onDragLeave={() => setOver(null)}
+                  onDrop={(ev) => { ev.preventDefault(); setOver(null); moverCelula(ev.dataTransfer.getData("text/proj"), m.id, fs); }}>
+                  {l.map((p) => (
+                    <article key={p.id} className="pm-card" draggable onDragStart={(ev) => { ev.dataTransfer.setData("text/proj", p.id); ev.dataTransfer.effectAllowed = "move"; }}
+                      role="button" tabIndex={0} aria-label={`Abrir ${p.nome}`} onClick={() => setAberto(p.id)} onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setAberto(p.id); } }}>
+                      <b>{p.nome}</b>
+                      {(p.parceiro || cadNome(p.cadeia)) && <span>{[p.parceiro, cadNome(p.cadeia)].filter(Boolean).join(", ")}</span>}
+                      {(p.piloto || p.orcamento) ? <em>{p.piloto && <span className="tg">Piloto</span>}<i className="sp" />{p.orcamento ? eur(p.orcamento) : ""}</em> : null}
+                    </article>))}
+                </div>); })}
+              {li === 0 && (
+                <div className="pm-dest" style={{ gridRow: `2 / span ${linhas.length}` }}>
+                  {destinos.map((d) => (
+                    <div key={d} className={`pm-d${over === d ? " over" : ""}`} style={{ ["--c" as string]: corDe(d) }} title={`Larga aqui para passar para ${d}`}
+                      onDragOver={(ev) => { ev.preventDefault(); setOver(d); }} onDragLeave={() => setOver(null)}
+                      onDrop={(ev) => { ev.preventDefault(); setOver(null); mudarEstado(ev.dataTransfer.getData("text/proj"), d); }}>
+                      <b>{d === "Graduated" ? "Graduated" : d}</b>{d === "Graduated" && <small>Transferred to BU</small>}<span>{nTab(d)}</span><em>Larga aqui</em>
+                    </div>))}
+                </div>)}
+            </div>))}
+          </div>
+          <p className="pm-hint">Arrasta um projeto para outra célula para mudar o stage ou a Must Win Battle, ou para a direita para mudar o estado. No detalhe do projeto também dá para mudar tudo.</p>
         </div>
       ) : !rows.length ? <Empty title="Nada encontrado" text="Muda a pesquisa, o ano ou os filtros." /> : (
         <div className="tbl stbl ptbl inv-tbl">
           <table>
             <thead><tr>
-              {S("nome", "Projeto")}{S("estado", "Estado")}{S("mwb", "Must Win Battle")}{S("parceiro", "Parceiro")}{S("inicio", "Início", "n", true)}{S("orcamento", "Orçamento", "n", true)}
+              {S("nome", "Projeto")}{S("fase", "Stage")}{S("mwb", "Must Win Battle")}{S("parceiro", "Parceiro")}{S("inicio", "Início", "n", true)}{S("orcamento", "Orçamento", "n", true)}
             </tr></thead>
             <tbody>{rows.map((p) => (
               <tr key={p.id} tabIndex={0} onClick={() => setAberto(p.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) setAberto(p.id); }}>
                 <td><b className="inv-n">{p.nome}</b><span className="mut sm clip" title={p.descricao}>{p.descricao}</span></td>
-                <td><Tag v={p.estado} dot />{p.piloto && <span className="mut sm">Com piloto</span>}</td>
+                <td>{p.fase || <span className="mut">Por definir</span>}{p.piloto && <span className="mut sm">Com piloto</span>}</td>
                 <td>{p.mwb ? <Tag v={p.mwb} /> : <span className="mut">-</span>}</td>
                 <td>{p.parceiro || <span className="mut">-</span>}{p.relacao && <span className="mut sm">{p.relacao}</span>}</td>
                 <td className="n mut">{dataPt(p.inicio)}</td>

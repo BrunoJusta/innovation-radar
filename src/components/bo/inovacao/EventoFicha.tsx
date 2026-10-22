@@ -8,6 +8,8 @@ const F_MES = new Intl.DateTimeFormat("pt-PT", { month: "short" });
 const F_ANO = new Intl.DateTimeFormat("pt-PT", { year: "numeric" });
 const F_SEM = new Intl.DateTimeFormat("pt-PT", { weekday: "long" });
 const d = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`);
+/** Domínio de um link, para mostrar quando não há título. */
+const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 const dias = (a: string, b: string) => Math.round((+d(b) - +d(a)) / 864e5) + 1;
 
 /** Ficha de leitura do evento: a data em destaque, o papel da Sogrape e os custos ao lado. */
@@ -28,6 +30,11 @@ export function EventoFicha({ e }: { e: Evento }) {
           </div>)}
         <section><h3>Parceiro</h3>
           <p>{e.parceiro ? <>{e.parceiro}</> : e.parceria ? "Com parceria, sem parceiro indicado" : "Sem parceria"}</p></section>
+        {(e.links || []).length > 0 && (
+          <section><h3>Links</h3>
+            <ul className="ef-links">{(e.links || []).map((l, i) => (
+              <li key={i}><a href={l.url} target="_blank" rel="noopener noreferrer"><Icon name="arrow-up-right" /><span><b>{l.titulo || host(l.url)}</b>{l.titulo && <small>{host(l.url)}</small>}</span></a></li>))}</ul>
+          </section>)}
         {e.observacoes && <section><h3>Observações</h3><p>{e.observacoes}</p></section>}
       </div>
       <aside className="pf-side" aria-label="Dados do evento">
@@ -76,6 +83,17 @@ export function EventoForm({ ed, setEd, parceiros }: { ed: Evento; setEd: (e: Ev
           <Eur label="Valor do patrocínio (€)" v={ed.valorPatrocinio} on={(n) => set({ valorPatrocinio: n, patrocinio: ed.patrocinio || (n ?? 0) > 0 })} />
           <Eur label="Gasto (€)" v={ed.gasto} on={(n) => set({ gasto: n })} />
         </div>
+      </section>
+      <section><h4>Links</h4>
+        {(ed.links || []).length > 0 && <div className="ef-led">{(ed.links || []).map((l, i) => (
+          <div key={i} className="ef-ler">
+            <label className="fld"><span className="vh">Título do link {i + 1}</span><input value={l.titulo} placeholder="Título (opcional)…" autoComplete="off"
+              onChange={(e) => set({ links: (ed.links || []).map((x, k) => k === i ? { ...x, titulo: e.target.value } : x) })} /></label>
+            <label className="fld"><span className="vh">Endereço do link {i + 1}</span><input type="url" inputMode="url" value={l.url} placeholder="https://…" autoComplete="off" spellCheck={false}
+              onChange={(e) => set({ links: (ed.links || []).map((x, k) => k === i ? { ...x, url: e.target.value } : x) })} /></label>
+            <button type="button" className="btn icon" aria-label={`Tirar o link ${l.titulo || i + 1}`} onClick={() => set({ links: (ed.links || []).filter((_, k) => k !== i) })}><Icon name="trash" /></button>
+          </div>))}</div>}
+        <button type="button" className="txtbtn" onClick={() => set({ links: [...(ed.links || []), { titulo: "", url: "" }] })}><Icon name="plus" />Juntar link</button>
       </section>
       <section><h4>Observações</h4>
         <label className="fld full"><span className="vh">Observações</span><textarea rows={2} value={ed.observacoes} onChange={(e) => set({ observacoes: e.target.value })} /></label>

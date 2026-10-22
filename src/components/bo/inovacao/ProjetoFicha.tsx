@@ -23,7 +23,7 @@ export function ProjetoFicha({ p, cadeia, startup, onStartup }: { p: Projeto; ca
     { l: "Parceiro", i: "briefcase", v: !p.parceiro ? "Sem parceiro" : startup && onStartup
       ? <button type="button" className="pf-par pf-link" onClick={onStartup} title={`Abrir a startup ${startup.nome}`}>{startup.logo && <Logo nome={startup.nome} logo={startup.logo} />}<span>{p.parceiro}</span><Icon name="arrow-up-right" /></button>
       : <span className="pf-par">{startup?.logo && <Logo nome={startup.nome} logo={startup.logo} />}<span title={p.parceiro}>{p.parceiro}</span></span> },
-    { l: "Estado", i: p.estado === "Finished" ? "check-circle" : "clock", v: p.estado, c: est?.cor },
+    { l: "Estado", i: p.estado === "Graduated" ? "check-circle" : p.estado === "Shelved" ? "prohibit" : "clock", v: p.estado, c: est?.cor },
   ];
   return (
     <div className="pf" lang="pt-PT">

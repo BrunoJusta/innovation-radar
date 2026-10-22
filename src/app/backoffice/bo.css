@@ -1576,3 +1576,41 @@
   .bo .tabs .c{font-size:10px;padding:1px 4px}
 }
 .bo .mob-brand img{border-radius:6px}
+/* Links dos eventos */
+.bo .ef-links{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.bo .ef-links a{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;background:var(--surface-1);box-shadow:var(--e2);color:var(--ink);text-decoration:none;min-width:0;transition:box-shadow .15s}
+.bo .ef-links a:hover{box-shadow:0 6px 18px rgba(11,13,58,.1),0 0 0 1px var(--hairline)}
+.bo .ef-links a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.bo .ef-links a>.i{flex:none;width:15px;height:15px;color:#B15533}
+.bo .ef-links span{display:flex;flex-direction:column;min-width:0}
+.bo .ef-links b{font:600 14px/1.3 var(--f-display);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bo .ef-links small{font-size:12px;color:var(--ink-subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bo .ef-led{display:flex;flex-direction:column;gap:8px}
+.bo .ef-ler{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr) auto;gap:8px;align-items:center}
+@media (max-width:640px){.bo .ef-ler{grid-template-columns:1fr auto}.bo .ef-ler .fld:first-child{grid-column:1/-1}}
+/* Projetos: quadro em matriz (linhas = Must Win Battles, colunas = stages, destinos à direita) */
+.bo .pm-wrap{overflow-x:auto;overscroll-behavior-x:contain;margin:0 0 48px;padding-bottom:6px}
+.bo .pm{display:grid;grid-template-columns:120px repeat(var(--n),minmax(165px,1fr)) 132px;gap:10px;min-width:calc(120px + var(--n) * 165px + 132px + (var(--n) + 1) * 10px);align-items:stretch}
+.bo .pm-h{display:grid;place-items:center;text-align:center;min-height:44px;padding:8px 10px;border-radius:8px;font:600 13px/1.25 var(--f-display);color:#1F3D38;text-wrap:balance}
+.bo .pm-l{--c:#94A3B8;position:sticky;left:0;z-index:1;display:grid;place-items:center;text-align:center;padding:12px 10px;border-radius:10px;background:color-mix(in srgb,var(--c) 30%,var(--surface-1));color:color-mix(in srgb,var(--c) 70%,#000);font:600 13px/1.3 var(--f-display);min-height:132px;box-shadow:0 0 0 4px var(--canvas)}
+.bo .pm-l span{text-wrap:balance}
+.bo .pm-cell{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:10px;background:var(--surface-2);min-height:132px;min-width:0;transition:background .15s,box-shadow .15s}
+.bo .pm-cell.over{background:color-mix(in srgb,#B15533 8%,var(--surface-2));box-shadow:inset 0 0 0 2px color-mix(in srgb,#B15533 45%,transparent)}
+.bo .pm-card{display:flex;flex-direction:column;gap:4px;padding:10px 11px;border-radius:9px;background:var(--surface-1);box-shadow:0 1px 2px rgba(11,13,58,.08),0 0 0 1px var(--hairline);cursor:grab;min-width:0;transition:box-shadow .15s,transform .15s}
+.bo .pm-card:hover{box-shadow:0 6px 16px rgba(11,13,58,.1),0 0 0 1px var(--hairline-strong)}
+.bo .pm-card:active{cursor:grabbing;transform:translateY(1px)}
+.bo .pm-card:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.bo .pm-card b{font:600 13.5px/1.3 var(--f-display);color:var(--ink);overflow-wrap:anywhere}
+.bo .pm-card>span{font-size:12px;color:var(--ink-subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bo .pm-card em{display:flex;align-items:center;gap:6px;font-style:normal;font-size:12px;color:var(--ink-muted);font-variant-numeric:tabular-nums;margin-top:2px}
+.bo .pm-card em .sp{flex:1}
+.bo .pm-card .tg{padding:3px 6px;font-size:11px}
+.bo .pm-dest{grid-column:-2/-1;align-self:start;position:sticky;top:76px;display:flex;flex-direction:column;gap:10px}
+.bo .pm-d{--c:#94A3B8;min-height:118px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;padding:10px 8px;border-radius:10px;border:1.5px dashed var(--hairline-strong);background:var(--surface-1);transition:background .15s,border-color .15s}
+.bo .pm-d b{font:600 13.5px/1.2 var(--f-display);color:var(--ink)}
+.bo .pm-d small{font-size:11.5px;color:var(--ink-subtle)}
+.bo .pm-d span{font:650 18px/1.2 var(--f-display);color:var(--ink);font-variant-numeric:tabular-nums}
+.bo .pm-d em{font-style:normal;font-size:11.5px;color:var(--ink-tertiary)}
+.bo .pm-d.over{border-style:solid;border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,var(--surface-1))}
+.bo .pm-hint{margin:12px 0 0;font-size:12.5px;color:var(--ink-subtle)}
+@media (prefers-reduced-motion:reduce){.bo .pm-card,.bo .pm-cell,.bo .pm-d{transition:none}.bo .pm-card:active{transform:none}}

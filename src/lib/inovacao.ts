@@ -1,13 +1,10 @@
 /**
  * Projetos e eventos da equipa de Inovação (coleções «projects» e «events»).
- * Por agora só o Bruno vê e edita (também nas regras do Firestore).
+ * Toda a equipa com acesso ao backoffice vê e edita (também nas regras do Firestore).
  */
 import type { Celula } from "./xlsx-lite";
 import { dataDe } from "./import-dealflow";
 
-/** Quem vê os separadores Projetos e Eventos. */
-export const INOVACAO_EMAILS = ["bruno.justa@sogrape.pt"];
-export const podeInovacao = (email: string) => INOVACAO_EMAILS.includes((email || "").toLowerCase());
 
 export type Projeto = {
   id: string; ref: string; nome: string; descricao: string;
@@ -24,8 +21,11 @@ export type Projeto = {
   equipa?: { nome: string; papel: string }[]; kpis?: string[]; condicoes?: string[];
 };
 
-/** Fases (stage) de um projeto ou piloto. */
-export const FASES_PROJ = ["Scouting", "Pilot Design", "Pilot Execution", "Evaluation", "Scale-up", "Closed"];
+/** Stages de um projeto (as colunas do quadro). */
+export const FASES_PROJ = ["Opportunity Identification", "Problem-solution fit", "Product-Market fit", "Reality Builder"];
+/** Stages antigos → stages atuais. */
+const FASE_ANTIGA: Record<string, string> = { Scouting: "Opportunity Identification", "Pilot Design": "Problem-solution fit", "Pilot Execution": "Product-Market fit", Evaluation: "Product-Market fit", "Scale-up": "Reality Builder" };
+export const faseNorm = (f?: string) => (f && FASE_ANTIGA[f]) || f || "";
 /** Papéis na equipa do projeto (RACI e PMO). */
 export const PAPEIS_EQUIPA = ["Approver", "Responsible", "Supporter", "Consulted", "Informed", "Innovation PMO"];
 
@@ -36,18 +36,24 @@ export type Evento = {
   parceria: boolean; parceiro: string; parceiroRef: string;
   patrocinio: boolean; gasto: number | null; valorPatrocinio: number | null;
   observacoes: string; criadoEm: string; atualizadoEm: string;
+  /** Links do evento (página, fotos, notícias, gravação…). */ links?: { titulo: string; url: string }[];
 };
 
+/** Estados dos projetos (os separadores da página). */
 export const ESTADOS_PROJ = [
-  { id: "To Start", cor: "#94A3B8" }, { id: "On Going", cor: "#B15533" }, { id: "On Hold", cor: "#B07A12" },
-  { id: "Transferred to BU", cor: "#2F6B73" }, { id: "Finished", cor: "#4F7A3A" },
+  { id: "To Start", cor: "#94A3B8" }, { id: "Ongoing", cor: "#B15533" }, { id: "Graduated", cor: "#2F6B73" },
+  { id: "On Hold", cor: "#B07A12" }, { id: "Shelved", cor: "#5E6B7A" },
 ];
-/** Estado final: os projetos terminados ficam no separador Finished (e são o destino do fim do quadro). */
-export const FINISHED = "Finished";
-/** Estados em curso (as colunas do quadro). */
-export const ESTADOS_ATIVOS = ESTADOS_PROJ.filter((e) => e.id !== FINISHED);
-/** «Ended» (nome antigo, do Excel) passou a «Finished». */
-export const estadoNorm = (e: string) => (/^(ended|finished)$/i.test((e || "").trim()) ? FINISHED : /transfer/i.test(e || "") ? "Transferred to BU" : e);
+export const ONGOING = "Ongoing";
+/** Estados de saída do quadro (os destinos à direita). */
+export const DESTINOS_PROJ = ["Graduated", "On Hold", "Shelved"];
+/** Projetos que já não estão ativos. */
+export const FECHADOS = ["Graduated", "Shelved"];
+/** Nomes antigos → atuais: On Going → Ongoing, Transferred to BU → Graduated, Ended e Finished → Shelved. */
+export const estadoNorm = (e: string) => {
+  const t = (e || "").trim();
+  return /^on\s*going$/i.test(t) ? ONGOING : /transfer|graduat/i.test(t) ? "Graduated" : /^(ended|finished|shelved)$/i.test(t) ? "Shelved" : /^on\s*hold$/i.test(t) ? "On Hold" : /^to\s*start$/i.test(t) ? "To Start" : t;
+};
 export const MWB = ["AI Excellence", "Unforgettable Experiences", "WineTech", "Sustainable Futures", "New Packaging & Materials", "Product Innovation"];
 export const HORIZONTES = ["Incremental Innovation", "Transformational Innovation", "Disruptive Innovation"];
 export const RELACOES = ["Startup", "Academia", "Corporate", "Accelerator", "Other"];
@@ -105,7 +111,7 @@ export function projetosDoExcel(rows: Celula[][], agora: string): Projeto[] {
       relacao: txt(c("Stakeholder Relationship")), ...parceiroDe(c("Partner Display")),
       piloto: sim(c("Pilot Applicable")), pilotoDesde: dataDe(c("Pilot Discussion Start Date")),
       inicio: dataDe(c("Start Date")), fim: dataDe(c("End Date")),
-      estado: ESTADOS_PROJ.find((e) => e.id.toLowerCase() === estadoNorm(estado).toLowerCase())?.id || estado || "To Start",
+      estado: estadoNorm(estado) || "To Start",
       orcamento: num(c("Estimated Budget")), gasto: num(c("Spent Budget")), observacoes: txt(c("Observations")), criadoEm: agora, atualizadoEm: agora,
     };
   });

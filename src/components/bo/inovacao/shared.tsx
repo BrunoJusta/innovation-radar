@@ -122,12 +122,18 @@ export function Detalhe({ titulo, tags, editando, onEditar, onCancelar, onGuarda
   const [busy, setBusy] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => { window.scrollTo(0, 0); }, []);
+  // Escape cancela a edição (a função mais recente, sem voltar a ligar o efeito a cada tecla)
+  const cancelarRef = useRef(onCancelar);
+  cancelarRef.current = onCancelar;
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape" && editando && !document.querySelector(".mdl.cfm")) onCancelar(); };
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape" && editando && !document.querySelector(".mdl.cfm")) cancelarRef.current(); };
     document.addEventListener("keydown", k);
-    if (editando) box.current?.querySelector<HTMLElement>(".pfo input,.pfo textarea,.pfo select")?.focus({ preventScroll: true });
     return () => document.removeEventListener("keydown", k);
-  }, [editando, onCancelar]);
+  }, [editando]);
+  // O foco vai para o primeiro campo só quando se entra em edição (não a cada tecla)
+  useEffect(() => {
+    if (editando) box.current?.querySelector<HTMLElement>(".pfo input,.pfo textarea,.pfo select")?.focus({ preventScroll: true });
+  }, [editando]);
   const guardar = async (e?: React.FormEvent) => { e?.preventDefault(); if (busy) return; setBusy(true); try { await onGuardar(); } finally { setBusy(false); } };
   const acoes = editando ? <>
     <button key="cancelar" type="button" className="txtbtn" onClick={onCancelar} disabled={busy}>Cancelar</button>

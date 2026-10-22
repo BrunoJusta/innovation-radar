@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import { Icon } from "@/components/Icon";
 import { nomeEtapa } from "@/lib/deal-actions";
 import { Area, Deal, Run, Signal, Startup, VEZES, emCurso } from "@/lib/types";
-import { Evento, FINISHED, Projeto, corDe, dataPt, estadoNorm, podeInovacao } from "@/lib/inovacao";
+import { Evento, Projeto, corDe, dataPt, estadoNorm } from "@/lib/inovacao";
 import { fdCurto, fdLongo, hojeLocal } from "@/lib/util";
 import { useSession } from "../AuthGate";
 import { estadoPrazo } from "../pipeline/PipelineBoard";
@@ -25,7 +25,8 @@ export function Dashboard({ signals, areas, go }: { signals: Signal[]; areas: Ar
   const [runs, setRuns] = useState<Run[]>([]);
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [eventos, setEventos] = useState<Evento[]>([]);
-  const inov = podeInovacao(email);
+  // Projetos e eventos: visíveis para toda a equipa
+  const inov = true;
   useEffect(() => {
     if (!inov) return;
     const u = [onSnapshot(collection(db, "projects"), (s) => setProjetos(s.docs.map((d) => ({ ...d.data(), id: d.id }) as Projeto)), () => {}),
@@ -58,7 +59,7 @@ export function DashboardView({ signals, areas, go, startups, deals, runs, isAdm
   const lastDaily = runs.find((r) => r.tipo !== "startups"), lastWeekly = runs.find((r) => r.tipo === "startups");
   const tudoFeito = !nPend && !sPend && !atrasadas;
   // Inovação: próximos eventos e projetos parados
-  const projAtivos = projetos.filter((p) => estadoNorm(p.estado) !== FINISHED);
+  const projAtivos = projetos.map((p) => ({ ...p, estado: estadoNorm(p.estado) }));
   const proxEventos = eventos.filter((e) => (e.fim || e.inicio || "") >= hoje).sort((a, b) => a.inicio.localeCompare(b.inicio)).slice(0, 5);
   const parados = projAtivos.filter((p) => p.estado === "On Hold");
 

@@ -14,7 +14,6 @@ import { AnaliseQueueProvider } from "./AnaliseQueue";
 import RadarApp from "@/components/radar/RadarApp";
 import { Dashboard, DashGo } from "./dashboard/Dashboard";
 import { Icon } from "@/components/Icon";
-import { podeInovacao } from "@/lib/inovacao";
 import { ProjetosView } from "./inovacao/ProjetosView";
 import { EventosView } from "./inovacao/EventosView";
 
@@ -25,8 +24,8 @@ const NEWS: { id: Fila; label: string; icon: string }[] = [
 
 export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
   const { isAdmin, profile, email } = useSession();
-  /** Projetos e eventos: por agora só para o Bruno. */
-  const inov = podeInovacao(email);
+  /** Projetos e eventos: visíveis para toda a equipa. */
+  const inov = true;
   const [view, setView] = useState<View>("dashboard");
   const [sPage, setSPage] = useState<{ p: Fila | "radar" | "pipeline"; k: number }>({ p: "pending", k: 0 });
   const go = (g: DashGo) => { if (g.view === "news") { setSt(g.st); setView("news"); } else if (g.view === "projetos" || g.view === "eventos") setView(g.view); else { setSPage({ p: g.page, k: Date.now() }); setView("startups"); } window.scrollTo(0, 0); };
