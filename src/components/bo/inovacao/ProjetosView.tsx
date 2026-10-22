@@ -22,21 +22,26 @@ type Col = "ref" | "nome" | "fase" | "mwb" | "parceiro" | "inicio" | "orcamento"
 type F = { ano: string; mwb: string; cadeia: string; relacao: string };
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const ANO = String(new Date().getFullYear());
-/** Cores dos cabeçalhos dos stages (do mais escuro ao mais claro, como no quadro de Inovação). */
-const COR_FASE = ["#9DD9C7", "#ACDDD1", "#B4E3D6", "#CDEAE2"];
+/** Cores dos cabeçalhos dos stages: tons de ferrugem, do mais forte (início) ao mais leve (fim). */
+const COR_FASE = ["#EBC9B9", "#F0D6CA", "#F4E2D9", "#F8ECE6"];
 const SEM = "_";
+const TO_START = "To Start";
+/** Coluna de entrada do quadro (os projetos em To Start). */
+const ENTRADA = "__entrada";
 const OPC_MWB = opcoes(MWB), OPC_REL = opcoes(RELACOES);
 
 /** Projetos de Inovação: lista ou quadro por estado, filtros, detalhe, criar, editar e apagar. */
 export function ProjetosView() {
   const { list: brutos, loaded, erro } = useLive<Projeto>("projects");
   // Estados e stages com nomes antigos passam para os atuais (On Going → Ongoing, Transferred to BU → Graduated, Ended → Shelved)
-  const velho = (p: Projeto) => estadoNorm(p.estado) !== p.estado || faseNorm(p.fase) !== (p.fase || "");
-  const list = useMemo(() => brutos.map((p) => (velho(p) ? { ...p, estado: estadoNorm(p.estado), fase: faseNorm(p.fase) } : p)), [brutos]); // eslint-disable-line react-hooks/exhaustive-deps
+  // e os projetos sem stage (que não estejam em To Start, a porta de entrada) entram no primeiro stage
+  const novaFase = (p: Projeto) => { const e = estadoNorm(p.estado), f = faseNorm(p.fase); return e === TO_START || FASES_PROJ.includes(f) ? f : FASES_PROJ[0]; };
+  const velho = (p: Projeto) => estadoNorm(p.estado) !== p.estado || novaFase(p) !== (p.fase || "");
+  const list = useMemo(() => brutos.map((p) => (velho(p) ? { ...p, estado: estadoNorm(p.estado), fase: novaFase(p) } : p)), [brutos]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const velhos = brutos.filter(velho);
     if (!velhos.length) return;
-    const b = writeBatch(db); velhos.forEach((p) => b.update(doc(db, "projects", p.id), { estado: estadoNorm(p.estado), fase: faseNorm(p.fase) })); b.commit().catch(() => {});
+    const b = writeBatch(db); velhos.forEach((p) => b.update(doc(db, "projects", p.id), { estado: estadoNorm(p.estado), fase: novaFase(p) })); b.commit().catch(() => {});
   }, [brutos]); // eslint-disable-line react-hooks/exhaustive-deps
   const { list: startups } = useLive<Startup>("startups");
   // Detalhe da startup parceira, aberto a partir da ficha do projeto
@@ -71,9 +76,11 @@ export function ProjetosView() {
   /** Quantos projetos há em cada estado, com os filtros aplicados. */
   const nTab = (estado: string) => list.filter((p) => p.estado === estado && passaF(p)).length;
   // Quadro: linhas por Must Win Battle e colunas por stage (com «por definir» só quando há projetos sem um ou sem o outro)
-  const linhas = useMemo(() => [...MWB.map((m) => ({ id: m, nome: m })), ...(filtrados.some((p) => !MWB.includes(p.mwb)) ? [{ id: SEM, nome: "Sem Must Win Battle" }] : [])], [filtrados]);
-  const colunas = useMemo(() => [...(filtrados.some((p) => !FASES_PROJ.includes(p.fase || "")) ? [SEM] : []), ...FASES_PROJ], [filtrados]);
-  const naCelula = (m: string, fs: string) => filtrados.filter((p) => (m === SEM ? !MWB.includes(p.mwb) : p.mwb === m) && (fs === SEM ? !FASES_PROJ.includes(p.fase || "") : p.fase === fs));
+  // No quadro de Ongoing, os projetos em To Start aparecem na coluna de entrada, à esquerda dos stages
+  const noQuadro = useMemo(() => tab === ONGOING ? list.filter((p) => (p.estado === ONGOING || p.estado === TO_START) && passaF(p)) : filtrados, [tab, list, filtrados, f, q]); // eslint-disable-line react-hooks/exhaustive-deps
+  const linhas = useMemo(() => [...MWB.map((m) => ({ id: m, nome: m })), ...(noQuadro.some((p) => !MWB.includes(p.mwb)) ? [{ id: SEM, nome: "Sem Must Win Battle" }] : [])], [noQuadro]);
+  const colunas = tab === TO_START ? [ENTRADA] : tab === ONGOING ? [ENTRADA, ...FASES_PROJ] : FASES_PROJ;
+  const naCelula = (m: string, fs: string) => noQuadro.filter((p) => (m === SEM ? !MWB.includes(p.mwb) : p.mwb === m) && (fs === ENTRADA ? p.estado === TO_START : p.estado !== TO_START && (FASES_PROJ.includes(p.fase || "") ? p.fase : FASES_PROJ[0]) === fs));
   const destinos = [...(tab !== ONGOING ? [ONGOING] : []), ...DESTINOS_PROJ.filter((d) => d !== tab)];
   /** Largar um cartão numa célula: muda o stage e a Must Win Battle. */
   const moverCelula = (id: string, m: string, fs: string) => {
@@ -81,10 +88,14 @@ export function ProjetosView() {
     if (!p) return;
     const upd: Partial<Projeto> = {};
     if (m !== SEM && p.mwb !== m) upd.mwb = m;
-    if (fs !== SEM && p.fase !== fs) upd.fase = fs;
+    if (fs === ENTRADA) { if (p.estado !== TO_START) upd.estado = TO_START; }
+    else {
+      if (p.estado === TO_START) upd.estado = ONGOING; // sai da porta de entrada
+      if (p.fase !== fs) upd.fase = fs;
+    }
     if (!Object.keys(upd).length) return;
     updateDoc(doc(db, "projects", id), { ...upd, atualizadoEm: new Date().toISOString() })
-      .then(() => flash(`«${p.nome}» passou para ${[upd.fase, upd.mwb].filter(Boolean).join(", ")}`)).catch((e) => flash(errMsg(e)));
+      .then(() => flash(`«${p.nome}» passou para ${[upd.estado, upd.fase, upd.mwb].filter(Boolean).join(", ")}`)).catch((e) => flash(errMsg(e)));
   };
   const atual = aberto ? list.find((p) => p.id === aberto) || null : null;
 
@@ -107,7 +118,8 @@ export function ProjetosView() {
   const mudarEstado = (id: string, estado: string) => {
     const p = list.find((x) => x.id === id);
     if (!p || p.estado === estado) return;
-    updateDoc(doc(db, "projects", id), { estado, atualizadoEm: new Date().toISOString() }).then(() => flash(`«${p.nome}» passou para ${estado}`)).catch((e) => flash(errMsg(e)));
+    const fase = estado !== TO_START && !FASES_PROJ.includes(p.fase || "") ? { fase: FASES_PROJ[0] } : {};
+    updateDoc(doc(db, "projects", id), { estado, ...fase, atualizadoEm: new Date().toISOString() }).then(() => flash(`«${p.nome}» passou para ${estado}`)).catch((e) => flash(errMsg(e)));
   };
 
   /** Sair da edição: avisa se houver alterações por guardar. */
@@ -173,12 +185,12 @@ export function ProjetosView() {
         <div className="pm-wrap">
           <div className="pm" style={{ ["--n" as string]: colunas.length }} role="grid" aria-label={`Quadro dos projetos ${tab}`}>
             <div className="pm-c0" aria-hidden="true" />
-            {colunas.map((fs) => <div key={fs} className="pm-h" role="columnheader" style={{ background: fs === SEM ? "var(--surface-2)" : COR_FASE[FASES_PROJ.indexOf(fs)] }}>{fs === SEM ? "Stage por definir" : fs}</div>)}
+            {colunas.map((fs) => <div key={fs} className={`pm-h${fs === ENTRADA ? " sem" : ""}`} role="columnheader" style={fs === ENTRADA ? undefined : { background: COR_FASE[FASES_PROJ.indexOf(fs)] }}>{fs === ENTRADA ? "To Start" : fs}</div>)}
             <div className="pm-dh" aria-hidden="true" />
             {linhas.map((m, li) => (<div key={m.id} className="pm-row" role="row" style={{ display: "contents" }}>
-              <div className="pm-l" role="rowheader" style={{ ["--c" as string]: m.id === SEM ? "#94A3B8" : corDe(m.id) }}><span>{m.nome}</span></div>
+              <div className="pm-l" role="rowheader" title={m.nome} style={{ ["--c" as string]: m.id === SEM ? "#94A3B8" : corDe(m.id) }}><span>{m.nome}</span></div>
               {colunas.map((fs) => { const k = `${m.id}|${fs}`, l = naCelula(m.id, fs); return (
-                <div key={k} role="gridcell" className={`pm-cell${over === k ? " over" : ""}`} aria-label={`${m.nome}, ${fs === SEM ? "stage por definir" : fs}: ${l.length}`}
+                <div key={k} role="gridcell" className={`pm-cell${fs === ENTRADA ? " ent" : ""}${over === k ? " over" : ""}`} aria-label={`${m.nome}, ${fs === ENTRADA ? "To Start" : fs}: ${l.length}`}
                   onDragOver={(ev) => { ev.preventDefault(); setOver(k); }} onDragLeave={() => setOver(null)}
                   onDrop={(ev) => { ev.preventDefault(); setOver(null); moverCelula(ev.dataTransfer.getData("text/proj"), m.id, fs); }}>
                   {l.map((p) => (
@@ -200,7 +212,7 @@ export function ProjetosView() {
                 </div>)}
             </div>))}
           </div>
-          <p className="pm-hint">Arrasta um projeto para outra célula para mudar o stage ou a Must Win Battle, ou para a direita para mudar o estado. No detalhe do projeto também dá para mudar tudo.</p>
+          <p className="pm-hint">{tab === ONGOING ? "Os projetos em To Start são a porta de entrada: arrasta-os para um stage para passarem a Ongoing. " : ""}Arrasta um projeto para outra célula para mudar o stage ou a Must Win Battle, ou para a direita para mudar o estado. No detalhe do projeto também dá para mudar tudo.</p>
         </div>
       ) : !rows.length ? <Empty title="Nada encontrado" text="Muda a pesquisa, o ano ou os filtros." /> : (
         <div className="tbl stbl ptbl inv-tbl">
@@ -211,7 +223,7 @@ export function ProjetosView() {
             <tbody>{rows.map((p) => (
               <tr key={p.id} tabIndex={0} onClick={() => setAberto(p.id)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) setAberto(p.id); }}>
                 <td><b className="inv-n">{p.nome}</b><span className="mut sm clip" title={p.descricao}>{p.descricao}</span></td>
-                <td>{p.fase || <span className="mut">Por definir</span>}{p.piloto && <span className="mut sm">Com piloto</span>}</td>
+                <td>{p.estado === "To Start" ? <span className="mut">-</span> : p.fase}{p.piloto && <span className="mut sm">Com piloto</span>}</td>
                 <td>{p.mwb ? <Tag v={p.mwb} /> : <span className="mut">-</span>}</td>
                 <td>{p.parceiro || <span className="mut">-</span>}{p.relacao && <span className="mut sm">{p.relacao}</span>}</td>
                 <td className="n mut">{dataPt(p.inicio)}</td>
