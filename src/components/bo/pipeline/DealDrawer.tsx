@@ -4,7 +4,7 @@ import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Icon } from "@/components/Icon";
 import { nomeTicket } from "@/lib/analise-util";
-import { addInteracao, archiveDeal, delInteracao, moveDeal, reopenDeal, saveDeal } from "@/lib/deal-actions";
+import { addInteracao, archiveDeal, dealParaAprovadas, delInteracao, moveDeal, reopenDeal, saveDeal } from "@/lib/deal-actions";
 import { AlvoAnalise } from "@/lib/analise-run";
 import { Deal, ETAPAS, ETAPAS_ATIVAS, Etapa, emCurso, FASES_DF, Interacao, MOTIVOS_ARQUIVO, MotivoArquivo, ORIGENS_DF, TIPOS_INTERACAO, TipoInteracao, VERTICAIS_DF, nomeDecisao } from "@/lib/types";
 import { fdLongo, hojeLocal, nDias } from "@/lib/util";
@@ -60,6 +60,11 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
   }, [editing, archiving, nova, analise, onClose]);
 
   const i = list.findIndex((x) => x.id === d.id);
+  /** Tira a startup do pipeline e põe-na nas Aprovadas (com confirmação: o deal e a cronologia são apagados). */
+  const paraAprovadas = async () => {
+    if (!(await confirmar({ titulo: `Mandar «${d.nome}» para as Aprovadas?`, texto: "Sai do pipeline e volta à lista de Aprovadas. A ficha da startup e a análise ficam; a cronologia, os próximos passos e os dados da ronda do pipeline são apagados. Não dá para anular.", ok: "Mandar para as Aprovadas", perigo: true }))) return;
+    act(dealParaAprovadas(d, email).then(() => onClose()), `«${d.nome}» passou para as Aprovadas`);
+  };
   const act = (p: Promise<unknown>, msg: string) => p.then(() => notify(msg)).catch((e) => notify((e as { code?: string }).code === "permission-denied" ? "Sem permissão para alterar o pipeline." : "Não foi possível guardar. Tenta outra vez."));
   const saveFicha = () => { if (!f.nome.trim()) return; act(saveDeal(d, { ...f, dominio: (f.site || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].toLowerCase() }).then(() => setEditing(false)), "Ficha guardada"); };
   const ativa = emCurso(d.etapa);
@@ -233,11 +238,13 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
             <Icon name="check" />Avançar para {ETAPAS_ATIVAS[etapaIdx + 1].nome}</button>
             : <button className="btn primary lg" onClick={() => act(moveDeal(d, "investida", email), "Passou para as investidas")}><Icon name="check-circle" />Marcar como investida</button>}
           <button className="btn lg" onClick={() => act(moveDeal(d, "radar", email), "Passou para o radar")}><Icon name="globe" />Pôr no radar</button>
-          <button className="btn lg" onClick={() => setArchiving(true)}><Icon name="prohibit" />Arquivar</button><span className="sp" />
+          <button className="btn lg" onClick={() => setArchiving(true)}><Icon name="prohibit" />Arquivar</button>
+          <button className="btn lg" onClick={paraAprovadas} title="Tirar do pipeline e pôr nas Aprovadas"><Icon name="arrow-counter-clockwise" />Para as Aprovadas</button><span className="sp" />
         </>)) : (<>
           <button className="btn lg" onClick={() => act(reopenDeal(d, email), "Reaberta")}><Icon name="arrow-u-up-left" />Voltar ao pipeline</button>
           {d.etapa === "radar" && <button className="btn lg" onClick={() => act(moveDeal(d, "investida", email), "Passou para as investidas")}><Icon name="check-circle" />Investida</button>}
           {d.etapa !== "arquivada" && (archiving ? null : <button className="btn lg" onClick={() => setArchiving(true)}><Icon name="prohibit" />Arquivar</button>)}
+          <button className="btn lg" onClick={paraAprovadas} title="Tirar do pipeline e pôr nas Aprovadas"><Icon name="arrow-counter-clockwise" />Para as Aprovadas</button>
           <span className="sp" />
         </>)}
       </div>
