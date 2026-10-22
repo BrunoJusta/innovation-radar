@@ -11,6 +11,8 @@ import { SearchField } from "../ui";
 import { DealsLookup, useDeals } from "../pipeline/DealsLookup";
 import { PipelineSection } from "../pipeline/PipelineSection";
 import { ReviewView } from "./ReviewView";
+import { ImportRadar } from "./ImportRadar";
+import { useFlash } from "../admin/common";
 import { useSession } from "../AuthGate";
 
 /** Secção Startups do backoffice: Triagem, Aprovadas, Arquivo de triagem, (admins) Pipeline, Radar e Review. */
@@ -28,6 +30,8 @@ function Section({ initial }: { initial: Page }) {
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
+  const [impRadar, setImpRadar] = useState(false);
+  const { flash, el: flashEl } = useFlash();
   useEffect(() => {
     const u1 = onSnapshot(collection(db, "startups"), (s) => { setStartups(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Startup)); setLoaded(true); },
       (e) => { console.error(e); setLoaded(true); });
@@ -58,10 +62,13 @@ function Section({ initial }: { initial: Page }) {
       {page !== "radar" && page !== "review" && (
         <div className="pageact">
           <SearchField value={search} onChange={setSearch} placeholder={page === "pipeline" ? "Pesquisar no pipeline" : "Pesquisar startups"} />
+          {page !== "pipeline" && canPipeline && <button className="btn" onClick={() => setImpRadar(true)} title="Importar o Excel do Radar Sogrape Ventures"><Icon name="upload-simple" />Importar Radar</button>}
           {page !== "pipeline" && <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" />Adicionar startups</button>}
         </div>
       )}
     </div>
+    {impRadar && <ImportRadar onClose={() => setImpRadar(false)} onDone={flash} />}
+    {flashEl}
     {page === "review" ? <ReviewView /> : page === "pipeline" ? <PipelineSection search={search} /> : page !== "radar" ? <StartupsTriage areas={areas} status={page as Status} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} /> : <StartupRadar areas={areas} startups={startups} sectors={sectors} loaded={loaded} />}
   </>);
 }
