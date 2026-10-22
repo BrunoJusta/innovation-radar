@@ -94,6 +94,7 @@ export function ImportRadar({ onClose, onDone }: { onClose: () => void; onDone: 
       const refs = [...deals];
       for (let i = 0; i < linhas.length; i += 40) {
         const b = writeBatch(db);
+        const rejeitar: string[] = [];
         for (const l of linhas.slice(i, i + 40)) {
           const e = st.get(l.k), sid = e?.id || startupIdDe(l.nome, l.dominio);
           const cadeia = idsCad.has(e?.cadeia || "") ? e!.cadeia! : cad[String(l.k)] || cadeiaPorDefeito(l);
@@ -141,12 +142,19 @@ export function ImportRadar({ onClose, onDone }: { onClose: () => void; onDone: 
               ...(status === "approved" ? { aprovadoEm: agora, aprovadoPor: email } : {}),
               ...(dealId ? { dealId, pipelineEm: agora } : {}),
             };
-            b.set(doc(db, "startups", sid), clean(nova));
+            // As regras só deixam criar startups pendentes ou aprovadas: as NO GO entram pendentes e passam a rejeitadas logo a seguir
+            b.set(doc(db, "startups", sid), clean(status === "rejected" ? { ...nova, status: "pending" } : nova));
+            if (status === "rejected") rejeitar.push(sid);
             startups.push({ ...nova, id: sid } as Startup);
             r.novas++;
           }
         }
         await b.commit();
+        if (rejeitar.length) {
+          const b2 = writeBatch(db);
+          rejeitar.forEach((sid) => b2.update(doc(db, "startups", sid), { status: "rejected" }));
+          await b2.commit();
+        }
         setProg({ feitas: Math.min(i + 40, linhas.length), total: linhas.length });
       }
       setRes(r); setPasso("feito");
