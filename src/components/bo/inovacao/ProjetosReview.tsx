@@ -7,11 +7,20 @@ import { ProjIcone } from "./shared";
 /** Ícone de cada cadeia de valor (as que não estão aqui ficam com o globo). */
 const ICONE: Record<string, string> = { viticultura: "leaf", enologia: "wine", producao: "gear", marketing: "target", "vendas-distribuicao": "briefcase", consumidor: "users", adjacencias: "globe" };
 const SEM = "_";
+/** Cadeias de valor que cada Must Win Battle atravessa. Um projeto de outra cadeia fica na coluna mais próxima, marcado. */
+const CADEIAS_MWB: Record<string, string[] | "todas"> = {
+  "WineTech": ["viticultura", "enologia", "producao"],
+  "AI Excellence": "todas",
+  "Sustainable Futures": "todas",
+  "Unforgettable Experiences": ["vendas-distribuicao", "consumidor", "adjacencias"],
+  "New Beverages": ["adjacencias"],
+  "New Packaging & Materials": ["producao", "marketing"],
+};
 
 /**
  * Review dos projetos, como o quadro «Must Win Battles and Challenges»: as cadeias de valor são colunas
  * que atravessam a página e cada Must Win Battle é uma caixa por cima delas, com os projetos lá dentro,
- * cada um na coluna da sua cadeia. A caixa estende-se só pelas colunas onde a Must Win Battle tem projetos.
+ * cada um na coluna da sua cadeia. Cada caixa ocupa as cadeias de valor da sua Must Win Battle (CADEIAS_MWB).
  */
 export function ProjetosReview({ projetos, areas, startups, onOpen }: { projetos: Projeto[]; areas: Area[]; startups: Startup[]; onOpen: (id: string) => void }) {
   const semCadeia = projetos.some((p) => !areas.some((a) => a.id === p.cadeia));
@@ -19,20 +28,19 @@ export function ProjetosReview({ projetos, areas, startups, onOpen }: { projetos
   const colDe = (p: Projeto) => { const i = colunas.findIndex((c) => c.id === p.cadeia); return i >= 0 ? i : colunas.length - 1; };
   const caixas = [...MWB, ...(projetos.some((p) => !MWB.includes(p.mwb)) ? [SEM] : [])].map((m) => {
     const l = projetos.filter((p) => (m === SEM ? !MWB.includes(p.mwb) : p.mwb === m)).sort((a, b) => a.nome.localeCompare(b.nome));
-    const cols = l.map(colDe);
-    // Sem projetos: a caixa ocupa a largura toda, mais leve
+    const fixas = CADEIAS_MWB[m];
+    const base = fixas === "todas" ? colunas.map((_, i) => i) : (fixas || []).map((id) => colunas.findIndex((c) => c.id === id)).filter((i) => i >= 0);
+    const cols = base.length ? base : l.map(colDe);
     const de = cols.length ? Math.min(...cols) : 0, ate = cols.length ? Math.max(...cols) : colunas.length - 1;
     return { m, l, de, ate, linha: 0 };
   });
   // Arruma as caixas em linhas: as que não se sobrepõem nas colunas partilham a mesma linha (como no quadro original)
   const ocupadas: [number, number][][] = [];
-  for (const c of caixas.filter((x) => x.l.length)) {
+  for (const c of caixas.filter((x) => x.l.length || x.m !== SEM)) {
     let r = ocupadas.findIndex((lin) => lin.every(([a, b]) => c.ate < a || c.de > b));
     if (r < 0) { ocupadas.push([]); r = ocupadas.length - 1; }
     ocupadas[r].push([c.de, c.ate]); c.linha = r;
   }
-  // As Must Win Battles sem projetos ficam no fim, cada uma na sua linha, a toda a largura
-  caixas.filter((x) => !x.l.length).forEach((c) => { c.linha = ocupadas.length; ocupadas.push([[0, colunas.length - 1]]); });
 
   return (
     <div className="rv-wrap">
@@ -54,11 +62,11 @@ export function ProjetosReview({ projetos, areas, startups, onOpen }: { projetos
               <div className="rv-in">
                 {Array.from({ length: ate - de + 1 }, (_, j) => de + j).map((ci) => (
                   <div key={ci} className="rv-cell">
-                    {l.filter((p) => colDe(p) === ci).map((p) => (
-                      <button key={p.id} type="button" className={`rv-chip ${p.relacao === "Startup" ? "st" : "in"}`} onClick={() => onOpen(p.id)}
-                        title={`${p.nome}: ${p.estado}${p.fase && p.estado !== "To Start" ? `, ${p.fase}` : ""}`}>
+                    {l.filter((p) => Math.min(ate, Math.max(de, colDe(p))) === ci).map((p) => { const fora = colDe(p) < de || colDe(p) > ate; return (
+                      <button key={p.id} type="button" className={`rv-chip ${p.relacao === "Startup" ? "st" : "in"}${fora ? " fora" : ""}`} onClick={() => onOpen(p.id)}
+                        title={`${p.nome}: ${p.estado}${p.fase && p.estado !== "To Start" ? `, ${p.fase}` : ""}${fora ? `. A cadeia de valor (${colunas[colDe(p)].nome}) não é desta Must Win Battle` : ""}`}>
                         <ProjIcone p={p} startups={startups} size={22} /><span>{p.nome}</span>
-                      </button>))}
+                      </button>); })}
                   </div>))}
               </div>)}
           </section>))}
