@@ -125,7 +125,8 @@ export function ImportRadar({ onClose, onDone }: { onClose: () => void; onDone: 
           }
           if (e) {
             // Já existe: fica com a decisão do Excel (menos as que já estão no pipeline, que mantêm o estado), e com a cadeia e a temática em falta
-            const upd: Record<string, unknown> = { atualizadoEm: agora, cadeia, ...(setor ? { setor } : {}), origens: [...(e.origens || []).filter((o) => !o.titulo.startsWith("Radar Sogrape Ventures 2026")), origem] };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const upd: Record<string, any> = { atualizadoEm: agora, cadeia, ...(setor ? { setor } : {}), origens: [...(e.origens || []).filter((o) => !o.titulo.startsWith("Radar Sogrape Ventures 2026")), origem] };
             if (!e.dealId || naPipeline) Object.assign(upd, { status, ...(status === "rejected" ? { motivoRejeicao: "NO GO no Radar Sogrape Ventures 2026" } : {}), ...(status === "approved" && e.status !== "approved" ? { aprovadoEm: agora, aprovadoPor: email } : {}) });
             if (l.feedback && !e.porque) upd.porque = l.feedback;
             if (dealId && naPipeline) Object.assign(upd, { dealId, pipelineEm: e.pipelineEm || agora });
