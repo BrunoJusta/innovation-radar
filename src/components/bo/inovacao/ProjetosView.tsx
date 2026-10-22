@@ -225,7 +225,6 @@ export function ProjetosView() {
                 </div>)}
             </div>))}
           </div>
-          <p className="pm-hint">Arrasta um projeto para outra célula para mudar o stage ou a Must Win Battle, ou para a direita para mudar o estado. No detalhe do projeto também dá para mudar tudo.</p>
         </div>
       ) : !rows.length ? <Empty title="Nada encontrado" text="Muda a pesquisa, o ano ou os filtros." /> : (
         <div className="tbl stbl ptbl inv-tbl">
