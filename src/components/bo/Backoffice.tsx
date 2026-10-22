@@ -96,8 +96,8 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
         {isSignals && st !== "radar" && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} search={search} />}
         {view === "dashboard" && <Dashboard signals={signals} areas={areas} go={go} />}
         {view === "startups" && <StartupsSection key={sPage.k} initial={sPage.p} />}
-        {view === "projetos" && inov && <ProjetosView />}
-        {view === "eventos" && inov && <EventosView />}
+        {view === "projetos" && inov && <div className="inv-pg"><ProjetosView /></div>}
+        {view === "eventos" && inov && <div className="inv-pg"><EventosView /></div>}
         {view === "settings" && isAdmin && <SettingsHub areas={areas} cats={cats} />}
       </main>
       {adding && <AddByLink areas={areas} cats={cats} signals={signals} onClose={() => setAdding(false)}

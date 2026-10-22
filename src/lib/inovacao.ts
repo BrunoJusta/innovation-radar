@@ -54,7 +54,19 @@ export const estadoNorm = (e: string) => {
   const t = (e || "").trim();
   return /^on\s*going$/i.test(t) ? ONGOING : /transfer|graduat/i.test(t) ? "Graduated" : /^(ended|finished|shelved)$/i.test(t) ? "Shelved" : /^on\s*hold$/i.test(t) ? "On Hold" : /^to\s*start$/i.test(t) ? "To Start" : t;
 };
-export const MWB = ["AI Excellence", "Unforgettable Experiences", "WineTech", "Sustainable Futures", "New Packaging & Materials", "Product Innovation"];
+/** Must Win Battles, pela ordem do quadro de Inovação. */
+export const MWB = ["WineTech", "Unforgettable Experiences", "AI Excellence", "Sustainable Futures", "New Packaging & Materials", "New Beverages"];
+/** O que cada Must Win Battle quer dizer (do quadro «Must Win Battles and Challenges»). */
+export const MWB_DESC: Record<string, string> = {
+  "WineTech": "Cultivating innovation in viticulture and winemaking, identifying new agtech solutions and fostering an approach to winemaking through technology-driven solutions.",
+  "Unforgettable Experiences": "Developing exceptional experiences and interactions with our consumers.",
+  "AI Excellence": "Leveraging AI across the value chain to enhance decision-making, efficiency and business impact.",
+  "Sustainable Futures": "Embedding sustainability across the value chain, driving eco-conscious practices to foster long-term environmental responsibility.",
+  "New Packaging & Materials": "Innovating in packaging formats and materials, shaping a more eco-conscious future.",
+  "New Beverages": "Embracing innovation in a diverse range of beverages, from alcoholic to non-alcoholic.",
+};
+/** Nome antigo de Must Win Battle → atual. */
+export const mwbNorm = (m: string) => (m === "Product Innovation" ? "New Beverages" : m);
 export const HORIZONTES = ["Incremental Innovation", "Transformational Innovation", "Disruptive Innovation"];
 export const RELACOES = ["Startup", "Academia", "Corporate", "Accelerator", "Other"];
 
@@ -140,7 +152,7 @@ export const dataPt = (iso: string) => { if (!iso) return ""; const d = new Date
 const P = { teal: "#2F6B73", plum: "#9B4D6B", wine: "#7A2338", green: "#4F7A3A", ochre: "#B07A12", rust: "#B15533", slate: "#5E6B7A", grey: "#94A3B8", indigo: "#3D4170" };
 export const CORES: Record<string, string> = {
   // Must Win Battles
-  "AI Excellence": P.teal, "Unforgettable Experiences": P.plum, "WineTech": P.wine, "Sustainable Futures": P.green, "New Packaging & Materials": P.ochre, "Product Innovation": P.rust,
+  "AI Excellence": P.teal, "Unforgettable Experiences": P.plum, "WineTech": P.wine, "Sustainable Futures": P.green, "New Packaging & Materials": P.ochre, "New Beverages": P.rust,
   // Tipos de evento
   "External Event": P.teal, "Internal Event": P.slate, "Scouting Event": P.rust, "Design Thinking Sandbox": P.plum, "Training": P.ochre, "Podcast": P.wine,
   // Papéis

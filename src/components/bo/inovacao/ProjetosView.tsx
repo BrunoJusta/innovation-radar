@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import { deleteDoc, doc, setDoc, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Icon } from "@/components/Icon";
-import { AreaSelect, CatSelect } from "@/components/CatSelect";
+import { AreaSelect, CatSelect, MultiSelect } from "@/components/CatSelect";
+import { ProjetosReview } from "./ProjetosReview";
 import { useAreas } from "@/lib/use-areas";
-import { DESTINOS_PROJ, ESTADOS_PROJ, FASES_PROJ, ONGOING, corDe, estadoNorm, faseNorm, MWB, Projeto, RELACOES, anosDoProjeto, dataPt, eur, parceirosDe, projetoVazio, projetosDoExcel, proximaRef, type Evento } from "@/lib/inovacao";
+import { mwbNorm, DESTINOS_PROJ, ESTADOS_PROJ, FASES_PROJ, ONGOING, corDe, estadoNorm, faseNorm, MWB, Projeto, RELACOES, anosDoProjeto, dataPt, eur, parceirosDe, projetoVazio, projetosDoExcel, proximaRef, type Evento } from "@/lib/inovacao";
 import { Empty, SearchField } from "../ui";
 import { errMsg, useFlash } from "../admin/common";
 import { useConfirm } from "../Confirm";
@@ -26,6 +27,8 @@ const ANO = String(new Date().getFullYear());
 const COR_FASE = ["#EBC9B9", "#F0D6CA", "#F4E2D9", "#F8ECE6"];
 const SEM = "_";
 const TO_START = "To Start";
+/** Separador da review (por cadeia de valor), ao lado dos estados. */
+const REVIEW = "Review";
 /** Coluna de entrada do quadro (os projetos em To Start). */
 const ENTRADA = "__entrada";
 const OPC_MWB = opcoes(MWB), OPC_REL = opcoes(RELACOES);
@@ -36,12 +39,12 @@ export function ProjetosView() {
   // Estados e stages com nomes antigos passam para os atuais (On Going → Ongoing, Transferred to BU → Graduated, Ended → Shelved)
   // e os projetos sem stage (que não estejam em To Start, a porta de entrada) entram no primeiro stage
   const novaFase = (p: Projeto) => { const e = estadoNorm(p.estado), f = faseNorm(p.fase); return e === TO_START || FASES_PROJ.includes(f) ? f : FASES_PROJ[0]; };
-  const velho = (p: Projeto) => estadoNorm(p.estado) !== p.estado || novaFase(p) !== (p.fase || "");
-  const list = useMemo(() => brutos.map((p) => (velho(p) ? { ...p, estado: estadoNorm(p.estado), fase: novaFase(p) } : p)), [brutos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const velho = (p: Projeto) => estadoNorm(p.estado) !== p.estado || novaFase(p) !== (p.fase || "") || mwbNorm(p.mwb) !== p.mwb;
+  const list = useMemo(() => brutos.map((p) => (velho(p) ? { ...p, estado: estadoNorm(p.estado), fase: novaFase(p), mwb: mwbNorm(p.mwb) } : p)), [brutos]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const velhos = brutos.filter(velho);
     if (!velhos.length) return;
-    const b = writeBatch(db); velhos.forEach((p) => b.update(doc(db, "projects", p.id), { estado: estadoNorm(p.estado), fase: novaFase(p) })); b.commit().catch(() => {});
+    const b = writeBatch(db); velhos.forEach((p) => b.update(doc(db, "projects", p.id), { estado: estadoNorm(p.estado), fase: novaFase(p), mwb: mwbNorm(p.mwb) })); b.commit().catch(() => {});
   }, [brutos]); // eslint-disable-line react-hooks/exhaustive-deps
   const { list: startups } = useLive<Startup>("startups");
   // Detalhe da startup parceira, aberto a partir da ficha do projeto
@@ -49,6 +52,8 @@ export function ProjetosView() {
   const categorias = useCategorias();
   const { email } = useSession();
   const [tab, setTab] = useState<string>(ONGOING);
+  /** Estados que entram na review (por defeito, só os Ongoing). */
+  const [revEst, setRevEst] = useState<string[]>([ONGOING]);
   const { list: eventos } = useLive<Evento>("events");
   const areas = useAreas();
   const { flash, el } = useFlash();
@@ -68,9 +73,9 @@ export function ProjetosView() {
   const passaF = (p: Projeto, sem?: keyof F) => (sem === "ano" || f.ano === "all" || anosDoProjeto(p).includes(f.ano)) &&
     (sem === "mwb" || f.mwb === "all" || p.mwb === f.mwb) && (sem === "cadeia" || f.cadeia === "all" || p.cadeia === f.cadeia) && (sem === "relacao" || f.relacao === "all" || p.relacao === f.relacao) &&
     (!q.trim() || norm([p.ref, p.nome, p.descricao, p.parceiro, p.observacoes].join(" ")).includes(norm(q.trim())));
-  const passa = (p: Projeto, sem?: keyof F) => p.estado === tab && passaF(p, sem);
+  const passa = (p: Projeto, sem?: keyof F) => (tab === REVIEW ? (!revEst.length || revEst.includes(p.estado)) : p.estado === tab) && passaF(p, sem);
   const conta = (k: keyof F, campo: (p: Projeto) => boolean) => list.filter((p) => passa(p, k) && campo(p)).length;
-  const filtrados = useMemo(() => list.filter((p) => passa(p)), [list, f, q, tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  const filtrados = useMemo(() => list.filter((p) => passa(p)), [list, f, q, tab, revEst]); // eslint-disable-line react-hooks/exhaustive-deps
   const rows = useMemo(() => ordenar(filtrados, (p) => sort.col === "fase" ? (FASES_PROJ.indexOf(p.fase || "") + 1 || 99) : sort.col === "orcamento" ? p.orcamento : (p[sort.col] || "").toString().toLowerCase(), sort.dir), [filtrados, sort]);
   const soma = (k: "orcamento" | "gasto") => filtrados.reduce((t, p) => t + (p[k] || 0), 0);
   /** Quantos projetos há em cada estado, com os filtros aplicados. */
@@ -169,19 +174,25 @@ export function ProjetosView() {
       ]} />
       <div className="seg trseg" role="group" aria-label="Estado dos projetos">
         {ESTADOS_PROJ.map((e) => <button key={e.id} aria-pressed={tab === e.id} onClick={() => setTab(e.id)}><i className="inv-dot" style={{ background: e.cor }} />{e.id}<span className="sc">{nTab(e.id)}</span></button>)}
+        <button aria-pressed={tab === REVIEW} onClick={() => setTab(REVIEW)}><Icon name="squares-four" />Review</button>
       </div>
       <div className="toolbar">
         <CatSelect cats={anos} value={f.ano} onChange={set("ano")} simples counts={(a) => conta("ano", (p) => anosDoProjeto(p).includes(a))} allLabel="Todos os anos" procurar="Procurar ano" />
         <CatSelect cats={OPC_MWB} value={f.mwb} onChange={set("mwb")} simples counts={(id) => conta("mwb", (p) => p.mwb === id)} allLabel="Todas as Must Win Battles" procurar="Procurar" />
         <AreaSelect areas={areas} value={f.cadeia} onChange={set("cadeia")} counts={(id) => conta("cadeia", (p) => p.cadeia === id)} />
         <CatSelect cats={OPC_REL} value={f.relacao} onChange={set("relacao")} simples counts={(id) => conta("relacao", (p) => p.relacao === id)} allLabel="Todas as relações" procurar="Procurar" />
+        {tab === REVIEW && <MultiSelect opcoes={ESTADOS_PROJ.map((e) => ({ id: e.id, nome: e.id, cor: e.cor }))} value={revEst} onChange={setRevEst}
+          counts={(id) => list.filter((p) => p.estado === id && passaF(p)).length} allLabel="Todos os estados" />}
         <span className="sp" />
-        <div className="seg" role="group" aria-label="Vista">
+        {tab !== REVIEW && <div className="seg" role="group" aria-label="Vista">
           <button aria-pressed={vista === "lista"} onClick={() => setVista("lista")} title="Lista"><Icon name="list-bullets" />Lista</button>
           <button aria-pressed={vista === "quadro"} onClick={() => setVista("quadro")} title="Quadro"><Icon name="kanban" />Quadro</button>
-        </div>
+        </div>}
       </div>
-      {vista === "quadro" ? (
+      {tab === REVIEW ? (
+        filtrados.length ? <ProjetosReview projetos={filtrados} areas={areas} startups={startups} onOpen={setAberto} />
+          : <Empty title="Nada para mostrar" text="Escolhe outros estados ou muda os filtros." />
+      ) : vista === "quadro" ? (
         <div className="pm-wrap">
           <div className="pm" style={{ ["--n" as string]: colunas.length }} role="grid" aria-label={`Quadro dos projetos ${tab}`}>
             <div className="pm-c0" aria-hidden="true" />
