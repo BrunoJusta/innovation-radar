@@ -20,10 +20,15 @@ const idx = (e: string | null | undefined) => Math.max(0, ETAPAS.findIndex((x) =
 /** As aprovadas que não estão no pipeline entram na review como uma etapa à parte, antes do pipeline. */
 const APROVADA = "aprovada";
 const aprovada = (d: Deal) => (d.etapa as string) === APROVADA;
+/** As do arquivo da triagem também entram (contam como arquivadas no gráfico de barras). */
+const REJEITADA = "rejeitada";
+const rejeitada = (d: Deal) => (d.etapa as string) === REJEITADA;
+const foraPipe = (d: Deal) => aprovada(d) || rejeitada(d);
 /** Fase mais avançada a que a startup chegou (uma arquivada ou no radar conta até onde estava; uma investida passou por todas). */
-const chegou = (d: Deal) => aprovada(d) ? -1 : d.etapa === "arquivada" ? idx(d.arquivo?.etapaAnterior || "fit") : d.etapa === "radar" ? idx(d.etapaAnterior || "fit") : idx(d.etapa);
+const chegou = (d: Deal) => rejeitada(d) ? -2 : aprovada(d) ? -1 : d.etapa === "arquivada" ? idx(d.arquivo?.etapaAnterior || "fit") : d.etapa === "radar" ? idx(d.etapaAnterior || "fit") : idx(d.etapa);
 const FUNIL: { nome: string; desde: number; desc: string }[] = [
-  { nome: "Aprovadas", desde: -1, desc: "Todas as startups aprovadas na triagem, estejam ou não no pipeline." },
+  { nome: "Avaliadas", desde: -2, desc: "Todas as startups avaliadas na triagem: as do arquivo da triagem, as aprovadas e as do pipeline." },
+  { nome: "Aprovadas", desde: -1, desc: "Aprovadas na triagem, estejam ou não no pipeline." },
   { nome: "Pipeline", desde: 0, desc: "Entraram no pipeline (começam em Validation Fit)." },
   { nome: "General Analysis", desde: idx("geral"), desc: "Passaram a análise geral (com a Beta Capital)." },
   { nome: "Deep Analysis", desde: idx("aprofundada"), desc: "Análise aprofundada e due diligence." },
@@ -37,9 +42,9 @@ type Tip = { x: number; y: number; t: string; s: string } | null;
 /** Review do dealflow: funil, startups por vertical e mapa por país, por ano de entrada. */
 export function ReviewView({ startups, sectors, areas: cadeias }: { startups: Startup[]; sectors: Sector[]; areas: Area[] }) {
   const { deals: pipe, loaded, dealOf } = useDeals();
-  // Entram todas as startups das tabs Aprovadas e Pipeline (em curso, radar, investidas e arquivo)
-  const deals = useMemo(() => [...pipe, ...startups.filter((s) => s.status === "approved" && !(s.dealId && pipe.some((d) => d.id === s.dealId)) && !dealOf(s))
-    .map((s) => ({ id: `st:${s.id}`, startupId: s.id, nome: s.nome, pais: s.pais, cadeia: s.cadeia, categoria: s.setor, descricao: s.descricao, etapa: APROVADA,
+  // Entram todas as startups das tabs Aprovadas e Pipeline (em curso, radar, investidas e arquivo) e as do arquivo da triagem
+  const deals = useMemo(() => [...pipe, ...startups.filter((s) => (s.status === "approved" || s.status === "rejected") && !(s.dealId && pipe.some((d) => d.id === s.dealId)) && !dealOf(s))
+    .map((s) => ({ id: `st:${s.id}`, startupId: s.id, nome: s.nome, pais: s.pais, cadeia: s.cadeia, categoria: s.setor, descricao: s.descricao, etapa: s.status === "approved" ? APROVADA : REJEITADA,
       entrada: s.aprovadoEm || s.criadoEm || "", criadoEm: s.criadoEm }) as unknown as Deal)], [pipe, startups, dealOf]);
   return <ReviewBody deals={deals} loaded={loaded} startups={startups} sectors={sectors} cadeias={cadeias} />;
 }
@@ -78,7 +83,7 @@ function ReviewBody({ deals, loaded, startups, sectors, cadeias }: { deals: Deal
   const total = lista.length;
   const investidas = lista.filter((d) => d.etapa === "investida").length;
   const curso = lista.filter((d) => emCurso(d.etapa)).length;
-  const arquivadas = lista.filter((d) => d.etapa === "arquivada").length;
+  const arquivadas = lista.filter((d) => d.etapa === "arquivada" || rejeitada(d)).length;
   const aprov = lista.filter(aprovada).length;
   const fit = lista.filter((d) => chegou(d) >= idx("geral")).length;
   const pct = (n: number) => total ? `${Math.round((n / total) * 100)}%` : "0%";
@@ -87,7 +92,7 @@ function ReviewBody({ deals, loaded, startups, sectors, cadeias }: { deals: Deal
   return (
     <div className="rev" onMouseLeave={() => setTip(null)}>
       <div className="head">
-        <div><h1>Review</h1><p>As startups aprovadas e o dealflow da Sogrape Ventures: quantas entraram, até onde chegaram, em que cadeias de valor e de onde vêm. Clica numa fase, numa barra ou num país para ver as startups.</p></div>
+        <div><h1>Review</h1><p>As startups avaliadas na triagem e o dealflow da Sogrape Ventures: quantas entraram, até onde chegaram, em que cadeias de valor e de onde vêm. Clica numa fase, numa barra ou num país para ver as startups.</p></div>
       </div>
       <div className="toolbar">
         <label className="fsel on">
@@ -104,7 +109,7 @@ function ReviewBody({ deals, loaded, startups, sectors, cadeias }: { deals: Deal
         <div className="rk"><b><Conta n={fit} /></b><span>passaram à General Analysis</span><em>{pct(fit)}</em></div>
         <div className="rk"><b><Conta n={curso} /></b><span>em curso</span><em>{pct(curso)}</em></div>
         <div className="rk hi"><b><Conta n={investidas} /></b><span>{investidas === 1 ? "investida" : "investidas"}</span><em>{pct(investidas)}</em></div>
-        <div className="rk mut"><b><Conta n={arquivadas} /></b><span>arquivadas</span><em>{pct(arquivadas)}</em></div>
+        <div className="rk mut"><b><Conta n={arquivadas} /></b><span>arquivadas (triagem e pipeline)</span><em>{pct(arquivadas)}</em></div>
       </div>
 
       <div className="rev-g">
@@ -133,14 +138,14 @@ function ReviewBody({ deals, loaded, startups, sectors, cadeias }: { deals: Deal
           <div className="mdl-b scroll">
             {sel.lista.length ? <ul className="rev-ls">{[...sel.lista].sort((a, b) => a.nome.localeCompare(b.nome)).map((d) => (
               <li key={d.id}><button onClick={() => setOpenId(d.id)}>
-                <b>{d.nome}</b><span className={`tg e-${d.etapa}`}>{aprovada(d) ? "Aprovada" : ETAPAS.find((e) => e.id === d.etapa)?.nome}</span>
+                <b>{d.nome}</b><span className={`tg e-${d.etapa}`}>{aprovada(d) ? "Aprovada" : rejeitada(d) ? "Arquivo da triagem" : ETAPAS.find((e) => e.id === d.etapa)?.nome}</span>
                 <span className="mut">{[bandeiraDe(d.pais), d.pais].filter(Boolean).join(" ")}</span>
                 <span className="mut">{areas.find((a) => a.id === d.cadeia)?.nome || ""}</span></button></li>
             ))}</ul> : <p className="hint">Nenhuma startup.</p>}
           </div>
         </div>
       </>)}
-      {openId && !stOpen && deals.find((d) => d.id === openId && !aprovada(d)) && <DealDrawer d={deals.find((d) => d.id === openId)!} list={(sel?.lista || []).filter((d) => !aprovada(d))} origens={[]} pessoas={[]}
+      {openId && !stOpen && deals.find((d) => d.id === openId && !foraPipe(d)) && <DealDrawer d={deals.find((d) => d.id === openId)!} list={(sel?.lista || []).filter((d) => !foraPipe(d))} origens={[]} pessoas={[]}
         onClose={() => setOpenId(null)} onNav={setOpenId} notify={flash} />}
       {stOpen && <StartupDrawer s={stOpen} list={[stOpen]} sectors={sectors} areas={cadeias} onClose={() => setOpenId(null)} onNav={(id) => setOpenId(`st:${id}`)} notify={flash}
         onApprove={() => approveStartup(stOpen, email).then(() => flash(`«${stOpen.nome}» aprovada`)).catch(() => flash("Não foi possível guardar. Tenta outra vez."))}
@@ -167,7 +172,7 @@ function Conta({ n }: { n: number }) {
 
 /** Estados para o gráfico das verticais (o cinzento das arquivadas é de propósito: recua). */
 const COR_EST = { investida: "#7F3A22", curso: "#D8906D", radar: "#EBC3AD", aprovada: "#C9B79C", arquivada: "#E6E6E6" };
-const estado = (d: Deal) => aprovada(d) ? "aprovada" : d.etapa === "investida" ? "investida" : d.etapa === "arquivada" ? "arquivada" : d.etapa === "radar" ? "radar" : "curso";
+const estado = (d: Deal) => aprovada(d) ? "aprovada" : rejeitada(d) ? "arquivada" : d.etapa === "investida" ? "investida" : d.etapa === "arquivada" ? "arquivada" : d.etapa === "radar" ? "radar" : "curso";
 
 const pos = (e: React.MouseEvent) => ({ x: e.clientX + 14, y: e.clientY + 14 });
 
