@@ -79,11 +79,10 @@ export function NewsList({ entidades = true, rows, allRows, pager, topRef, ts, s
               <th className="c-a" scope="col">Cadeia de valor</th>
               <th className="c-t" scope="col">Temáticas</th>
               <th className="c-d" scope="col">Data</th>
-              <th className="c-f" scope="col">Fontes</th>
             </tr></thead>
             {groups.map((g) => (
               <tbody key={g.key} className="lgrp">
-                {g.label && <tr className="lmr"><th colSpan={6} scope="colgroup"><span>{g.label}</span><em>{mesTotal(g.key)}</em></th></tr>}
+                {g.label && <tr className="lmr"><th colSpan={5} scope="colgroup"><span>{g.label}</span><em>{mesTotal(g.key)}</em></th></tr>}
                 {g.rows.map((x) => {
                   idx++;
                   const a = area(x.area), tg = (x.tags || [x.cat]).map(cat).filter((y): y is Category => !!y), h = hitsById.get(x.id), k = idx;
@@ -106,7 +105,6 @@ export function NewsList({ entidades = true, rows, allRows, pager, topRef, ts, s
                       <td className="c-a"><span className="lar"><i />{a?.nome}</span></td>
                       <td className="c-t"><span className="ltg">{tg.slice(0, 3).map((c) => <span key={c.id} className="lca"><Icon name={c.icone} />{c.nome}</span>)}</span></td>
                       <td className="c-d">{dCurta(x.data)}</td>
-                      <td className="c-f">{x.fontes.length}</td>
                     </tr>
                   );
                 })}

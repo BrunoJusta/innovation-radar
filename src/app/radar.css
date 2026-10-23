@@ -459,14 +459,14 @@
 .rp .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .rp .ltb{width:100%;min-width:0;border-collapse:collapse;margin-top:12px;font-size:14px}
 .rp .ltb thead th{position:sticky;top:0;z-index:1;background:var(--canvas);text-align:left;font:600 11.5px/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-tertiary);padding:12px 12px 10px;border-bottom:1px solid var(--hairline-strong,var(--hairline));white-space:nowrap}
-.rp .ltb th.c-d,.rp .ltb td.c-d,.rp .ltb th.c-f,.rp .ltb td.c-f{text-align:right}
+.rp .ltb th.c-d,.rp .ltb td.c-d{text-align:right}
 .rp .ltb td{padding:16px 12px;border-bottom:1px solid var(--hairline);vertical-align:top}
 .rp .ltb .c-n{width:44px;padding-left:10px;padding-right:0}
 .rp .ltb .c-a{width:170px}
 .rp .ltb .c-t{width:220px}
-.rp .ltb .c-d{width:96px;font-family:var(--f-mono);font-size:13px;color:var(--ink-muted);white-space:nowrap}
-.rp .ltb .c-f{width:72px;font-family:var(--f-mono);font-size:13px;color:var(--ink-muted)}
-.rp .ltb td.c-a,.rp .ltb td.c-t,.rp .ltb td.c-d,.rp .ltb td.c-f{padding-top:19px}
+.rp .ltb .c-d{width:96px;white-space:nowrap}
+.rp .ltb td.c-d{font-family:var(--f-mono);font-size:13px;color:var(--ink-muted)}
+.rp .ltb td.c-a,.rp .ltb td.c-t,.rp .ltb td.c-d{padding-top:19px}
 .rp .lmr th{text-align:left;padding:26px 12px 8px;border-bottom:1px solid var(--hairline);font:600 15px/1.2 var(--f-display);color:var(--ink)}
 .rp .lmr th em{font-style:normal;font-family:var(--f-mono);font-size:12px;color:var(--ink-tertiary);font-weight:400;margin-left:10px}
 .rp .lr{cursor:pointer;position:relative;transition:background .15s}
@@ -485,7 +485,7 @@
 .rp .ltb .lmob{display:none}
 @media (prefers-reduced-motion:no-preference){.rp .ltb .lr{animation:srise .45s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--k) * 35ms)}}
 @media (max-width:1100px){.rp .ltb .c-t{display:none}}
-@media (max-width:760px){.rp .ltb .c-f{display:none}.rp .ltb .c-a{width:130px}}
+@media (max-width:760px){.rp .ltb .c-a{width:130px}}
 @media (max-width:600px){.rp .ltb .c-a,.rp .ltb .c-d{display:none}
 .rp .ltb,.rp .ltb tbody,.rp .ltb tr,.rp .ltb th,.rp .ltb td{display:block}
 .rp .ltb thead{display:none}
