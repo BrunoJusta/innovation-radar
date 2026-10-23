@@ -12,7 +12,7 @@ const EM_LABEL: EmLabels = {
 };
 
 /** Onde foi encontrada (sem repetir as entidades, que já aparecem marcadas). */
-export const where = (h: SearchHit, labels: EmLabels = EM_LABEL) => h.em.filter((f) => f !== "entidades" || !h.entidades.length).map((f) => labels[f]).join(", ");
+export const where = (h: SearchHit, labels: EmLabels = EM_LABEL, entidades = true) => h.em.filter((f) => f !== "entidades" || (entidades && !h.entidades.length)).map((f) => labels[f]).join(", ");
 
 /** Resumo da pesquisa: quantos, em que áreas (barra clicável) e entidades relacionadas para afinar. */
 export function SearchSummary({ q, n, total, byArea, areas, fRing, setFRing, cat, clearCat, related, setQ, compact = false, noun = ["sinal", "sinais"] }: {
@@ -60,11 +60,11 @@ export function SearchSummary({ q, n, total, byArea, areas, fRing, setFRing, cat
 }
 
 /** Lista de resultados ao lado do radar. Passar o rato acende o ponto correspondente. */
-export function SearchResults({ results, hitsById, ts, area, cat, active, setHover, onOpen, empty, labels }: {
+export function SearchResults({ results, hitsById, ts, area, cat, active, setHover, onOpen, empty, labels, entidades = true }: {
   results: RadarItem[]; hitsById: Map<string, SearchHit>; ts: string[];
   area: (id: string) => Area | undefined; cat: (id: string) => Category | undefined;
   active: number; setHover: (id: string | null) => void; onOpen: (id: string) => void; empty: React.ReactNode;
-  labels?: EmLabels;
+  labels?: EmLabels; /** Mostrar as entidades (no radar público nunca aparecem). */ entidades?: boolean;
 }) {
   const ref = useRef<HTMLOListElement>(null);
   const first = results[0]?.id;
@@ -86,8 +86,8 @@ export function SearchResults({ results, hitsById, ts, area, cat, active, setHov
                 <span className="ssn2"><Hl text={snippet(x.resumo, ts, 150)} ts={ts} /></span>
                 {h && (
                   <span className="sem">
-                    {h.entidades.slice(0, 3).map((e) => <span key={e} className="sent"><Hl text={e} ts={ts} /></span>)}
-                    {where(h, labels) && <span className="swhere">em {where(h, labels)}</span>}
+                    {entidades && h.entidades.slice(0, 3).map((e) => <span key={e} className="sent"><Hl text={e} ts={ts} /></span>)}
+                    {where(h, labels, entidades) && <span className="swhere">em {where(h, labels, entidades)}</span>}
                   </span>
                 )}
               </span>

@@ -9,14 +9,14 @@ import { where } from "./SearchResults";
 export type Ordem = "recentes" | "relevancia";
 
 /** Vista em lista: todas as notícias do período (ou da pesquisa), por mês ou por relevância. */
-export function NewsList({ rows, allRows, pager, topRef, ts, searching, hitsById, areas, cats, fRing, setFRing, tagSel, counts, period, setPeriod, periodOptions,
+export function NewsList({ entidades = true, rows, allRows, pager, topRef, ts, searching, hitsById, areas, cats, fRing, setFRing, tagSel, counts, period, setPeriod, periodOptions,
   ordem, setOrdem, active, onOpen, setHover, summary, empty }: {
   /** Notícias desta página; `allRows` são todas (para os totais). */
   rows: RadarItem[]; allRows: RadarItem[]; pager: React.ReactNode; topRef: React.RefObject<HTMLDivElement | null>; ts: string[]; searching: boolean; hitsById: Map<string, SearchHit>;
   areas: Area[]; cats: Category[]; fRing: string | null; setFRing: (id: string | null) => void; /** Filtros de tags (temática, tecnologia e canal). */ tagSel: React.ReactNode;
   counts: (aid: string) => number; period: string; setPeriod: (p: string) => void; periodOptions: { v: string; l: string }[];
   ordem: Ordem; setOrdem: (o: Ordem) => void; active: number; onOpen: (id: string) => void; setHover: (id: string | null) => void;
-  summary: React.ReactNode; empty: React.ReactNode;
+  summary: React.ReactNode; empty: React.ReactNode; /** Mostrar as entidades (no radar público nunca aparecem). */ entidades?: boolean;
 }) {
   const area = (id: string) => areas.find((a) => a.id === id);
   const cat = (id: string) => cats.find((c) => c.id === id);
@@ -71,38 +71,48 @@ export function NewsList({ rows, allRows, pager, topRef, ts, searching, hitsById
       </div>
       <div ref={topRef} className="pgr-anchor" />
       {!rows.length ? <div className="snone">{empty}</div> : (
-        <div className="lgroups" id="sres" role={searching ? "listbox" : undefined} aria-label={searching ? "Resultados da pesquisa" : undefined}>
-          {groups.map((g) => (
-            <section key={g.key} className="lgrp" aria-label={g.label || undefined}>
-              {g.label && <h3 className="lmh"><span>{g.label}</span><em>{mesTotal(g.key)}</em></h3>}
-              <ol className="lrows">
+        <div className="lgroups" id="sres" aria-label={searching ? "Resultados da pesquisa" : undefined}>
+          <table className="ltb">
+            <thead><tr>
+              <th className="c-n" scope="col"><span className="sr">Número</span></th>
+              <th scope="col">Notícia</th>
+              <th className="c-a" scope="col">Cadeia de valor</th>
+              <th className="c-t" scope="col">Temáticas</th>
+              <th className="c-d" scope="col">Data</th>
+              <th className="c-f" scope="col">Fontes</th>
+            </tr></thead>
+            {groups.map((g) => (
+              <tbody key={g.key} className="lgrp">
+                {g.label && <tr className="lmr"><th colSpan={6} scope="colgroup"><span>{g.label}</span><em>{mesTotal(g.key)}</em></th></tr>}
                 {g.rows.map((x) => {
                   idx++;
                   const a = area(x.area), tg = (x.tags || [x.cat]).map(cat).filter((y): y is Category => !!y), h = hitsById.get(x.id), k = idx;
+                  const w = searching && h ? where(h, undefined, entidades) : "";
                   return (
-                    <li key={x.id} style={{ ["--c" as string]: x.color, ["--k" as string]: Math.min(k, 14) }}>
-                      <button id={`sr-${x.id}`} className={`lrow${k === active ? " act" : ""}`} onClick={() => onOpen(x.id)}
-                        role={searching ? "option" : undefined} aria-selected={searching ? k === active : undefined}
-                        onMouseEnter={() => setHover(x.id)} onMouseLeave={() => setHover(null)}>
-                        <span className="num">{x.n}</span>
-                        <span className="lmain">
-                          <span className="ltit"><Hl text={x.titulo} ts={ts} />{x.destaque && <span className="lstar" title="Destaque"><Icon name="star-fill" /></span>}</span>
-                          <span className="lres"><Hl text={searching ? snippet(x.resumo, ts, 220) : x.resumo} ts={ts} /></span>
-                          <span className="lmeta">
-                            <span className="lar"><i />{a?.nome}</span>
-                            {tg.slice(0, 3).map((c) => <span key={c.id} className="lca"><Icon name={c.icone} />{c.nome}</span>)}
-                            {x.entidades.slice(0, 4).map((e) => <span key={e} className="lent"><Hl text={e} ts={ts} /></span>)}
-                            {searching && h && where(h) && <span className="swhere">encontrado em {where(h)}</span>}
-                          </span>
-                        </span>
-                        <span className="ldate">{dCurta(x.data)}<small>{x.fontes.length} {x.fontes.length === 1 ? "fonte" : "fontes"}</small></span>
-                      </button>
-                    </li>
+                    <tr key={x.id} id={`sr-${x.id}`} className={`lr${k === active ? " act" : ""}`} style={{ ["--c" as string]: x.color, ["--k" as string]: Math.min(k, 14) }}
+                      onClick={() => onOpen(x.id)} onMouseEnter={() => setHover(x.id)} onMouseLeave={() => setHover(null)}>
+                      <td className="c-n"><span className="num">{x.n}</span></td>
+                      <td className="c-m">
+                        <button type="button" className="ltit" onClick={(e) => { e.stopPropagation(); onOpen(x.id); }}>
+                          <Hl text={x.titulo} ts={ts} />{x.destaque && <span className="lstar" title="Destaque"><Icon name="star-fill" /></span>}</button>
+                        <span className="lres"><Hl text={searching ? snippet(x.resumo, ts, 220) : x.resumo} ts={ts} /></span>
+                        {((entidades && x.entidades.length > 0) || w) && <span className="lmeta">
+                          {entidades && x.entidades.slice(0, 4).map((e) => <span key={e} className="lent"><Hl text={e} ts={ts} /></span>)}
+                          {w && <span className="swhere">encontrado em {w}</span>}
+                        </span>}
+                        {/* Em ecrãs estreitos as colunas escondem-se e a informação passa para aqui */}
+                        <span className="lmob"><span className="lar"><i />{a?.nome}</span><span>{dCurta(x.data)}</span></span>
+                      </td>
+                      <td className="c-a"><span className="lar"><i />{a?.nome}</span></td>
+                      <td className="c-t"><span className="ltg">{tg.slice(0, 3).map((c) => <span key={c.id} className="lca"><Icon name={c.icone} />{c.nome}</span>)}</span></td>
+                      <td className="c-d">{dCurta(x.data)}</td>
+                      <td className="c-f">{x.fontes.length}</td>
+                    </tr>
                   );
                 })}
-              </ol>
-            </section>
-          ))}
+              </tbody>
+            ))}
+          </table>
           {pager}
         </div>
       )}

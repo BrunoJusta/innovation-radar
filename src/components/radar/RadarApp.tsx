@@ -150,19 +150,21 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
   }, [hitItems, temTag]);
   // Entidades que aparecem nos resultados e que ainda não estão na pesquisa: servem para afinar
   const related = useMemo(() => {
-    if (!searching) return [];
+    // No radar público as entidades nunca aparecem
+    if (!searching || !inBo) return [];
     const n = new Map<string, number>();
     results.slice(0, 40).forEach((x) => x.entidades.forEach((e) => n.set(e, (n.get(e) || 0) + 1)));
     const qs = dq.trim().toLowerCase();
     return [...n.entries()].filter(([e]) => e.toLowerCase() !== qs).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([e]) => e);
-  }, [results, searching, dq]);
+  }, [results, searching, dq, inBo]);
 
   // Entidades mais referidas em todo o arquivo: exemplos na caixa e sugestões
   const topEnts = useMemo(() => {
+    if (!inBo) return [];
     const n = new Map<string, number>();
     signals.forEach((s) => (s.publicado?.entidades || []).forEach((e) => n.set(e, (n.get(e) || 0) + 1)));
     return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([e]) => e);
-  }, [signals]);
+  }, [signals, inBo]);
   // Categorias com mais notícias (com muitas categorias, só as principais entram nas sugestões)
   const topCats = useMemo(() => {
     const n = new Map<string, number>();
@@ -254,7 +256,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                 {searching ? (
                   <div className="spanel" key="s">
                     {summary}
-                    <SearchResults results={pgR.items} hitsById={hitsById} ts={ts} area={area} cat={cat} active={active}
+                    <SearchResults results={pgR.items} hitsById={hitsById} ts={ts} area={area} cat={cat} active={active} entidades={inBo}
                       setHover={setHover} onOpen={setOpenId} empty={empty} />
                     <Pager {...pgR} label="sinais" className="pgr-s" />
                   </div>
@@ -285,7 +287,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                 emptyTitle="Ainda sem sinais neste período" emptyText="Assim que a equipa de Inovação aprovar notícias, elas aparecem aqui." ariaLabel="Radar com os sinais do período" />
             </>
           ) : (
-            <NewsList rows={pgL.items} allRows={rows} pager={<Pager {...pgL} label="notícias" />} topRef={pgL.top} ts={ts} searching={searching} hitsById={hitsById} areas={areas} cats={cats} fRing={fRing} setFRing={setFRing}
+            <NewsList entidades={inBo} rows={pgL.items} allRows={rows} pager={<Pager {...pgL} label="notícias" />} topRef={pgL.top} ts={ts} searching={searching} hitsById={hitsById} areas={areas} cats={cats} fRing={fRing} setFRing={setFRing}
               tagSel={tagSel} counts={counts} period={period} setPeriod={setPeriod} periodOptions={periodOptions}
               ordem={ordem} setOrdem={setOrdem} active={searching ? active : -1}
               onOpen={setOpenId} setHover={() => {}} summary={summary}
