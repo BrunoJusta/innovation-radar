@@ -103,7 +103,7 @@ export function NewsList({ entidades = true, rows, allRows, pager, topRef, ts, s
                         <span className="lmob"><span className="lar"><i />{a?.nome}</span><span>{dCurta(x.data)}</span></span>
                       </td>
                       <td className="c-a"><span className="lar"><i />{a?.nome}</span></td>
-                      <td className="c-t"><span className="ltg">{tg.slice(0, 3).map((c) => <span key={c.id} className="lca"><Icon name={c.icone} />{c.nome}</span>)}</span></td>
+                      <td className="c-t"><span className="ltg">{tg.slice(0, 3).map((c) => <span key={c.id} className="ttag">{c.nome}</span>)}</span></td>
                       <td className="c-d">{dCurta(x.data)}</td>
                     </tr>
                   );

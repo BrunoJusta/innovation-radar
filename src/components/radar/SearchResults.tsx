@@ -73,7 +73,7 @@ export function SearchResults({ results, hitsById, ts, area, cat, active, setHov
   return (
     <ol className="slist" id="sres" role="listbox" aria-label="Resultados da pesquisa" ref={ref}>
       {results.map((x, k) => {
-        const a = area(x.area), c = cat(x.cat), h = hitsById.get(x.id);
+        const a = area(x.area), h = hitsById.get(x.id);
         return (
           <li key={x.id} style={{ ["--k" as string]: Math.min(k, 12), ["--c" as string]: x.color }}>
             <button id={`sr-${x.id}`} role="option" aria-selected={k === active} className={`sitem${k === active ? " act" : ""}`}
@@ -81,9 +81,10 @@ export function SearchResults({ results, hitsById, ts, area, cat, active, setHov
               onClick={() => onOpen(x.id)}>
               <span className="num">{x.n}</span>
               <span className="sbody">
-                <span className="smeta"><b>{a?.nome}</b>{c && <><Icon name={c.icone} />{c.nome}</>}<span className="sd">{dCurta(x.data)}</span></span>
+                <span className="smeta"><b>{a?.nome}</b><span className="sd">{dCurta(x.data)}</span></span>
                 <span className="stit"><Hl text={x.titulo} ts={ts} /></span>
                 <span className="ssn2"><Hl text={snippet(x.resumo, ts, 150)} ts={ts} /></span>
+                {(x.tags || [x.cat]).length > 0 && <span className="ttags">{(x.tags || [x.cat]).map(cat).filter((y): y is Category => !!y).slice(0, 3).map((t) => <span key={t.id} className="ttag">{t.nome}</span>)}</span>}
                 {h && (
                   <span className="sem">
                     {entidades && h.entidades.slice(0, 3).map((e) => <span key={e} className="sent"><Hl text={e} ts={ts} /></span>)}

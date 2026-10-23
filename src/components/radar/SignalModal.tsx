@@ -43,7 +43,7 @@ export function SignalModal({ item: x, items, areas, R, area, cat, tags, onClose
         <header className="mhead" style={{ ["--c" as string]: c }}>
           <div className="mtop">
             <div className="mtl">
-              <div className="kick"><span className="a">{area?.nome}</span>{(tags || (cat ? [cat] : [])).map((c) => <span key={c.id} className="kt"><span className="sep" /><span className="c"><Icon name={c.icone} />{c.nome}</span></span>)}</div>
+              <div className="kick"><span className="a">{area?.nome}</span>{(tags || (cat ? [cat] : [])).map((c) => <span key={c.id} className="ttag">{c.nome}</span>)}</div>
               <h2 className="mtitle" id="mt">{x.titulo}</h2>
               <div className="mdate">{fdLongo(x.data)}<span className="dot" />{minutos} min de leitura</div>
             </div>

@@ -495,3 +495,8 @@
 .rp .ltb .lmob .lar{font-family:var(--f-body,inherit)}
 .rp .ltb td{padding:14px 8px}.rp .ltb .c-n{width:36px;padding-left:6px}
 .rp .ltb .ltit{font-size:16px}}
+/* Temáticas como tags (só o nome, sem ícone) */
+.rp .ttag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-muted);font-size:12.5px;font-weight:500;line-height:1.35;letter-spacing:0}
+.rp .ttags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.rp .ltb .ltg{flex-direction:row;flex-wrap:wrap;gap:5px}
+.rp .kick{gap:8px}
