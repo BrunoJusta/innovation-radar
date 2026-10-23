@@ -462,8 +462,8 @@
 .rp .ltb th.c-d,.rp .ltb td.c-d{text-align:right}
 .rp .ltb td{padding:16px 12px;border-bottom:1px solid var(--hairline);vertical-align:top}
 .rp .ltb .c-n{width:44px;padding-left:10px;padding-right:0}
-.rp .ltb .c-a{width:170px}
-.rp .ltb .c-t{width:220px}
+.rp .ltb .c-a{width:200px}
+.rp .ltb .c-t{width:300px}
 .rp .ltb .c-d{width:96px;white-space:nowrap}
 .rp .ltb td.c-d{font-family:var(--f-mono);font-size:13px;color:var(--ink-muted)}
 .rp .ltb td.c-a,.rp .ltb td.c-t,.rp .ltb td.c-d{padding-top:19px}
