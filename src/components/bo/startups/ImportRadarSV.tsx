@@ -105,7 +105,13 @@ export function ImportRadarSV({ startups, sectors, onClose, onDone }: { startups
       const { id, ...data } = startupDoExcel(p.l, status, email, agora);
       const existe = startups.find((x) => x.id === id);
       if (existe) { await updateDoc(doc(db, "startups", id), { status, atualizadoEm: agora, ...extra }); return { ...existe, status }; }
-      await setDoc(doc(db, "startups", id), clean({ ...data, ...extra }));
+      // As regras do Firestore só deixam criar startups na triagem ou nas aprovadas: as do arquivo de triagem
+      // são criadas na triagem e passam logo a seguir para o arquivo (a atualização é permitida)
+      if (status === "rejected") {
+        const { motivoRejeicao, ...resto } = data;
+        await setDoc(doc(db, "startups", id), clean({ ...resto, status: "pending", ...extra }));
+        await updateDoc(doc(db, "startups", id), { status: "rejected", motivoRejeicao: motivoRejeicao || motivoTriagemDeSV(p.l.decisao), atualizadoEm: agora });
+      } else await setDoc(doc(db, "startups", id), clean({ ...data, ...extra }));
       return { id, ...data, ...extra } as Startup;
     };
 
