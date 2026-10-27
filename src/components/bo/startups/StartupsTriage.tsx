@@ -27,8 +27,10 @@ const TITLES: Record<Status, [string, string]> = {
   approved: ["Aprovadas", "Startups aprovadas na triagem que ainda não estão no Pipeline. Entram no radar de startups quando passam para o Pipeline."],
 };
 
-export function StartupsTriage({ areas, status, onStatus, startups, sectors, loaded, search, adding, setAdding }: {
+export function StartupsTriage({ areas, status, onStatus, startups, sectors, loaded, search, adding, setAdding, abrir }: {
   areas: Area[]; status: Status; onStatus: (s: Status) => void; startups: Startup[]; sectors: Sector[]; loaded: boolean; search: string; adding: boolean; setAdding: (v: boolean) => void;
+  /** Ficha a abrir ao entrar (vem da pesquisa global). */
+  abrir?: string;
 }) {
   const { email } = useSession();
   const { dealOf } = useDeals();
@@ -40,13 +42,15 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
   const view = viewS;
   useEffect(() => setViewS(readView()), []);
   const setView = (v: "cards" | "list") => { setViewS(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* sem armazenamento */ } };
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(abrir || null);
   const [anFor, setAnFor] = useState<Startup | null>(null);
   const [rejectCard, setRejectCard] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; undo?: SSnapshot } | null>(null);
   const toastT = useRef<ReturnType<typeof setTimeout>>(undefined);
   const notify = (msg: string, undo?: SSnapshot) => { setToast({ msg, undo }); clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(null), 5000); };
-  useEffect(() => { setOpenId(null); setRejectCard(null); }, [status]);
+  // Ao mudar de estado fecha a ficha aberta (na primeira vez não, para a ficha pedida pela pesquisa global ficar aberta)
+  const primeiro = useRef(true);
+  useEffect(() => { if (primeiro.current) { primeiro.current = false; return; } setOpenId(null); setRejectCard(null); }, [status]);
 
   const sec = (id: string) => sectors.find((x) => x.id === id);
   const list = useMemo(() => {
@@ -174,7 +178,7 @@ export function StartupsTriage({ areas, status, onStatus, startups, sectors, loa
         onReason={(m) => act(rej(open, m), `«${open.nome}» arquivada no arquivo de triagem`, true)} onBack={() => act(startupBackToTriage(open), `«${open.nome}» voltou à triagem`, true)} onDelete={() => act(elim(open), `«${open.nome}» eliminada`, true)} />
     )}
     {adding && <FindStartups mode="search" sectors={sectors} areas={areas} startups={startups} onClose={() => setAdding(false)}
-      onDone={(msg) => { setAdding(false); onStatus("pending"); notify(msg); }} />}
+      onDone={(msg, onde) => { setAdding(false); if (onde !== "pipeline") onStatus(onde === "approved" ? "approved" : "pending"); notify(msg); }} />}
     {toast && (
       <div className="toast" role="status"><span>{toast.msg}</span>
         {toast.undo && <button className="btn" onClick={() => { cancelarApagar(`s:${toast.undo!.id}`); restoreStartup(toast.undo!).then(() => notify("Anulado")); }}><Icon name="arrow-counter-clockwise" />Anular</button>}

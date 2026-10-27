@@ -3,9 +3,11 @@ import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { post as postApi } from "@/lib/api";
-import { createStartup, StartupEdit } from "@/lib/startup-actions";
+import { createStartup, saveStartupLink, StartupEdit } from "@/lib/startup-actions";
+import { createDeal, dealFromStartup, findDeal } from "@/lib/deal-actions";
 import { Area, FASES, Sector, Startup, STARTUP_SITES } from "@/lib/types";
-import { nowIso } from "@/lib/util";
+import { hojeLocal, nowIso, slug } from "@/lib/util";
+import { useDeals } from "../pipeline/DealsLookup";
 import { Icon } from "@/components/Icon";
 import { useSession } from "../AuthGate";
 import { StartupFields } from "./StartupFields";
@@ -20,11 +22,19 @@ const post = <T,>(path: string, body: unknown) => postApi<T>(path, body,
 const toEdit = (c: Cand): StartupEdit => ({ nome: c.nome, site: c.site, pais: c.pais, cidade: c.cidade || "", fundacao: c.fundacao, fase: c.fase, setor: c.setor, cadeia: c.cadeia,
   descricao: c.descricao, porque: c.porque, relevancia: c.relevancia, financiamento: c.financiamento, investidores: c.investidores });
 
-/** Procurar startups online ou adicionar uma pelo site. Nada é gravado sem confirmação. */
+/** Domínio de um site («https://www.x.com/a» → «x.com»). */
+const dominioDe = (site: string) => site.trim().replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0].toLowerCase();
+type Lite = { nome: string; site: string; pais: string; cadeia: string; setor: string; fase: Startup["fase"]; descricao: string; porque: string; destino: "pending" | "approved" | "pipeline" };
+const LITE_VAZIA: Lite = { nome: "", site: "", pais: "", cadeia: "", setor: "", fase: "seed", descricao: "", porque: "", destino: "pending" };
+
+/** Procurar startups online, adicionar uma pelo site ou à mão (versão rápida, sem pesquisa). Nada é gravado sem confirmação. */
 export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDone }: {
-  mode: "search" | "site"; sectors: Sector[]; areas: Area[]; startups: Startup[]; onClose: () => void; onDone: (msg: string) => void;
+  mode: "search" | "site" | "rapida"; sectors: Sector[]; areas: Area[]; startups: Startup[]; onClose: () => void;
+  /** onde: para onde foi a startup adicionada à mão (as outras formas vão sempre para a triagem ou para as aprovadas). */
+  onDone: (msg: string, onde?: "pending" | "approved" | "pipeline") => void;
 }) {
-  const { email } = useSession();
+  const { email, canPipeline } = useSession();
+  const { deals } = useDeals();
   const [mode, setMode] = useState(m0);
   const { queue } = useAnaliseQueue();
   const [analisar, setAnalisar] = useState(true);
@@ -36,6 +46,8 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
   const [query, setQuery] = useState("");
   const [cands, setCands] = useState<Cand[] | null>(null);
   const [pick, setPick] = useState<Set<string>>(new Set());
+  // À mão (versão rápida)
+  const [lite, setLite] = useState<Lite>(LITE_VAZIA);
   // Por site
   const [site, setSite] = useState("");
   const [ficha, setFicha] = useState<{ c: Cand; e: StartupEdit } | null>(null);
@@ -48,6 +60,8 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
   }, [busy, onClose]);
 
   const exists = (id: string) => startups.find((s) => s.id === id);
+  const liteId = lite.site.trim() ? dominioDe(lite.site).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") : lite.nome.trim() ? `m-${slug(lite.nome)}` : "";
+  const liteExiste = liteId ? exists(liteId) || startups.find((x) => slug(x.nome) === slug(lite.nome)) : undefined;
   const [sites, setSites] = useState<string[]>(STARTUP_SITES);
   useEffect(() => { getDoc(doc(db, "settings", "geral")).then((d) => { const v = d.data()?.sitesStartups; if (Array.isArray(v)) setSites(v); }).catch(() => {}); }, []);
   const secs = sectors.map(({ id, nome, descricao, cor, icone, ordem, pesquisas }) => ({ id, nome, descricao, cor, icone, ordem, pesquisas }));
@@ -101,18 +115,44 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
     } catch (e) { setErro((e as { code?: string }).code === "permission-denied" ? "Sem permissão para gravar. Confirma que as regras do Firestore estão atualizadas." : "Não foi possível guardar. Tenta outra vez."); setBusy(false); }
   };
 
+  /** Versão rápida: grava só o que se sabe, sem pesquisa na web. Pode ir para a triagem, para as aprovadas ou direto para o pipeline. */
+  const guardarLite = async () => {
+    const nome = lite.nome.trim();
+    if (!nome) { setErro("Indica o nome da startup."); return; }
+    if (liteExiste) { setErro(`«${liteExiste.nome}» já existe. Procura-a na pesquisa da barra de cima.`); return; }
+    setBusy(true); setErro("");
+    const site = lite.site.trim() ? (/^https?:\/\//i.test(lite.site.trim()) ? lite.site.trim() : `https://${lite.site.trim()}`) : "";
+    const dominio = site ? dominioDe(site) : "";
+    const e: StartupEdit = { nome, site, pais: lite.pais.trim(), cidade: "", fundacao: null, fase: lite.fase, setor: lite.setor, cadeia: lite.cadeia || undefined,
+      descricao: lite.descricao.trim(), porque: lite.porque.trim(), relevancia: 50, financiamento: "", investidores: [] };
+    try {
+      const aprovar = lite.destino !== "pending";
+      await createStartup(liteId, { ...e, dominio }, { tipo: "manual", titulo: "Adicionada à mão (versão rápida)", url: site, data: nowIso() }, email, aprovar);
+      if (site) procurarEGuardar(site, { startupId: liteId });
+      if (lite.destino === "pipeline") {
+        const st = { ...e, id: liteId, dominio, status: "approved", destaque: false, origens: [], criadoEm: nowIso(), atualizadoEm: nowIso() } as Startup;
+        if (!findDeal(deals, st)) {
+          const dealId = await createDeal({ ...dealFromStartup(st, deals, setorNome(e.setor)), origem: { tipo: "rede", nome: "Adicionada à mão", contacto: "" }, entrada: hojeLocal() }, email, "Adicionada à mão (versão rápida).");
+          await saveStartupLink(liteId, dealId);
+        }
+      }
+      onDone(lite.destino === "pipeline" ? `«${nome}» entrou no pipeline em Validation Fit` : lite.destino === "approved" ? `«${nome}» aprovada` : `«${nome}» na triagem`, lite.destino);
+    } catch (er) { setErro((er as { code?: string }).code === "permission-denied" ? "Sem permissão para gravar. Confirma que as regras do Firestore estão atualizadas." : "Não foi possível guardar. Tenta outra vez."); setBusy(false); }
+  };
+
   const wide = (mode === "search" && cands) || (mode === "site" && ficha);
   return (<>
     <div className="scrim" onClick={() => !busy && onClose()} />
     <div className={`mdl${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby="fs-t">
       <div className="mdl-h">
-        <h2 id="fs-t">{ficha ? "Rever startup" : cands ? "Resultados da pesquisa" : "Adicionar startups"}</h2>
+        <h2 id="fs-t">{ficha ? "Rever startup" : cands ? "Resultados da pesquisa" : mode === "rapida" ? "Adicionar à mão" : "Adicionar startups"}</h2>
         <button className="btn icon" aria-label="Fechar" onClick={onClose} disabled={busy}><Icon name="x" /></button>
       </div>
       {!ficha && !cands && (
         <div className="mdl-tabs seg" role="group">
           <button aria-pressed={mode === "search"} onClick={() => { setMode("search"); setErro(""); }} disabled={busy}><Icon name="magnifying-glass" />Procurar online</button>
           <button aria-pressed={mode === "site"} onClick={() => { setMode("site"); setErro(""); }} disabled={busy}><Icon name="globe" />Pelo site</button>
+          <button aria-pressed={mode === "rapida"} onClick={() => { setMode("rapida"); setErro(""); }} disabled={busy}><Icon name="pencil-simple" />À mão</button>
         </div>
       )}
 
@@ -179,6 +219,37 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
             ? <button className="btn primary" onClick={preparar} disabled={busy || !site.trim()}>{busy ? <><span className="spin" aria-hidden="true" />A pesquisar…</> : <><Icon name="sparkle" />Preparar ficha</>}</button>
             : <><button className="btn" onClick={() => guardar(false)} disabled={busy}><Icon name="tray" />Guardar na triagem</button>
                 <button className="btn primary" onClick={() => guardar(true)} disabled={busy}><Icon name="check" />Aprovar</button></>}
+        </div>
+      </>)}
+
+      {mode === "rapida" && (<>
+        <div className="mdl-b scroll">
+          <p className="hint">Para startups que já conhecemos mas de que ainda há pouca informação. Só o nome é obrigatório; o resto completa-se mais tarde na ficha. Não faz pesquisa na web.</p>
+          <div className="fgrid lite">
+            <label className="fld"><span>Nome</span><input autoFocus autoComplete="off" value={lite.nome} disabled={busy} onChange={(e) => setLite({ ...lite, nome: e.target.value })} /></label>
+            <label className="fld"><span>Site <em>(opcional)</em></span><input type="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="startup.com" value={lite.site} disabled={busy} onChange={(e) => setLite({ ...lite, site: e.target.value })} /></label>
+            <label className="fld"><span>País</span><input autoComplete="off" value={lite.pais} disabled={busy} onChange={(e) => setLite({ ...lite, pais: e.target.value })} /></label>
+            <label className="fld"><span>Fase</span><select value={lite.fase} disabled={busy} onChange={(e) => setLite({ ...lite, fase: e.target.value as Lite["fase"] })}>{FASES.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}</select></label>
+            <label className="fld"><span>Cadeia de valor</span><select value={lite.cadeia} disabled={busy} onChange={(e) => setLite({ ...lite, cadeia: e.target.value })}>
+              <option value="">Por atribuir</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}</select></label>
+            <label className="fld"><span>Categoria</span><select value={lite.setor} disabled={busy} onChange={(e) => setLite({ ...lite, setor: e.target.value })}>
+              <option value="">Sem categoria</option>{sectors.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></label>
+          </div>
+          <label className="fld full"><span>O que faz <em>(opcional)</em></span><textarea rows={3} value={lite.descricao} disabled={busy} onChange={(e) => setLite({ ...lite, descricao: e.target.value })} /></label>
+          <label className="fld full"><span>Como a conhecemos <em>(opcional)</em></span><textarea rows={2} value={lite.porque} disabled={busy} placeholder="ex.: falámos com os fundadores na Vinexpo" onChange={(e) => setLite({ ...lite, porque: e.target.value })} /></label>
+          <div className="fld"><span>Onde entra</span>
+            <div className="seg" role="group" aria-label="Onde entra">
+              <button type="button" aria-pressed={lite.destino === "pending"} onClick={() => setLite({ ...lite, destino: "pending" })} disabled={busy}><Icon name="tray" />Triagem</button>
+              <button type="button" aria-pressed={lite.destino === "approved"} onClick={() => setLite({ ...lite, destino: "approved" })} disabled={busy}><Icon name="check-circle" />Aprovadas</button>
+              {canPipeline && <button type="button" aria-pressed={lite.destino === "pipeline"} onClick={() => setLite({ ...lite, destino: "pipeline" })} disabled={busy}><Icon name="kanban" />Pipeline</button>}
+            </div></div>
+          {liteExiste && <div className="notice warn"><Icon name="warning-circle" /><span>Já existe uma startup com este {lite.site.trim() ? "site" : "nome"}: «{liteExiste.nome}».</span></div>}
+          {erro && <p className="gerr" role="alert">{erro}</p>}
+        </div>
+        <div className="mdl-f">
+          <span className="sp" />
+          <button className="btn primary" onClick={guardarLite} disabled={busy || !lite.nome.trim() || !!liteExiste}>
+            {busy ? <><span className="spin" aria-hidden="true" />A guardar…</> : <><Icon name="check" />{lite.destino === "pipeline" ? "Pôr no pipeline" : lite.destino === "approved" ? "Guardar nas aprovadas" : "Guardar na triagem"}</>}</button>
         </div>
       </>)}
     </div>

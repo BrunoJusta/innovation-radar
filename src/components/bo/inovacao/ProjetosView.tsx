@@ -34,7 +34,11 @@ const ENTRADA = "__entrada";
 const OPC_MWB = opcoes(MWB), OPC_REL = opcoes(RELACOES);
 
 /** Projetos de Inovação: lista ou quadro por estado, filtros, detalhe, criar, editar e apagar. */
-export function ProjetosView() {
+export function ProjetosView({ tab0, foco, onTab }: {
+  /** Separador onde abre. */ tab0?: string;
+  /** Projeto a abrir (vem da pesquisa global): a lista fica filtrada pelo nome, em todos os anos. */ foco?: { id: string; nome: string };
+  /** Avisa quando muda de separador (para o histórico e os breadcrumbs). */ onTab?: (t: string) => void;
+} = {}) {
   const { list: brutos, loaded, erro } = useLive<Projeto>("projects");
   // Estados e stages com nomes antigos passam para os atuais (On Going → Ongoing, Transferred to BU → Graduated, Ended → Shelved)
   // e os projetos sem stage (que não estejam em To Start, a porta de entrada) entram no primeiro stage
@@ -51,18 +55,19 @@ export function ProjetosView() {
   const [stId, setStId] = useState<string | null>(null);
   const categorias = useCategorias();
   const { email } = useSession();
-  const [tab, setTab] = useState<string>(ONGOING);
+  const [tab, setTabS] = useState<string>(tab0 || ONGOING);
+  const setTab = (t: string) => { setTabS(t); onTab?.(t); };
   /** Estados que entram na review (por defeito, só os Ongoing). */
   const [revEst, setRevEst] = useState<string[]>([ONGOING]);
   const { list: eventos } = useLive<Evento>("events");
   const areas = useAreas();
   const { flash, el } = useFlash();
   const { confirmar, el: cfEl } = useConfirm();
-  const [q, setQ] = useState("");
-  const [f, setF] = useState<F>({ ano: ANO, mwb: "all", cadeia: "all", relacao: "all" });
+  const [q, setQ] = useState(foco?.nome || "");
+  const [f, setF] = useState<F>({ ano: foco ? "all" : ANO, mwb: "all", cadeia: "all", relacao: "all" });
   const [vista, setVista] = useState<"lista" | "quadro">("quadro");
   const [sort, setSort] = useState<{ col: Col; dir: 1 | -1 }>({ col: "ref", dir: -1 });
-  const [aberto, setAberto] = useState<string | null>(null);
+  const [aberto, setAberto] = useState<string | null>(foco?.id || null);
   const [ed, setEd] = useState<(Projeto & { _novo?: boolean }) | null>(null);
   const [over, setOver] = useState<string | null>(null);
 

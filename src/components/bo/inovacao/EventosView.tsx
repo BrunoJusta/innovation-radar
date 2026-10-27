@@ -21,15 +21,17 @@ const dia = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`);
 const OPC_TIPO = opcoes(TIPOS_EV), OPC_OBJ = opcoes(OBJETIVOS_EV), OPC_PAPEL = opcoes(PAPEIS);
 
 /** Eventos de Inovação: lista por ano, filtros, detalhe, criar, editar e apagar. */
-export function EventosView() {
+export function EventosView({ foco }: {
+  /** Evento a abrir (vem da pesquisa global): a lista fica filtrada pelo nome, em todos os anos. */ foco?: { id: string; nome: string };
+} = {}) {
   const { list, loaded, erro } = useLive<Evento>("events");
   const { list: projetos } = useLive<Projeto>("projects");
   const { flash, el } = useFlash();
   const { confirmar, el: cfEl } = useConfirm();
-  const [q, setQ] = useState("");
-  const [f, setF] = useState<F>({ ano: ANO, tipo: "all", objetivo: "all", papel: "all" });
+  const [q, setQ] = useState(foco?.nome || "");
+  const [f, setF] = useState<F>({ ano: foco ? "all" : ANO, tipo: "all", objetivo: "all", papel: "all" });
   const [sort, setSort] = useState<{ col: Col; dir: 1 | -1 }>({ col: "inicio", dir: -1 });
-  const [aberto, setAberto] = useState<string | null>(null);
+  const [aberto, setAberto] = useState<string | null>(foco?.id || null);
   // Vista em lista ou em cartões (lembrada neste browser)
   const [vista, setVistaS] = useState<"lista" | "cartoes">("lista");
   useEffect(() => { try { const v = localStorage.getItem("inv-ev-vista"); if (v === "lista" || v === "cartoes") setVistaS(v); } catch { /* sem armazenamento */ } }, []);

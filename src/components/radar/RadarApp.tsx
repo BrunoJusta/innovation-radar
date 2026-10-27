@@ -71,7 +71,8 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
     if (dq.trim()) p.set("q", dq.trim()); else p.delete("q");
     if (view === "lista") p.set("vista", "lista"); else p.delete("vista");
     const s = p.toString();
-    history.replaceState(null, "", `${location.pathname}${s ? `?${s}` : ""}${location.hash}`);
+    // Mantém a página do backoffice guardada no histórico (as setas de voltar usam-na)
+    history.replaceState(history.state?.bo ? { bo: history.state.bo } : null, "", `${location.pathname}${s ? `?${s}` : ""}${location.hash}`);
   }, [dq, view, inBo]);
 
   // "/" ou Ctrl/⌘+K vão para a pesquisa

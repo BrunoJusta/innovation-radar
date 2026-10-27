@@ -44,20 +44,27 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
     const a = { ...editArq, nota: editArq.nota.trim() };
     act(saveDeal(d, { arquivo: a }).then(() => addInteracao(d.id, { data: hojeLocal(), tipo: "nota", texto: `Motivo de arquivo alterado: ${nm(MOTIVOS_ARQUIVO, a.motivo)}${a.nota ? `. ${a.nota}` : ""}`, por: email })).then(() => setEditArq(null)), "Motivo de arquivo guardado");
   };
+  // Corrigir a data de entrada nas investidas (a data de investimento) ou no radar
+  const [editDesde, setEditDesde] = useState<string | null>(null);
+  const guardarDesde = () => {
+    if (!editDesde || editDesde === d.etapaDesde) { setEditDesde(null); return; }
+    const o = d.etapa === "investida" ? "Data de investimento" : "Data de entrada no radar";
+    act(saveDeal(d, { etapaDesde: editDesde }).then(() => addInteracao(d.id, { data: hojeLocal(), tipo: "nota", texto: `${o} corrigida: ${d.etapaDesde ? `${fdLongo(d.etapaDesde)} → ` : ""}${fdLongo(editDesde)}`, por: email })).then(() => setEditDesde(null)), `${o} guardada`);
+  };
   const [analise, setAnalise] = useState(false);
   const [saving, setSaving] = useState(false);
   const [ints, setInts] = useState<Interacao[] | null>(null);
   const [nova, setNova] = useState<{ tipo: TipoInteracao; data: string; texto: string; participantes: string; links: { titulo: string; url: string }[] } | null>(null);
 
-  useEffect(() => { setEditing(false); setArchiving(false); setEditArq(null); setNova(null); setF(pickDeal(d)); }, [d.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setEditing(false); setArchiving(false); setEditArq(null); setEditDesde(null); setNova(null); setF(pickDeal(d)); }, [d.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => onSnapshot(query(collection(db, "deals", d.id, "interacoes"), orderBy("data", "desc")),
     (s) => setInts(s.docs.map((x) => ({ id: x.id, ...x.data() }) as Interacao)), () => setInts([])), [d.id]);
   useEffect(() => {
     const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !analise) { if (editing) setEditing(false); else if (archiving) setArchiving(false); else if (nova) setNova(null); else onClose(); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !analise) { if (editDesde !== null) setEditDesde(null); else if (editing) setEditing(false); else if (archiving) setArchiving(false); else if (nova) setNova(null); else onClose(); } };
     document.addEventListener("keydown", onKey);
     return () => { document.body.style.overflow = prev; document.removeEventListener("keydown", onKey); };
-  }, [editing, archiving, nova, analise, onClose]);
+  }, [editing, archiving, nova, analise, editDesde, onClose]);
 
   const i = list.findIndex((x) => x.id === d.id);
   /** Tira a startup do pipeline e põe-na nas Aprovadas (com confirmação: o deal e a cronologia são apagados). */
@@ -107,8 +114,20 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
           </div>
         ) : d.etapa !== "arquivada" ? (
           <div className={`fimbox f-${d.etapa}`}><Icon name={d.etapa === "investida" ? "check-circle" : "globe"} />
-            <div><b>{d.etapa === "investida" ? "Investida" : "No radar"}{d.etapaDesde ? ` desde ${fdLongo(d.etapaDesde)}` : ""}</b>
-              {d.etapaAnterior && <span>Saiu de {nm(ETAPAS, d.etapaAnterior)}</span>}</div></div>
+            {editDesde !== null ? (
+              <div className="fimed">
+                <label className="fld"><span>{d.etapa === "investida" ? "Data de investimento" : "No radar desde"}</span>
+                  <input type="date" autoFocus value={editDesde} max="2100-12-31" onChange={(e) => setEditDesde(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") guardarDesde(); if (e.key === "Escape") { e.stopPropagation(); setEditDesde(null); } }} /></label>
+                <div className="arqf"><button className="txtbtn" onClick={() => setEditDesde(null)}>Cancelar</button><span className="sp" />
+                  <button className="btn primary" onClick={guardarDesde} disabled={!editDesde}><Icon name="check" />Guardar</button></div>
+              </div>
+            ) : (<>
+              <div><b>{d.etapa === "investida" ? "Investida" : "No radar"}{d.etapaDesde ? ` desde ${fdLongo(d.etapaDesde)}` : ""}</b>
+                {d.etapaAnterior && <span>Saiu de {nm(ETAPAS, d.etapaAnterior)}</span>}</div>
+              <button className="txtbtn arqe" title={d.etapa === "investida" ? "Corrigir a data de investimento" : "Corrigir a data de entrada no radar"}
+                onClick={() => setEditDesde(d.etapaDesde || hojeLocal())}><Icon name="pencil-simple" />Editar data</button>
+            </>)}</div>
         ) : (
           editArq ? (
             <div className="reasons arqed">

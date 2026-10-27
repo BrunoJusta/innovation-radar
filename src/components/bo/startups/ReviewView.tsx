@@ -81,11 +81,8 @@ function ReviewBody({ deals, loaded, startups, sectors, cadeias }: { deals: Deal
   if (!deals.length) return <p className="hint">Ainda não há startups aprovadas nem no pipeline.</p>;
 
   const total = lista.length;
-  const investidas = lista.filter((d) => d.etapa === "investida").length;
-  const curso = lista.filter((d) => emCurso(d.etapa)).length;
-  const arquivadas = lista.filter((d) => d.etapa === "arquivada" || rejeitada(d)).length;
-  const aprov = lista.filter(aprovada).length;
-  const fit = lista.filter((d) => chegou(d) >= idx("geral")).length;
+  // Em curso: de Validation Fit a Closing Stage. Arquivo de triagem e arquivo do pipeline contam à parte
+  const lCurso = lista.filter((d) => emCurso(d.etapa)), lArqTri = lista.filter(rejeitada), lArqPipe = lista.filter((d) => d.etapa === "arquivada");
   const pct = (n: number) => total ? `${Math.round((n / total) * 100)}%` : "0%";
   const periodo = ano === "all" ? "Desde o início" : `Em ${ano}`;
 
@@ -103,13 +100,14 @@ function ReviewBody({ deals, loaded, startups, sectors, cadeias }: { deals: Deal
         <span className="rev-sum">{periodo}, a Sogrape e a Beta Capital analisaram {total} {total === 1 ? "startup" : "startups"}.</span>
       </div>
 
-      <div className="rev-k" key={ano}>
+      <div className="rev-k k4" key={ano}>
         <div className="rk main"><b><Conta n={total} /></b><span>startups analisadas</span></div>
-        <div className="rk"><b><Conta n={aprov} /></b><span>aprovadas fora do pipeline</span><em>{pct(aprov)}</em></div>
-        <div className="rk"><b><Conta n={fit} /></b><span>passaram à General Analysis</span><em>{pct(fit)}</em></div>
-        <div className="rk"><b><Conta n={curso} /></b><span>em curso</span><em>{pct(curso)}</em></div>
-        <div className="rk hi"><b><Conta n={investidas} /></b><span>{investidas === 1 ? "investida" : "investidas"}</span><em>{pct(investidas)}</em></div>
-        <div className="rk mut"><b><Conta n={arquivadas} /></b><span>arquivadas (triagem e pipeline)</span><em>{pct(arquivadas)}</em></div>
+        <button type="button" className="rk hi" title="Ver as startups em curso" onClick={() => ver("Em curso no pipeline", lCurso)}>
+          <b><Conta n={lCurso.length} /></b><span>em curso <small>(de Validation Fit a Closing Stage)</small></span><em>{pct(lCurso.length)}</em></button>
+        <button type="button" className="rk mut" title="Ver as startups do arquivo de triagem" onClick={() => ver("Arquivo de triagem", lArqTri)}>
+          <b><Conta n={lArqTri.length} /></b><span>no arquivo de triagem</span><em>{pct(lArqTri.length)}</em></button>
+        <button type="button" className="rk mut" title="Ver as startups arquivadas no pipeline" onClick={() => ver("Arquivadas no pipeline", lArqPipe)}>
+          <b><Conta n={lArqPipe.length} /></b><span>arquivadas no pipeline</span><em>{pct(lArqPipe.length)}</em></button>
       </div>
 
       <div className="rev-g">

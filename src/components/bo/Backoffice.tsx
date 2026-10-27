@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Area, Category, Fila, Signal } from "@/lib/types";
@@ -16,8 +16,8 @@ import { Dashboard, DashGo } from "./dashboard/Dashboard";
 import { Icon } from "@/components/Icon";
 import { ProjetosView } from "./inovacao/ProjetosView";
 import { EventosView } from "./inovacao/EventosView";
-
-type View = "dashboard" | "news" | "startups" | "projetos" | "eventos" | "settings";
+import { GlobalSearch } from "./GlobalSearch";
+import { Loc, View, crumbsDe, mesmaLoc, normLoc } from "@/lib/localizacao";
 const NEWS: { id: Fila; label: string; icon: string }[] = [
   { id: "pending", label: "Triagem", icon: "tray" }, { id: "approved", label: "Aprovadas", icon: "check-circle" },
 ];
@@ -26,10 +26,42 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
   const { isAdmin, profile, email } = useSession();
   /** Projetos e eventos: visíveis para toda a equipa. */
   const inov = true;
-  const [view, setView] = useState<View>("dashboard");
-  const [sPage, setSPage] = useState<{ p: Fila | "radar" | "pipeline"; k: number }>({ p: "pending", k: 0 });
-  const go = (g: DashGo) => { if (g.view === "news") { setSt(g.st); setView("news"); } else if (g.view === "projetos" || g.view === "eventos") setView(g.view); else { setSPage({ p: g.page, k: Date.now() }); setView("startups"); } window.scrollTo(0, 0); };
-  const [st, setSt] = useState<Fila | "radar">("pending");
+  // Página atual. Cada mudança fica no histórico do browser, para as setas (e o botão de voltar do browser) funcionarem
+  const [loc, setLocS] = useState<Loc>({ view: "dashboard" });
+  /** Muda quando se volta atrás ou se abre um resultado da pesquisa: as secções voltam a montar com a página pedida. */
+  const [k, setK] = useState(0);
+  const pos = useRef({ i: 0, max: 0 });
+  const [hist, setHist] = useState({ back: false, fwd: false });
+  const syncHist = () => setHist({ back: pos.current.i > 0, fwd: pos.current.i < pos.current.max });
+  useEffect(() => {
+    try { history.replaceState({ ...(history.state || {}), bo: { loc: { view: "dashboard" }, i: 0 } }, ""); } catch { /* sem histórico */ }
+    const onPop = (e: PopStateEvent) => {
+      const b = (e.state as { bo?: { loc: Loc; i: number } } | null)?.bo;
+      if (!b) return;
+      pos.current.i = b.i; syncHist();
+      setLocS(b.loc); setK((x) => x + 1); window.scrollTo(0, 0);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const locRef = useRef(loc); locRef.current = loc;
+  /**
+   * Vai para uma página. remount: as secções começam de novo nessa página (menus, pesquisa global, breadcrumbs);
+   * sem remount, só regista a mudança que a própria secção já fez (um separador, por exemplo).
+   */
+  const nav = useCallback((l0: Loc, remount = true) => {
+    const l = normLoc(l0);
+    if (mesmaLoc(l, locRef.current)) { if (remount && l.foco) setK((x) => x + 1); return; }
+    pos.current.i += 1; pos.current.max = pos.current.i; syncHist();
+    try { history.pushState({ bo: { loc: l, i: pos.current.i } }, ""); } catch { /* sem histórico */ }
+    setLocS(l);
+    if (remount) { setK((x) => x + 1); window.scrollTo(0, 0); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const view: View = loc.view;
+  const setView = (v: View) => nav({ view: v });
+  const st = loc.news || "pending";
+  const setSt = (n: Fila | "radar") => nav({ view: "news", news: n });
+  const go = (g: DashGo) => { if (g.view === "news") nav({ view: "news", news: g.st }); else if (g.view === "projetos" || g.view === "eventos") nav({ view: g.view }); else nav({ view: "startups", st: g.page }); };
   const [signals, setSignals] = useState<Signal[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
@@ -69,6 +101,7 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
             {isAdmin && <button title="Definições" aria-current={view === "settings"} onClick={() => setView("settings")}><Icon name="gear" /><span className="l">Definições</span></button>}
           </nav>
           <span className="sp" />
+          <GlobalSearch onGo={nav} />
           <div className="who-me" title={email}>
             <span>{profile.nome || email.split("@")[0]}</span><small>{profile.role === "admin" ? "Admin" : "Editor"}</small>
           </div>
@@ -77,6 +110,7 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
         </div>
       </header>
       <main className="wrap" id="main">
+        <Crumbs loc={loc} back={hist.back} fwd={hist.fwd} onGo={nav} />
         {isSignals && (
           <div className="pagebar">
             <nav className="subnav" aria-label="Notícias">
@@ -95,15 +129,35 @@ export function Backoffice({ onQuick }: { onQuick?: () => void } = {}) {
         {isSignals && st === "radar" && <RadarApp inBo />}
         {isSignals && st !== "radar" && <SignalsView status={st} signals={signals} areas={areas} cats={cats} loaded={loaded} search={search} />}
         {view === "dashboard" && <Dashboard signals={signals} areas={areas} go={go} />}
-        {view === "startups" && <StartupsSection key={sPage.k} initial={sPage.p} />}
-        {view === "projetos" && inov && <div className="inv-pg"><ProjetosView /></div>}
-        {view === "eventos" && inov && <div className="inv-pg"><EventosView /></div>}
+        {view === "startups" && <StartupsSection key={k} loc={loc} onLoc={(p) => nav({ view: "startups", st: loc.st, pipe: loc.pipe, ...p }, false)} />}
+        {view === "projetos" && inov && <div className="inv-pg"><ProjetosView key={k} tab0={loc.proj} foco={loc.foco} onTab={(t) => nav({ view: "projetos", proj: t }, false)} /></div>}
+        {view === "eventos" && inov && <div className="inv-pg"><EventosView key={k} foco={loc.foco} /></div>}
         {view === "settings" && isAdmin && <SettingsHub areas={areas} cats={cats} />}
       </main>
       {adding && <AddByLink areas={areas} cats={cats} signals={signals} onClose={() => setAdding(false)}
-        onDone={(msg, aprovada) => { setAdding(false); setView("news"); setSt(aprovada ? "approved" : "pending"); flash(msg); }} />}
+        onDone={(msg, aprovada) => { setAdding(false); setSt(aprovada ? "approved" : "pending"); flash(msg); }} />}
       {flashEl}
     </div>
     </AnaliseQueueProvider>
+  );
+}
+
+/** Setas de voltar e avançar (o histórico do browser) e o caminho até à página atual. */
+function Crumbs({ loc, back, fwd, onGo }: { loc: Loc; back: boolean; fwd: boolean; onGo: (l: Loc) => void }) {
+  const c = crumbsDe(loc);
+  return (
+    <div className="crumbs">
+      <div className="crumbs-nav">
+        <button className="btn icon" title="Voltar" aria-label="Voltar" disabled={!back} onClick={() => history.back()}><Icon name="arrow-left" /></button>
+        <button className="btn icon" title="Avançar" aria-label="Avançar" disabled={!fwd} onClick={() => history.forward()}><Icon name="arrow-right" /></button>
+      </div>
+      <nav aria-label="Estás em"><ol>
+        {c.map((x, i) => {
+          const ultimo = i === c.length - 1;
+          return <li key={i}>{i > 0 && <Icon name="caret-right" />}
+            {ultimo || !x.to ? <span aria-current={ultimo ? "page" : undefined}>{x.label}</span> : <button onClick={() => onGo(x.to!)}>{x.label}</button>}</li>;
+        })}
+      </ol></nav>
+    </div>
   );
 }

@@ -27,17 +27,24 @@ const readView = (): Vista => { try { const v = localStorage.getItem(VIEW_KEY); 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /** Pipeline da Sogrape Ventures (página dentro de Startups): o seguimento do primeiro contacto ao investimento. */
-export function PipelineSection({ search }: { search: string }) {
+export function PipelineSection({ search, estado0 = "ativas", abrir, onEstado }: {
+  search: string; estado0?: Estado;
+  /** Ficha a abrir ao entrar (vem da pesquisa global). */
+  abrir?: string;
+  /** Avisa quando muda de separador (para o histórico e os breadcrumbs). */
+  onEstado?: (e: Estado) => void;
+}) {
   const { email } = useSession();
   const { deals, loaded, erro } = useDeals();
-  const [estado, setEstado] = useState<Estado>("ativas");
+  const [estado, setEstadoS] = useState<Estado>(estado0);
+  const setEstado = (e: Estado) => { setEstadoS(e); onEstado?.(e); };
   const [vista, setVistaS] = useState<Vista>("quadro");
   useEffect(() => setVistaS(readView()), []);
   const setVista = (v: Vista) => { setVistaS(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* sem armazenamento */ } };
   const [vez, setVez] = useState<Vez | "">("");
   const [minhas, setMinhas] = useState(false);
   const [atrasadas, setAtrasadas] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(abrir || null);
   // Filtros do arquivo
   const areas = useAreas(), categorias = useCategorias();
   const [aCad, setACad] = useState("all");
