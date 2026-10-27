@@ -45,7 +45,7 @@ export function SettingsView({ scope }: { scope: "news" | "startups" }) {
           <label className="fld"><span>Corte de relevância (0 a 100)</span>
             <input type="number" min={0} max={100} value={s.corteStartups ?? 50} onChange={(e) => setS({ ...s, corteStartups: +e.target.value })} /></label>
         </div>
-        <p className="hint">Startups abaixo do corte são descartadas e não voltam a ser propostas nas recolhas seguintes. A pesquisa à mão (Procurar online) mostra todas, para decidires tu.</p>
+        <p className="hint">Startups abaixo do corte são descartadas e não voltam a ser propostas nas recolhas seguintes. A pesquisa manual (Procurar online) mostra todas, para decidires tu.</p>
 
         <div className="factions"><button className="btn primary" onClick={save}><Icon name="check" />Guardar</button></div>
       </div>

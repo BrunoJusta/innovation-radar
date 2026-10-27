@@ -14,7 +14,7 @@ import { createDeal, dealFromStartup, nomeEtapa } from "@/lib/deal-actions";
 import { useSession } from "../AuthGate";
 import { useAnaliseQueue } from "../AnaliseQueue";
 
-const ORIGEM: Record<string, string> = { pesquisa: "Pesquisa online", noticia: "Notícia", manual: "Adicionada à mão" };
+const ORIGEM: Record<string, string> = { pesquisa: "Pesquisa online", noticia: "Notícia", manual: "Adicionada manualmente" };
 export const pickEdit = (s: Startup): StartupEdit => ({ nome: s.nome, site: s.site, pais: s.pais || "", cidade: s.cidade || "", fundacao: s.fundacao ?? null, fase: s.fase, setor: s.setor, cadeia: s.cadeia,
   descricao: s.descricao || "", porque: s.porque || "", relevancia: s.relevancia, financiamento: s.financiamento || "", investidores: s.investidores || [] });
 
@@ -70,7 +70,7 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
           <span className="tg">{fase?.nome}</span>
           {s.status === "approved" && <span className="badge ok"><Icon name="check" />Aprovada</span>}
           {s.status === "rejected" && <span className="badge no"><Icon name="prohibit" />Arquivo de triagem: {s.motivoRejeicao}</span>}
-          {s.manual && <span className="badge"><Icon name="pencil-simple" />Adicionada à mão</span>}
+          {s.manual && <span className="badge"><Icon name="pencil-simple" />Adicionada manualmente</span>}
         </div>
         {editing ? (
           <div className="blk"><div className="bh"><h4>Editar startup</h4>

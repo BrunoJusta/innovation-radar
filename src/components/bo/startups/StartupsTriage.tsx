@@ -22,7 +22,7 @@ const VIEW_KEY = "radar.startups.vista";
 const readView = (): "cards" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; } };
 
 const TITLES: Record<Status, [string, string]> = {
-  pending: ["Triagem", "Startups encontradas na pesquisa semanal, nas notícias e à mão, à espera de decisão."],
+  pending: ["Triagem", "Startups encontradas na pesquisa semanal, nas notícias e manualmente, à espera de decisão."],
   rejected: ["Arquivo de triagem", "Startups arquivadas na triagem, com quem não chegámos a falar. Não voltam a ser propostas pela recolha semanal. Podes devolvê-las à triagem ou eliminá-las."],
   approved: ["Aprovadas", "Startups aprovadas na triagem que ainda não estão no Pipeline. Entram no radar de startups quando passam para o Pipeline."],
 };

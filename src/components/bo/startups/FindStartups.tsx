@@ -27,10 +27,10 @@ const dominioDe = (site: string) => site.trim().replace(/^https?:\/\//i, "").rep
 type Lite = { nome: string; site: string; pais: string; cadeia: string; setor: string; fase: Startup["fase"]; descricao: string; porque: string; destino: "pending" | "approved" | "pipeline" };
 const LITE_VAZIA: Lite = { nome: "", site: "", pais: "", cadeia: "", setor: "", fase: "seed", descricao: "", porque: "", destino: "pending" };
 
-/** Procurar startups online, adicionar uma pelo site ou à mão (versão rápida, sem pesquisa). Nada é gravado sem confirmação. */
+/** Procurar startups online, adicionar uma pelo site ou manualmente (versão rápida, sem pesquisa). Nada é gravado sem confirmação. */
 export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDone }: {
   mode: "search" | "site" | "rapida"; sectors: Sector[]; areas: Area[]; startups: Startup[]; onClose: () => void;
-  /** onde: para onde foi a startup adicionada à mão (as outras formas vão sempre para a triagem ou para as aprovadas). */
+  /** onde: para onde foi a startup adicionada manualmente (as outras formas vão sempre para a triagem ou para as aprovadas). */
   onDone: (msg: string, onde?: "pending" | "approved" | "pipeline") => void;
 }) {
   const { email, canPipeline } = useSession();
@@ -46,7 +46,7 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
   const [query, setQuery] = useState("");
   const [cands, setCands] = useState<Cand[] | null>(null);
   const [pick, setPick] = useState<Set<string>>(new Set());
-  // À mão (versão rápida)
+  // Manualmente (versão rápida)
   const [lite, setLite] = useState<Lite>(LITE_VAZIA);
   // Por site
   const [site, setSite] = useState("");
@@ -127,12 +127,12 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
       descricao: lite.descricao.trim(), porque: lite.porque.trim(), relevancia: 50, financiamento: "", investidores: [] };
     try {
       const aprovar = lite.destino !== "pending";
-      await createStartup(liteId, { ...e, dominio }, { tipo: "manual", titulo: "Adicionada à mão (versão rápida)", url: site, data: nowIso() }, email, aprovar);
+      await createStartup(liteId, { ...e, dominio }, { tipo: "manual", titulo: "Adicionada manualmente (versão rápida)", url: site, data: nowIso() }, email, aprovar);
       if (site) procurarEGuardar(site, { startupId: liteId });
       if (lite.destino === "pipeline") {
         const st = { ...e, id: liteId, dominio, status: "approved", destaque: false, origens: [], criadoEm: nowIso(), atualizadoEm: nowIso() } as Startup;
         if (!findDeal(deals, st)) {
-          const dealId = await createDeal({ ...dealFromStartup(st, deals, setorNome(e.setor)), origem: { tipo: "rede", nome: "Adicionada à mão", contacto: "" }, entrada: hojeLocal() }, email, "Adicionada à mão (versão rápida).");
+          const dealId = await createDeal({ ...dealFromStartup(st, deals, setorNome(e.setor)), origem: { tipo: "rede", nome: "Adicionada manualmente", contacto: "" }, entrada: hojeLocal() }, email, "Adicionada manualmente (versão rápida).");
           await saveStartupLink(liteId, dealId);
         }
       }
@@ -145,14 +145,14 @@ export function FindStartups({ mode: m0, sectors, areas, startups, onClose, onDo
     <div className="scrim" onClick={() => !busy && onClose()} />
     <div className={`mdl${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby="fs-t">
       <div className="mdl-h">
-        <h2 id="fs-t">{ficha ? "Rever startup" : cands ? "Resultados da pesquisa" : mode === "rapida" ? "Adicionar à mão" : "Adicionar startups"}</h2>
+        <h2 id="fs-t">{ficha ? "Rever startup" : cands ? "Resultados da pesquisa" : mode === "rapida" ? "Adicionar manualmente" : "Adicionar startups"}</h2>
         <button className="btn icon" aria-label="Fechar" onClick={onClose} disabled={busy}><Icon name="x" /></button>
       </div>
       {!ficha && !cands && (
         <div className="mdl-tabs seg" role="group">
           <button aria-pressed={mode === "search"} onClick={() => { setMode("search"); setErro(""); }} disabled={busy}><Icon name="magnifying-glass" />Procurar online</button>
           <button aria-pressed={mode === "site"} onClick={() => { setMode("site"); setErro(""); }} disabled={busy}><Icon name="globe" />Pelo site</button>
-          <button aria-pressed={mode === "rapida"} onClick={() => { setMode("rapida"); setErro(""); }} disabled={busy}><Icon name="pencil-simple" />À mão</button>
+          <button aria-pressed={mode === "rapida"} onClick={() => { setMode("rapida"); setErro(""); }} disabled={busy}><Icon name="pencil-simple" />Manualmente</button>
         </div>
       )}
 

@@ -267,7 +267,7 @@ function Drawer({ s, list, areas, cats, onClose, onNav, onApprove, onReason, onB
         <div className="dmeta">
           <span className="tg ar" style={{ ["--c" as string]: area?.cor || "var(--ink-tertiary)" }}>{area?.nome || "Sem cadeia de valor"}</span>
           {s.status === "approved" && <span className="badge ok"><Icon name="check" />Aprovada</span>}
-          {s.manual && <span className="badge"><Icon name="pencil-simple" />Adicionada à mão</span>}
+          {s.manual && <span className="badge"><Icon name="pencil-simple" />Adicionada manualmente</span>}
           {s.status === "rejected" && <span className="badge no"><Icon name="x" />{s.motivoRejeicao}</span>}
           <span>{fdCurto(s.dataPublicacao)}</span><span>{merged ? `${s.fontes.length} fontes` : "1 fonte"}</span>
         </div>

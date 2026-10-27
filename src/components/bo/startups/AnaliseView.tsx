@@ -167,7 +167,7 @@ export function AnaliseView({ alvo, onClose, notify }: { alvo: AlvoAnalise; onCl
 
       <div className="mdl-f">
         {a && !passos && !pedir && !anEd && <>
-          <span className="an-meta">{fdLongo(a.feitaEm)}{a.por ? ` · ${a.por === "recolha" ? "recolha semanal" : a.por}` : ""}{a.editada ? " · editada à mão" : ""}</span>
+          <span className="an-meta">{fdLongo(a.feitaEm)}{a.por ? ` · ${a.por === "recolha" ? "recolha semanal" : a.por}` : ""}{a.editada ? " · editada manualmente" : ""}</span>
           {hist && hist.length > 1 && <select className="an-hist" value={idx} onChange={(e) => setIdx(+e.target.value)} aria-label="Análises anteriores">
             {hist.map((h, i) => <option key={h.id || i} value={i}>{i === 0 ? "Mais recente" : fdLongo(h.feitaEm)}</option>)}</select>}
         </>}

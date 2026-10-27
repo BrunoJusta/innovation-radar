@@ -73,7 +73,7 @@ export function SignalsTable({ list, areas, cats, onOpen, onApprove, onReject, o
               <td className="ck" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Selecionar ${s.titulo}`} checked={picked.has(s.id)} onChange={() => toggle(s.id)} /></td>
               <td className="ttl"><b>{s.titulo}</b>
                 <span className="tsub">{sites.length > 1 ? `${sites[0]} e mais ${sites.length - 1}` : sites[0]}
-                  {s.flagNovaFonte && s.status === "pending" && <em className="tnew">Nova fonte</em>}{s.manual && <em className="tman">À mão</em>}</span></td>
+                  {s.flagNovaFonte && s.status === "pending" && <em className="tnew">Nova fonte</em>}{s.manual && <em className="tman">Manual</em>}</span></td>
               <td><span className="tg ar">{a?.nome || "Sem cadeia de valor"}</span></td>
               {(["tematica", "tecnologia", "canal"] as TipoTag[]).map((tp) => { const l = doTipo(s, tp); return (
                 <td key={tp} className="ttags">{l.length ? <span className="tlist" title={l.map((c) => c.nome).join(", ")}>
