@@ -257,7 +257,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                 {searching ? (
                   <div className="spanel" key="s">
                     {summary}
-                    <SearchResults results={pgR.items} hitsById={hitsById} ts={ts} area={area} cat={cat} active={active} entidades={inBo}
+                    <SearchResults results={pgR.items} hitsById={hitsById} ts={ts} area={area} cat={cat} active={active} entidades={false}
                       setHover={setHover} onOpen={setOpenId} empty={empty} />
                     <Pager {...pgR} label="sinais" className="pgr-s" />
                   </div>
@@ -288,7 +288,7 @@ export default function RadarApp({ inBo = false }: { inBo?: boolean } = {}) {
                 emptyTitle="Ainda sem sinais neste período" emptyText="Assim que a equipa de Inovação aprovar notícias, elas aparecem aqui." ariaLabel="Radar com os sinais do período" />
             </>
           ) : (
-            <NewsList entidades={inBo} rows={pgL.items} allRows={rows} pager={<Pager {...pgL} label="notícias" />} topRef={pgL.top} ts={ts} searching={searching} hitsById={hitsById} areas={areas} cats={cats} fRing={fRing} setFRing={setFRing}
+            <NewsList entidades={false} rows={pgL.items} allRows={rows} pager={<Pager {...pgL} label="notícias" />} topRef={pgL.top} ts={ts} searching={searching} hitsById={hitsById} areas={areas} cats={cats} fRing={fRing} setFRing={setFRing}
               tagSel={tagSel} counts={counts} period={period} setPeriod={setPeriod} periodOptions={periodOptions}
               ordem={ordem} setOrdem={setOrdem} active={searching ? active : -1}
               onOpen={setOpenId} setHover={() => {}} summary={summary}
