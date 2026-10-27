@@ -168,7 +168,10 @@ export interface Startup {
   analiseResumo?: AnaliseResumo;
   /** Ficha no pipeline, quando passou para lá (sai da lista de Aprovadas, mas continua aprovada). */
   dealId?: string; pipelineEm?: string;
+  /** Próximos passos em aberto quando saiu do pipeline: ficam em espera e voltam se a startup regressar ao pipeline. */
+  passosEmEspera?: PassosEmEspera | null;
 }
+export interface PassosEmEspera { passos: Passo[]; desde: string; etapa: string; ref?: string }
 
 /* ---------- Análise de investimento (Sogrape Ventures) ---------- */
 

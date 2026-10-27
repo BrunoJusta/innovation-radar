@@ -69,7 +69,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
   const i = list.findIndex((x) => x.id === d.id);
   /** Tira a startup do pipeline e põe-na nas Aprovadas (com confirmação: o deal e a cronologia são apagados). */
   const paraAprovadas = async () => {
-    if (!(await confirmar({ titulo: `Mandar «${d.nome}» para as Aprovadas?`, texto: "Sai do pipeline e volta à lista de Aprovadas. A ficha da startup e a análise ficam; a cronologia, os próximos passos e os dados da ronda do pipeline são apagados. Não dá para anular.", ok: "Mandar para as Aprovadas", perigo: true }))) return;
+    if (!(await confirmar({ titulo: `Mandar «${d.nome}» para as Aprovadas?`, texto: "Sai do pipeline e volta à lista de Aprovadas. Os próximos passos em aberto ficam em espera na ficha da startup e voltam a ficar ativos se ela regressar ao pipeline. A ficha da startup e a análise ficam; a cronologia e os dados da ronda do pipeline são apagados. Não dá para anular.", ok: "Mandar para as Aprovadas", perigo: true }))) return;
     act(dealParaAprovadas(d, email).then(() => onClose()), `«${d.nome}» passou para as Aprovadas`);
   };
   const act = (p: Promise<unknown>, msg: string) => p.then(() => notify(msg)).catch((e) => notify((e as { code?: string }).code === "permission-denied" ? "Sem permissão para alterar o pipeline." : "Não foi possível guardar. Tenta outra vez."));

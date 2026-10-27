@@ -111,8 +111,19 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
                   {deal.proximaAcao ? <em>Próximo passo: {deal.proximaAcao}</em> : null}</span></div>
             ) : (
               <button className="anbox vazio" onClick={toPipeline}><Icon name="kanban" size={20} />
-                <span className="m">Começar o seguimento desta startup: fase, próximo passo, reuniões e ronda. Sai da lista de Aprovadas e passa a ser acompanhada no Pipeline.</span>
+                <span className="m">{s.passosEmEspera?.passos?.length
+                  ? "Voltar a seguir esta startup no Pipeline. Os próximos passos em espera voltam a ficar ativos."
+                  : "Começar o seguimento desta startup: fase, próximo passo, reuniões e ronda. Sai da lista de Aprovadas e passa a ser acompanhada no Pipeline."}</span>
                 <span className="go">Pôr no pipeline<Icon name="plus" /></span></button>
+            )}
+            {!deal && !!s.passosEmEspera?.passos?.length && (
+              <div className="espera">
+                <div className="espera-h"><Icon name="clock" /><b>Próximos passos em espera</b>
+                  <span>Desde {fdLongo(s.passosEmEspera.desde)}, quando saiu de {nomeEtapa(s.passosEmEspera.etapa)}{s.passosEmEspera.ref ? ` (${s.passosEmEspera.ref})` : ""}</span></div>
+                <ul className="passos">{s.passosEmEspera.passos.map((p) => (
+                  <li key={p.id} className="passo hold"><div className="pb"><b>{p.texto || "Sem descrição"}</b>
+                    <span className="pm">{p.prazo && <span className="pz"><Icon name="calendar-blank" />{fdLongo(p.prazo)}</span>}{p.responsavel && <em>{p.responsavel.split("@")[0]}</em>}</span></div></li>))}</ul>
+              </div>
             )}
           </div>}
           <div className="blk"><div className="bh"><h4>Ficha</h4>{s.status !== "rejected" && <button className="txtbtn" onClick={() => setEditing(true)}><Icon name="pencil-simple" />Editar</button>}</div>

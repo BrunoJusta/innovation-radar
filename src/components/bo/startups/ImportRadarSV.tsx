@@ -4,7 +4,7 @@ import { collection, deleteDoc, deleteField, doc, getDocs, setDoc, updateDoc } f
 import { db } from "@/lib/firebase";
 import { Icon } from "@/components/Icon";
 import { lerFolha, type Celula } from "@/lib/xlsx-lite";
-import { addInteracao, createDeal, dealFromStartup, dealParaAprovadas, moveDeal, saveDeal } from "@/lib/deal-actions";
+import { addInteracao, createDeal, dealFromStartup, dealParaAprovadas, esperaDe, moveDeal, saveDeal } from "@/lib/deal-actions";
 import { saveStartupLink } from "@/lib/startup-actions";
 import { Deal, Sector, Startup, Status, emCurso } from "@/lib/types";
 import { hojeLocal, nowIso } from "@/lib/util";
@@ -87,7 +87,9 @@ export function ImportRadarSV({ startups, sectors, onClose, onDone }: { startups
     const setorNome = (id: string) => sectors.find((x) => x.id === id)?.nome || "";
 
     /** Startup aprovada (ou no estado pedido): a que existe ou uma nova com os dados do Excel. */
-    const garantirStartup = async (p: Passo, status: Status, manterPipeline: boolean): Promise<Startup> => {
+    /** extra: campos a juntar (os próximos passos em espera de quem sai do pipeline). */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const garantirStartup = async (p: Passo, status: Status, manterPipeline: boolean, extra: Record<string, any> = {}): Promise<Startup> => {
       const quando = p.l.data ? `${p.l.data}T12:00:00.000Z` : agora;
       if (p.st) {
         const s = p.st;
@@ -96,14 +98,15 @@ export function ImportRadarSV({ startups, sectors, onClose, onDone }: { startups
         if (status === "approved" && s.status !== "approved") Object.assign(upd, { aprovadoEm: quando, aprovadoPor: email });
         if (status === "rejected") upd.motivoRejeicao = s.motivoRejeicao || motivoTriagemDeSV(p.l.decisao); else upd.motivoRejeicao = deleteField();
         if (!manterPipeline) Object.assign(upd, { dealId: deleteField(), pipelineEm: deleteField() });
+        Object.assign(upd, extra);
         await updateDoc(doc(db, "startups", s.id), upd);
         return { ...s, status };
       }
       const { id, ...data } = startupDoExcel(p.l, status, email, agora);
       const existe = startups.find((x) => x.id === id);
-      if (existe) { await updateDoc(doc(db, "startups", id), { status, atualizadoEm: agora }); return { ...existe, status }; }
-      await setDoc(doc(db, "startups", id), clean(data));
-      return { id, ...data } as Startup;
+      if (existe) { await updateDoc(doc(db, "startups", id), { status, atualizadoEm: agora, ...extra }); return { ...existe, status }; }
+      await setDoc(doc(db, "startups", id), clean({ ...data, ...extra }));
+      return { id, ...data, ...extra } as Startup;
     };
 
     const umPasso = async (p: Passo) => {
@@ -117,8 +120,10 @@ export function ImportRadarSV({ startups, sectors, onClose, onDone }: { startups
           await dealParaAprovadas(d, email);
           return;
         }
+        // Os próximos passos em aberto ficam em espera na ficha da startup (não se perdem com a ficha do pipeline)
+        const espera = p.deal ? esperaDe(p.deal) : null;
         if (p.deal) await apagarDeal(p.deal);
-        await garantirStartup(p, dest.status, false);
+        await garantirStartup(p, dest.status, false, espera ? { passosEmEspera: espera } : {});
         return;
       }
       // Pipeline: a startup fica aprovada e ligada à ficha do pipeline
@@ -188,7 +193,7 @@ export function ImportRadarSV({ startups, sectors, onClose, onDone }: { startups
             </div>
             {saemDoPipeline.length > 0 && <div className="notice warn"><Icon name="warning-circle" /><span>
               {saemDoPipeline.length} {saemDoPipeline.length === 1 ? "sai" : "saem"} do pipeline ({saemDoPipeline.slice(0, 6).map((p) => p.l.nome).join(", ")}{saemDoPipeline.length > 6 ? "…" : ""}).
-              A ficha do pipeline, a cronologia e os próximos passos dessas startups são apagados; a ficha da startup e a análise ficam.</span></div>}
+              Os próximos passos em aberto ficam em espera na ficha da startup e voltam a ficar ativos se ela regressar ao pipeline. A ficha da startup e a análise ficam; a cronologia e os dados da ronda do pipeline são apagados.</span></div>}
             <div className="isv-bar"><b>{tudo ? "Todas as startups" : "O que vai mudar"}</b><span className="sp" />
               <button className="chipf" aria-pressed={tudo} onClick={() => setTudo(!tudo)}>{tudo && <Icon name="check" />}Mostrar também as que já estão certas</button></div>
             {vistos.length ? (

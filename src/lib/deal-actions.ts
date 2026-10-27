@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
-import { Deal, ETAPAS, Etapa, emCurso, Interacao, Passo, MotivoArquivo, MOTIVOS_ARQUIVO, ORIGENS_DF, Startup, VERTICAIS_DF, FASES_DF, VEZES, nomeDecisao } from "./types";
+import { Deal, PassosEmEspera, ETAPAS, Etapa, emCurso, Interacao, Passo, MotivoArquivo, MOTIVOS_ARQUIVO, ORIGENS_DF, Startup, VERTICAIS_DF, FASES_DF, VEZES, nomeDecisao } from "./types";
 import { hojeLocal, nowIso, slug } from "./util";
 import { AREAS_LISTA } from "./taxonomia";
 
@@ -86,12 +86,21 @@ export async function reopenDeal(d: Deal, by: string) {
   await addInteracao(d.id, { data: hoje(), tipo: "etapa", texto: `Reaberta em ${nomeEtapa(etapa)}`, por: by });
 }
 
-/** Leva uma startup do radar para o pipeline (fica ligada à ficha e à análise). */
+/** Os próximos passos em aberto de uma ficha do pipeline, para ficarem em espera na startup quando ela sai do pipeline. */
+export function esperaDe(d: Deal): PassosEmEspera | null {
+  const passos = passosAbertos(d);
+  return passos.length ? clean({ passos, desde: hoje(), etapa: d.etapa, ...(d.ref ? { ref: d.ref } : {}) }) : null;
+}
+
+/** Leva uma startup do radar para o pipeline (fica ligada à ficha e à análise). Os próximos passos em espera voltam a ficar ativos. */
 export function dealFromStartup(s: Startup, deals: Deal[], setor: string): Omit<Deal, "id"> {
+  const espera = s.passosEmEspera?.passos?.filter((p) => !p.feito) || [];
+  const r = espera.length ? resumoPassos(espera) : null;
   return {
     ...DEAL_VAZIO(), ref: proximaRef(deals), nome: s.nome, site: s.site, dominio: s.dominio, descricao: s.descricao, ...(s.cadeia ? { cadeia: s.cadeia } : {}), ...(s.setor ? { categoria: s.setor } : {}),
     pais: s.pais || "", etapa: "fit", interesse: "investimento", vez: "sogrape", proximaAcao: "Fazer o primeiro contacto", passos: [novoPasso({ texto: "Fazer o primeiro contacto" })],
     origem: { tipo: "radar", nome: setor ? `Radar · ${setor}` : "Radar de startups", contacto: "" },
+    ...(r ? { ...r, vez: r.vez || "sogrape" } : {}),
     startupId: s.id, ...(s.analiseResumo ? { analiseResumo: s.analiseResumo } : {}),
   };
 }
@@ -99,14 +108,16 @@ export function dealFromStartup(s: Startup, deals: Deal[], setor: string): Omit<
 /**
  * Tira uma startup do pipeline e põe-na nas Aprovadas: o deal é apagado (com a cronologia e as análises do deal)
  * e a ficha no radar de startups fica aprovada e sem ligação ao pipeline. Sem ficha, cria uma com os dados do deal.
+ * Os próximos passos em aberto não se perdem: ficam em espera na ficha da startup.
  */
 export async function dealParaAprovadas(d: Deal, by: string) {
+  const espera = esperaDe(d);
   const sid = d.startupId || (d.dominio ? d.dominio.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") : `xl-${slug(d.nome)}`);
   const sref = doc(db, "startups", sid);
   const ex = await getDoc(sref);
   if (ex.exists()) {
     const s = ex.data() as Startup;
-    await updateDoc(sref, { status: "approved", dealId: deleteField(), pipelineEm: deleteField(), motivoRejeicao: deleteField(),
+    await updateDoc(sref, { status: "approved", dealId: deleteField(), pipelineEm: deleteField(), motivoRejeicao: deleteField(), ...(espera ? { passosEmEspera: espera } : {}),
       ...(s.status !== "approved" ? { aprovadoEm: nowIso(), aprovadoPor: by } : {}), atualizadoEm: nowIso() });
   } else {
     const fase = ({ ideia: "ideia", "pre-seed": "seed", seed: "seed", "serie-a": "serie-a", "scale-up": "crescimento", crescimento: "crescimento" } as Record<string, Startup["fase"]>)[d.fase] || "seed";
@@ -114,7 +125,7 @@ export async function dealParaAprovadas(d: Deal, by: string) {
       status: "approved", nome: d.nome, site: d.site || "", dominio: d.dominio || "", pais: d.pais || "", fundacao: null, fase, setor: d.categoria || "",
       ...(d.cadeia ? { cadeia: d.cadeia } : {}), ...(d.logo ? { logo: d.logo } : {}), descricao: d.descricao || "", porque: "", relevancia: 50, financiamento: "", investidores: [],
       origens: [{ tipo: "manual", titulo: `Pipeline · ${d.origem?.nome || "Sogrape Ventures"}`, url: d.site || "", data: (d.entrada || hoje()).slice(0, 10) }], destaque: false,
-      ...(d.analiseResumo ? { analiseResumo: d.analiseResumo } : {}),
+      ...(d.analiseResumo ? { analiseResumo: d.analiseResumo } : {}), ...(espera ? { passosEmEspera: espera } : {}),
       criadoEm: nowIso(), atualizadoEm: nowIso(), manual: true, criadoPor: by, aprovadoEm: nowIso(), aprovadoPor: by,
     }));
   }

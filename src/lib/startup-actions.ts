@@ -67,5 +67,5 @@ export async function createStartup(id: string, f: StartupEdit & { dominio: stri
   return "criada";
 }
 
-/** Marca a ficha como estando no pipeline (fica aprovada; só sai da lista de Aprovadas). */
-export const saveStartupLink = (id: string, dealId: string) => updateDoc(ref(id), { dealId, pipelineEm: nowIso(), atualizadoEm: nowIso() });
+/** Marca a ficha como estando no pipeline (fica aprovada; só sai da lista de Aprovadas). Os passos em espera já passaram para a ficha do pipeline. */
+export const saveStartupLink = (id: string, dealId: string) => updateDoc(ref(id), { dealId, pipelineEm: nowIso(), passosEmEspera: deleteField(), atualizadoEm: nowIso() });
