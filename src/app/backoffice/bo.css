@@ -1700,11 +1700,11 @@
 .bo .gs-tx{display:flex;flex-direction:column;min-width:0}
 .bo .gs-tx b{font:600 13.5px/1.3 var(--f-display);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bo .gs-tx small{font-size:12px;color:var(--ink-subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bo .gs-onde,.bo .isv-onde{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;font-size:12px;color:var(--ink-muted)}
+.bo .gs-onde{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;font-size:12px;color:var(--ink-muted)}
 .bo .gs-onde{justify-content:flex-end;max-width:220px}
-.bo .gs-onde>span,.bo .isv-onde>span{display:inline-flex;align-items:center;gap:2px}
-.bo .gs-onde>span:last-child,.bo .isv-onde>span:last-child{font-weight:600;color:var(--ink)}
-.bo .gs-onde .i,.bo .isv-onde .i{width:11px;height:11px;color:var(--ink-tertiary)}
+.bo .gs-onde>span{display:inline-flex;align-items:center;gap:2px}
+.bo .gs-onde>span:last-child{font-weight:600;color:var(--ink)}
+.bo .gs-onde .i{width:11px;height:11px;color:var(--ink-tertiary)}
 .bo .gs-msg{display:flex;align-items:center;gap:8px;margin:0;padding:12px;font-size:13px;color:var(--ink-subtle)}
 .bo .gs-msg.sm{padding:4px 12px 8px;font-size:12px}
 @media (max-width:1100px){.bo .topin .gs .searchbox{width:36px;padding:0 9px}.bo .topin .gs .searchbox input{width:0}.bo .gs-k{display:none}
@@ -1731,24 +1731,6 @@
 /* ---------- Adicionar à mão ---------- */
 .bo .fgrid.lite{margin-bottom:12px}
 .bo .fld .seg{align-self:flex-start}
-
-/* ---------- Import do Excel do Radar Sogrape Ventures ---------- */
-.bo .isv-k{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:16px 0 12px}
-.bo .isv-k>div{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:10px;background:var(--surface-2)}
-.bo .isv-k b{font:650 24px/1 var(--f-display);font-variant-numeric:tabular-nums}
-.bo .isv-k span{font-size:12.5px;color:var(--ink-subtle)}
-.bo .isv-k .on{background:#F6E6DE}.bo .isv-k .on b{color:#8B3D26}
-.bo .isv-k .bad{background:var(--danger-tint)}.bo .isv-k .bad b{color:var(--danger)}
-.bo .isv-bar{display:flex;align-items:center;gap:8px;margin:14px 0 8px;font-size:13px}
-.bo .isv-t{margin-bottom:0}
-.bo .isv-t table{min-width:560px}
-.bo .isv-t td{vertical-align:middle}
-.bo .isv-t td b{display:block;font-weight:600}
-.bo .isv-t .sm{font-size:12px}
-.bo .isv-arr{width:28px;color:var(--ink-tertiary)}
-.bo .isv-t tr.a-igual{opacity:.6}
-.bo .isv-t tr.a-criar .isv-arr{color:var(--success)}
-.bo .gerr-in{font-size:12.5px;color:var(--danger)}
 
 /* ---------- Próximos passos em espera (startup que saiu do pipeline) ---------- */
 .bo .espera{margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--warn-tint)}
