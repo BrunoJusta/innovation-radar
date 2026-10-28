@@ -171,7 +171,8 @@ async function main() {
       if (old.empty) break;
       const b = db.batch(); old.docs.forEach((d) => b.delete(d.ref)); await b.commit(); apagados += old.size;
     }
-    // Limpeza: rejeitadas que ficaram na base de dados (a página fechou antes de o BO as apagar, ou são de antes desta regra)
+    // Limpeza: notícias rejeitadas que ficaram na base de dados (a página fechou antes de o BO as apagar, ou são de antes desta regra).
+    // As startups rejeitadas NÃO são apagadas: são o arquivo de triagem (contam na Review). Só o botão Eliminar do BO apaga uma startup.
     let rejApagadas = 0;
     if (!DRY) {
       const rs = await db.collection("signals").where("status", "==", "rejected").get();
@@ -179,15 +180,6 @@ async function main() {
         const b = db.batch(); rs.docs.slice(i, i + 400).forEach((d) => b.delete(d.ref)); await b.commit();
       }
       rejApagadas += rs.size;
-      const rst = await db.collection("startups").where("status", "==", "rejected").get();
-      for (const d of rst.docs) {
-        const s = d.data();
-        if (s.dealId) continue; // ligada ao pipeline: fica
-        // Marca para a recolha semanal não a voltar a propor (fica a que já existir)
-        await db.doc(`startupSeen/${d.id}`).create({ nome: s.nome || "", site: s.site || "", motivo: `rejeitada: ${s.motivoRejeicao || ""}`, visto: now() }).catch(() => {});
-        await db.recursiveDelete(d.ref); // apaga também as análises
-        rejApagadas++;
-      }
       if (rejApagadas) log(`Rejeitadas apagadas: ${rejApagadas}`);
     }
     const fim = now();
