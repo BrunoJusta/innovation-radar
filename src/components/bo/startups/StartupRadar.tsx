@@ -12,7 +12,8 @@ import { MultiSelect, SectorSelect } from "@/components/CatSelect";
 import { post } from "@/lib/api";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Area, Category, ETAPAS, Sector, Startup, emCurso } from "@/lib/types";
+import { Area, Category, Deal, ETAPAS, Sector, Startup, emCurso } from "@/lib/types";
+import { ligarFichaAoDeal, normNome } from "@/lib/deal-actions";
 import { useSession } from "../AuthGate";
 import { useDeals } from "../pipeline/DealsLookup";
 import { cadeiasParaApi } from "@/lib/use-areas";
@@ -63,23 +64,51 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
   const area = useCallback((id: string) => areas.find((a) => a.id === id), [areas]);
   const fase = useCallback((id: string) => fases.find((f) => f.id === id), [fases]);
 
+  // O radar parte das fichas do pipeline (em curso, investidas e radar) e mostra a ficha da startup ligada a cada uma.
+  // Uma ficha do pipeline sem ficha de startup ligada não aparecia em lado nenhum; agora fica listada no aviso para se ligar ou criar.
+  const ligacao = useMemo(() => {
+    const ativos = deals.filter((d) => emCurso(d.etapa) || d.etapa === "investida" || d.etapa === "radar");
+    const dealDe = new Map<string, Deal>();
+    const semFicha: { d: Deal; cand?: Startup }[] = [];
+    for (const d of ativos) {
+      const st = (d.startupId && startups.find((s) => s.id === d.startupId)) || startups.find((s) => s.dealId === d.id);
+      if (st && !dealDe.has(st.id)) { dealDe.set(st.id, d); continue; }
+      if (st) continue; // a mesma startup ligada a duas fichas do pipeline: conta uma vez
+      const n = normNome(d.nome);
+      const cand = startups.find((s) => (!!d.dominio && s.dominio === d.dominio) || (!!n && normNome(s.nome) === n));
+      semFicha.push({ d, cand: cand && !dealDe.has(cand.id) ? cand : undefined });
+    }
+    return { dealDe, semFicha };
+  }, [deals, startups]);
   // Em que ponto do pipeline está cada startup
-  const etapaDe = useCallback((s: Startup) => deals.find((x) => x.id === s.dealId || x.startupId === s.id)?.etapa || "", [deals]);
+  const etapaDe = useCallback((s: Startup) => ligacao.dealDe.get(s.id)?.etapa || "", [ligacao]);
   // No radar: só as dos separadores Pipeline (em curso), Investidas e Radar. Ficam de fora a triagem, as aprovadas sem ficha no pipeline e o arquivo
-  const aprovadas = useMemo(() => startups.filter((s) => { const e = etapaDe(s); return emCurso(e) || e === "investida" || e === "radar"; }), [startups, etapaDe]);
+  const aprovadas = useMemo(() => startups.filter((s) => ligacao.dealDe.has(s.id)), [startups, ligacao]);
   // Só entram no radar as que têm cadeia de valor; as outras ficam à espera de serem classificadas
   const comCadeia = useMemo(() => aprovadas.filter((s) => cadeias.some((a) => a.id === s.cadeia)), [aprovadas, cadeias]);
   // Ano: o de entrada no pipeline, quando está lá; senão o ano em que a startup entrou no radar.
   // O ano escolhe que startups entram no radar (não é um realce, por isso não liga os pontos)
   const anoDe = useMemo(() => {
     const m = new Map<string, string>();
-    comCadeia.forEach((st) => { const d = deals.find((x) => x.id === st.dealId || x.startupId === st.id); m.set(st.id, (d?.entrada || st.criadoEm || "").slice(0, 4)); });
+    comCadeia.forEach((st) => { const d = ligacao.dealDe.get(st.id); m.set(st.id, (d?.entrada || st.criadoEm || "").slice(0, 4)); });
     return m;
-  }, [comCadeia, deals]);
+  }, [comCadeia, ligacao]);
   // O ano atual aparece sempre (é o filtro por defeito), mesmo sem startups
   const anos = useMemo(() => [...new Set([String(new Date().getFullYear()), ...[...anoDe.values()].filter((a) => /^\d{4}$/.test(a))])].sort().reverse(), [anoDe]);
   const approved = useMemo(() => comCadeia.filter((s) => fAno === "all" || anoDe.get(s.id) === fAno), [comCadeia, anoDe, fAno]);
   const semCadeia = useMemo(() => aprovadas.filter((s) => !cadeias.some((a) => a.id === s.cadeia)), [aprovadas, cadeias]);
+  // Quantas ficam escondidas só pelo filtro do ano (para não parecer que faltam startups)
+  const outrosAnos = fAno === "all" ? 0 : comCadeia.length - approved.length;
+  const [ligando, setLigando] = useState(false);
+  const ligarFichas = async () => {
+    setLigando(true);
+    let feitas = 0;
+    for (const { d, cand } of ligacao.semFicha) {
+      try { await ligarFichaAoDeal(d, cand, email); feitas++; } catch { /* segue para as outras */ }
+    }
+    flash(feitas === ligacao.semFicha.length ? `${feitas} ${feitas === 1 ? "startup ligada" : "startups ligadas"} ao radar` : `Ligadas ${feitas} de ${ligacao.semFicha.length}. Tenta outra vez para as restantes.`);
+    setLigando(false);
+  };
   const [classificando, setClassificando] = useState(false);
   const classificar = async () => {
     setClassificando(true);
@@ -197,10 +226,21 @@ export function StartupRadar({ areas: cadeias, startups, sectors, loaded }: { ar
       </select>
     </label>
   </>);
-  const aviso = semCadeia.length > 0 && (
+  const nSF = ligacao.semFicha.length;
+  const aviso = (<>
+    {nSF > 0 && (
+      <div className="notice warn scad"><span>{nSF} {nSF === 1 ? "startup do pipeline não tem" : "startups do pipeline não têm"} ficha no radar de startups e não {nSF === 1 ? "aparece" : "aparecem"}: {ligacao.semFicha.slice(0, 6).map((x) => x.d.nome.trim()).join(", ")}{nSF > 6 ? "…" : ""}.</span>
+        <button className="btn" onClick={ligarFichas} disabled={ligando}>{ligando ? <><span className="spin" aria-hidden="true" />A ligar…</> : <><Icon name="plus" />Ligar fichas</>}</button></div>
+    )}
+    {outrosAnos > 0 && (
+      <div className="notice scad"><span>A mostrar as que entraram no pipeline em {fAno}. Há mais {outrosAnos} de outros anos.</span>
+        <button className="btn" onClick={() => setFAno("all")}>Ver todos os anos</button></div>
+    )}
+    {semCadeia.length > 0 && (
     <div className="notice warn scad"><span>{semCadeia.length} {semCadeia.length === 1 ? "startup do pipeline ainda não tem" : "startups do pipeline ainda não têm"} cadeia de valor e não {semCadeia.length === 1 ? "aparece" : "aparecem"} no radar.</span>
       <button className="btn" onClick={classificar} disabled={classificando}>{classificando ? <><span className="spin" aria-hidden="true" />A classificar…</> : <><Icon name="sparkle" />Atribuir com a Gemini</>}</button></div>
-  );
+    )}
+  </>);
   const summary = (
     <SearchSummary q={dq} n={results.length} total={hits.length} byArea={byArea} areas={areas} fRing={fRing} setFRing={setFRing}
       cat={fFase.length === 1 ? fase(fFase[0]) : undefined} clearCat={() => setFFase([])} related={related} setQ={setQ}

@@ -136,6 +136,41 @@ export async function dealParaAprovadas(d: Deal, by: string) {
   await deleteDoc(ref(d.id));
 }
 
+/** Cadeia de valor pela vertical do pipeline (para fichas criadas a partir de um deal sem cadeia). */
+const CADEIA_DA_VERTICAL_DF: Record<string, string> = {
+  viticultura: "viticultura", enologia: "enologia", producao: "producao", distribuicao: "vendas-distribuicao",
+  "produtos-vinho": "adjacencias", "servicos-vinho": "consumidor", "outro-estrategico": "adjacencias", "fora-ambito": "adjacencias",
+};
+
+/**
+ * Liga uma ficha do pipeline à ficha da startup no radar de startups. cand: uma ficha que já existe (encontrada pelo nome ou domínio)
+ * e só falta ligar. Sem ficha, cria uma com os dados do deal, já aprovada e ligada ao pipeline.
+ */
+export async function ligarFichaAoDeal(d: Deal, cand: Startup | undefined, by: string): Promise<string> {
+  let sid = cand?.id || (d.dominio ? d.dominio.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") : `xl-${slug(d.nome)}`);
+  const sref = doc(db, "startups", sid);
+  const ex = cand ? null : await getDoc(sref);
+  if (cand || ex?.exists()) {
+    const s = (cand || ex!.data()) as Startup;
+    await updateDoc(sref, { status: "approved", dealId: d.id, pipelineEm: s.pipelineEm || nowIso(), motivoRejeicao: deleteField(), atualizadoEm: nowIso(),
+      ...(s.status !== "approved" ? { aprovadoEm: nowIso(), aprovadoPor: by } : {}), ...(!s.cadeia && d.cadeia ? { cadeia: d.cadeia } : {}) });
+  } else {
+    const fase = ({ ideia: "ideia", "pre-seed": "seed", seed: "seed", "serie-a": "serie-a", "scale-up": "crescimento", crescimento: "crescimento" } as Record<string, Startup["fase"]>)[d.fase] || "seed";
+    sid = sref.id;
+    await setDoc(sref, clean({
+      status: "approved", nome: d.nome, site: d.site || "", dominio: d.dominio || "", pais: d.pais || "", fundacao: null, fase, setor: d.categoria || "",
+      cadeia: d.cadeia || CADEIA_DA_VERTICAL_DF[d.vertical] || "adjacencias", ...(d.logo ? { logo: d.logo } : {}),
+      descricao: d.descricao || "", porque: "", relevancia: 50, financiamento: "", investidores: [],
+      origens: [{ tipo: "manual", titulo: `Pipeline · ${d.origem?.nome || "Sogrape Ventures"}`, url: d.site || "", data: (d.entrada || hoje()).slice(0, 10) }], destaque: false,
+      ...(d.analiseResumo ? { analiseResumo: d.analiseResumo } : {}),
+      criadoEm: d.entrada ? `${d.entrada.slice(0, 10)}T12:00:00.000Z` : nowIso(), atualizadoEm: nowIso(), manual: true, criadoPor: by, aprovadoEm: nowIso(), aprovadoPor: by,
+      dealId: d.id, pipelineEm: nowIso(),
+    }));
+  }
+  if (d.startupId !== sid) await updateDoc(ref(d.id), { startupId: sid });
+  return sid;
+}
+
 /** Procura no pipeline uma startup do radar: pela ficha ligada, pelo domínio ou pelo nome. */
 export function findDeal(deals: Deal[], s: Pick<Startup, "id" | "dominio" | "nome">): Deal | undefined {
   const n = normNome(s.nome);
