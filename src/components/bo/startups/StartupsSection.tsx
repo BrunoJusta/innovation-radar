@@ -16,6 +16,7 @@ import { PipelineSection } from "../pipeline/PipelineSection";
 import { ReviewView } from "./ReviewView";
 import { useSession } from "../AuthGate";
 import type { Loc, PipeEstado } from "@/lib/localizacao";
+import { ImportRadarSV } from "./ImportRadarSV";
 
 /** Secção Startups do backoffice: Triagem, Aprovadas, Arquivo de triagem, (admins) Pipeline, Radar e Review. */
 type Page = Status | "radar" | "pipeline" | "review";
@@ -40,6 +41,8 @@ function Section({ loc, onLoc }: { loc: Loc; onLoc: (p: Partial<Loc>) => void })
   // Vindo da pesquisa global: a lista abre filtrada pelo nome
   const [search, setSearch] = useState(foco?.nome || "");
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const { flash, el: flashEl } = useFlash();
   useEffect(() => {
     const u1 = onSnapshot(collection(db, "startups"), (s) => { setStartups(s.docs.map((d) => ({ id: d.id, ...d.data() }) as Startup)); setLoaded(true); },
       (e) => { console.error(e); setLoaded(true); });
@@ -71,6 +74,7 @@ function Section({ loc, onLoc }: { loc: Loc; onLoc: (p: Partial<Loc>) => void })
         <div className="pageact">
           <SearchField value={search} onChange={setSearch} placeholder={page === "pipeline" ? "Pesquisar no pipeline" : "Pesquisar startups"} />
           <AtribuirCategorias startups={startups} sectors={sectors} deals={canPipeline ? deals : []} />
+          {canPipeline && <button className="btn" onClick={() => setImporting(true)} title="Provisório: corrige a localização das startups a partir do Excel do Radar Sogrape Ventures"><Icon name="upload-simple" />Importar Excel</button>}
           {page !== "pipeline" && <button className="btn primary" onClick={() => setAdding(true)}><Icon name="plus" />Adicionar startups</button>}
         </div>
       )}
@@ -79,6 +83,8 @@ function Section({ loc, onLoc }: { loc: Loc; onLoc: (p: Partial<Loc>) => void })
       : page === "pipeline" ? <PipelineSection search={search} estado0={loc.pipe} abrir={foco?.id} onEstado={(e: PipeEstado) => onLoc({ st: "pipeline", pipe: e })} />
       : page !== "radar" ? <StartupsTriage areas={areas} status={page as Status} onStatus={setPage} startups={lista} sectors={sectors} loaded={loaded} search={search} adding={adding} setAdding={setAdding} abrir={foco?.id} />
       : <StartupRadar areas={areas} startups={startups} sectors={sectors} loaded={loaded} />}
+    {importing && <ImportRadarSV startups={startups} sectors={sectors} onClose={() => setImporting(false)} onDone={(m) => { setImporting(false); flash(m); }} />}
+    {flashEl}
   </>);
 }
 
