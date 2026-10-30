@@ -86,7 +86,7 @@ export function pesquisar(q0: string, { startups, deals, projetos, eventos, pipe
   const rank = (nome: string, extra: string) => { const n = norm(nome); return n === q ? 0 : n.startsWith(q) ? 1 : n.split(/[^a-z0-9]+/).some((w) => w.startsWith(q)) ? 2 : n.includes(q) ? 3 : norm(extra).includes(q) ? 4 : -1; };
   const usados = new Set<string>();
   for (const d of deals) {
-    const r = rank(d.nome, `${d.ref} ${d.dominio} ${d.pais}`);
+    const r = rank(d.nome, `${d.ref} ${d.dominio} ${d.pais} ${(d.nomesAnteriores || []).join(" ")}`);
     if (d.startupId) usados.add(d.startupId);
     if (r < 0) continue;
     out.push({ tipo: "startup", id: d.id, nome: d.nome.trim(), sub: [d.dominio, d.pais].filter(Boolean).join(" · "), onde: ondeDeal(d), loc: locDeal(d), r });
@@ -94,7 +94,7 @@ export function pesquisar(q0: string, { startups, deals, projetos, eventos, pipe
   const nomesDeals = new Set(deals.map((d) => norm(d.nome)));
   for (const s of startups) {
     if (usados.has(s.id) || (s.dealId && pipeline) || nomesDeals.has(norm(s.nome))) continue;
-    const r = rank(s.nome, `${s.dominio} ${s.pais}`);
+    const r = rank(s.nome, `${s.dominio} ${s.pais} ${(s.nomesAnteriores || []).join(" ")}`);
     if (r < 0) continue;
     // Quem não vê o pipeline vai para o radar de startups
     const noPipe = !!s.dealId && !pipeline;

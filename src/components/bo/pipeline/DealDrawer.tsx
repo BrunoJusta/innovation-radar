@@ -13,6 +13,7 @@ import { AnaliseView } from "../startups/AnaliseView";
 import { DealEdit, DealFields, fmtEur, pickDeal } from "./DealFields";
 import { LogoEditor } from "../startups/Logo";
 import { useConfirm } from "../Confirm";
+import { aplicarNome, planoNome, textoPlano } from "@/lib/startup-actions";
 import { AREAS_LISTA } from "@/lib/taxonomia";
 import { useAreas, useCategorias } from "@/lib/use-areas";
 import { diasDesde } from "./PipelineBoard";
@@ -73,7 +74,17 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
     act(dealParaAprovadas(d, email).then(() => onClose()), `«${d.nome}» passou para as Aprovadas`);
   };
   const act = (p: Promise<unknown>, msg: string) => p.then(() => notify(msg)).catch((e) => notify((e as { code?: string }).code === "permission-denied" ? "Sem permissão para alterar o pipeline." : "Não foi possível guardar. Tenta outra vez."));
-  const saveFicha = () => { if (!f.nome.trim()) return; act(saveDeal(d, { ...f, dominio: (f.site || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].toLowerCase() }).then(() => setEditing(false)), "Ficha guardada"); };
+  const saveFicha = async () => {
+    const novo = f.nome.trim();
+    if (!novo) return;
+    const dominio = (f.site || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].toLowerCase();
+    if (novo === d.nome.trim()) { act(saveDeal(d, { ...f, dominio }).then(() => setEditing(false)), "Ficha guardada"); return; }
+    // Mudou de nome: pede validação e muda o nome em todo o lado (radar de startups, projetos e eventos)
+    const plano = await planoNome({ startupId: d.startupId, dealId: d.id }, d.nome, novo).catch(() => null);
+    if (!plano) { notify("Não foi possível guardar. Tenta outra vez."); return; }
+    if (!(await confirmar({ titulo: `Mudar o nome de «${d.nome}» para «${novo}»?`, texto: textoPlano(plano), ok: "Mudar o nome" }))) return;
+    act(saveDeal(d, { ...f, nome: d.nome, dominio }).then(() => aplicarNome(plano, email)).then(() => setEditing(false)), `«${d.nome}» passou a chamar-se «${novo}»`);
+  };
   const ativa = emCurso(d.etapa);
   const etapaIdx = ETAPAS_ATIVAS.findIndex((e) => e.id === d.etapa);
   const grupos = useMemo(() => {
@@ -101,6 +112,7 @@ export function DealDrawer({ d, list, origens, pessoas, onClose, onNav, notify }
         </div>
         <LogoEditor nome={d.nome} logo={d.logo} site={d.site} alvo={{ dealId: d.id, startupId: d.startupId }} notify={notify} />
         <h2>{d.nome}</h2>
+        {!!d.nomesAnteriores?.length && <p className="relnote">Antes: {d.nomesAnteriores.join(", ")}</p>}
         {d.site ? <a className="sweb" href={d.site} target="_blank" rel="noopener noreferrer">{d.dominio || d.site}<Icon name="arrow-up-right" /></a> : <span className="sweb mut">Sem site registado</span>}
 
         {/* Fase */}

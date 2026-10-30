@@ -147,6 +147,8 @@ export interface Startup {
   id: string;            // derivado do domínio do site (evita duplicados)
   status: Status;
   nome: string; site: string; dominio: string;
+  /** Nomes que a startup já teve (quando muda de nome). */
+  nomesAnteriores?: string[];
   pais: string; cidade?: string; fundacao: number | null;
   fase: Fase; setor: string;
   /** Cadeia de valor (anel do radar de startups), id de areas. */
@@ -338,7 +340,10 @@ export interface Passo { id: string; texto: string; vez: Vez | null; prazo: stri
 
 export interface Deal {
   id: string; ref: string;
-  nome: string; site: string; dominio: string; fundadores: string; descricao: string; pais: string;
+  nome: string; site: string; dominio: string; fundadores: string;
+  /** Nomes que a startup já teve (quando muda de nome). */
+  nomesAnteriores?: string[];
+  descricao: string; pais: string;
   vertical: VerticalDF | ""; fase: FaseDF | "";
   /** Cadeia de valor (id de areas). */
   cadeia?: string;
