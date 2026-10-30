@@ -14,6 +14,7 @@ import { analisar } from "./lib/analise";
 import { procurarLogo } from "./lib/logo";
 import type { RunSource, Sector, Settings, Signal, Source, Startup, StartupOrigem } from "../src/lib/types";
 import { DEFAULT_SETTINGS, STARTUP_SITES } from "../src/lib/types";
+import { PROMPT_SCOUTING } from "../src/lib/scouting";
 
 const DRY = process.env.DRY_RUN === "1";
 const MAX_NEW = Number(process.env.MAX_NEW_STARTUPS || 100);
@@ -40,11 +41,14 @@ async function main() {
     if (feitas.docs.some((d) => d.data().tipo === "startups" && d.data().estado !== "erro")) { log(`Já houve recolha de startups na semana ${semana}.`); return; }
   }
 
-  const [secS, setS, stS, seenS, srcS] = await Promise.all([
+  const [secS, setS, stS, seenS, srcS, scoutS, invS] = await Promise.all([
     db.collection("sectors").get(), db.doc("settings/geral").get(),
     db.collection("startups").select("origens", "status").get(), db.collection("startupSeen").select().get(),
     db.collection("sources").where("para", "==", "startups").get(),
+    db.doc("config/scouting").get(), db.doc("config/investimento").get(),
   ]);
+  // Prompt de scouting (Definições › Startups › Regras da recolha): o sugerido enquanto não for guardado; vazio desliga
+  const ctx = { prompt: scoutS.exists ? String(scoutS.data()?.texto || "") : PROMPT_SCOUTING, guidelines: String(invS.data()?.texto || "") };
   // Cadeias de valor da coleção «areas» (as mesmas das notícias)
   const cadeias = cadeiasDe((await db.collection("areas").orderBy("ordem").get()).docs.map((d) => ({ id: d.id, ...d.data() })));
   const feeds = srcS.docs.map((d) => ({ id: d.id, ...d.data() }) as Source).filter((s) => s.ativo);
@@ -55,7 +59,7 @@ async function main() {
   const sites = (settings.sitesStartups?.length ? settings.sitesStartups : STARTUP_SITES).slice(0, 20);
   const existing = new Map(stS.docs.map((d) => [d.id, new Set(((d.data().origens || []) as StartupOrigem[]).map((o) => o.url))]));
   const seen = new Set(seenS.docs.map((d) => d.id));
-  log(`${sectors.length} setores, ${existing.size} startups já registadas, corte ${corte}`);
+  log(`${sectors.length} setores, ${existing.size} startups já registadas, corte ${corte}, prompt de scouting ${ctx.prompt.trim() ? "ligado" : "desligado"}`);
 
   const runRef = db.collection("runs").doc();
   const run = { tipo: "startups", inicio: now(), dia: lisbon().day, semana, estado: "a correr", fontes: [] as RunSource[], dryRun: DRY || undefined };
@@ -103,7 +107,7 @@ async function main() {
     const d = domainOf(n.site);
     if (d && (existing.has(startupId(d)) || seen.has(startupId(d)))) { await handle({ id: startupId(d) } as Candidate, origem, st); return; }
     try {
-      const c = await profile(n.site, sectors, n.nome, {}, cadeias);
+      const c = await profile(n.site, sectors, n.nome, {}, cadeias, ctx);
       if (c) await handle(c, origem, st); else st.filtro++;
     } catch (e) { st.erros.push(`${n.nome}: ${(e as Error).message.slice(0, 160)}`); }
   }
@@ -159,7 +163,7 @@ async function main() {
       if (sites.length) qs.push({ q: `startups: ${sec.nome}. ${sec.descricao}`, so: true });
       for (const { q, so } of qs) {
         try {
-          const found = await discover(q, sectors, 8, {}, sites, so, cadeias);
+          const found = await discover(q, sectors, 8, {}, sites, so, cadeias, ctx);
           log(`${sec.nome} «${q}»: ${found.length}`);
           for (const c of found) await handle(c, { tipo: "pesquisa", titulo: c.fonte.titulo, url: c.fonte.url, data: now(), pesquisa: so ? `Sites de referência · ${sec.nome}` : q }, st);
         } catch (e) { st.erros.push(`«${q}»: ${(e as Error).message.slice(0, 160)}`); log("  ! erro", q, (e as Error).message); }
