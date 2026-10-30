@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { approveStartup, saveStartup, saveStartupLink, StartupEdit } from "@/lib/startup-actions";
+import { aplicarNome, approveStartup, planoNome, saveStartup, saveStartupLink, StartupEdit, textoPlano } from "@/lib/startup-actions";
 import { Area, FASES, Sector, Startup, nomeDecisao } from "@/lib/types";
 import { fdLongo, relLevel } from "@/lib/util";
 import { Gauge } from "../ui";
@@ -13,6 +13,7 @@ import { useDeals } from "../pipeline/DealsLookup";
 import { createDeal, dealFromStartup, nomeEtapa } from "@/lib/deal-actions";
 import { useSession } from "../AuthGate";
 import { useAnaliseQueue } from "../AnaliseQueue";
+import { useConfirm } from "../Confirm";
 
 const ORIGEM: Record<string, string> = { pesquisa: "Pesquisa online", noticia: "Notícia", manual: "Adicionada manualmente" };
 export const pickEdit = (s: Startup): StartupEdit => ({ nome: s.nome, site: s.site, pais: s.pais || "", cidade: s.cidade || "", fundacao: s.fundacao ?? null, fase: s.fase, setor: s.setor, cadeia: s.cadeia,
@@ -28,6 +29,7 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
   const [analise, setAnalise] = useState(false);
   const { dealOf, deals, on: pipeOn } = useDeals();
   const { email } = useSession();
+  const { confirmar, el: cfEl } = useConfirm();
   const { running } = useAnaliseQueue();
   const aCorrer = running.has(`startups/${s.id}`);
   const deal = pipeOn ? dealOf(s) : undefined;
@@ -52,8 +54,16 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
   const sec = sectors.find((x) => x.id === s.setor), fase = FASES.find((x) => x.id === s.fase), cad = areas.find((x) => x.id === s.cadeia);
   const lv = relLevel(s.relevancia);
   const save = async () => {
-    if (!f.nome.trim()) return;
-    try { await saveStartup(s, f); setEditing(false); notify("Alterações guardadas"); } catch { notify("Não foi possível guardar. Tenta outra vez."); }
+    const novo = f.nome.trim();
+    if (!novo) return;
+    try {
+      // Mudou de nome: pede validação e muda o nome em todo o lado (pipeline, projetos e eventos)
+      const plano = novo !== s.nome.trim() ? await planoNome({ startupId: s.id, dealId: deal?.id || s.dealId }, s.nome, novo) : null;
+      if (plano && !(await confirmar({ titulo: `Mudar o nome de «${s.nome}» para «${novo}»?`, texto: textoPlano(plano), ok: "Mudar o nome" }))) return;
+      await saveStartup(s, { ...f, nome: s.nome });
+      if (plano) await aplicarNome(plano, email);
+      setEditing(false); notify(plano ? `«${s.nome}» passou a chamar-se «${novo}»` : "Alterações guardadas");
+    } catch { notify("Não foi possível guardar. Tenta outra vez."); }
   };
 
   return (<>
@@ -80,6 +90,7 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
         ) : (<>
           <LogoEditor nome={s.nome} logo={s.logo} site={s.site} alvo={{ startupId: s.id, dealId: deal?.id || s.dealId }} notify={notify} />
           <h2>{s.nome}</h2>
+          {!!s.nomesAnteriores?.length && <p className="relnote">Antes: {s.nomesAnteriores.join(", ")}</p>}
           <a className="sweb" href={s.site} target="_blank" rel="noopener noreferrer">{s.dominio}<Icon name="arrow-up-right" /></a>
           <div className="relbox"><Gauge v={s.relevancia} lg /><div>
             <b>Relevância <span className={`lv-${lv}`}>{({ alta: "alta", media: "média", baixa: "baixa" })[lv]}</span>, {s.relevancia} em 100</b>
@@ -163,6 +174,7 @@ export function StartupDrawer({ s, list, sectors, areas, onClose, onNav, onAppro
       </div>
     </aside>
     {analise && <AnaliseView alvo={alvoStartup(s, sec?.nome)} onClose={() => setAnalise(false)} notify={notify} />}
+    {cfEl}
   </>);
 }
 
